@@ -366,80 +366,79 @@ nav {
   margin: 0;
 }
 
-/* Programs Section */
-.programs {
-  padding: 100px 0;
-  background: var(--primary-bg);
+/* Enhancements for the #leagues section */
+.league-details {
+  background: var(--card-bg);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  margin-top: 2rem;
 }
 
-.programs h2 {
-  text-align: center;
+.league-details h3 {
+  font-size: 1.6rem;
   color: var(--text-primary);
-  font-size: 2.75rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  letter-spacing: -0.025em;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.015em;
   position: relative;
 }
 
-.programs h2::after {
+.league-details h3::after {
   content: '';
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 4px;
+  display: block;
+  width: 40px;
+  height: 3px;
   background: var(--gradient-3);
+  margin-top: 8px;
   border-radius: 2px;
 }
 
-.programs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2.5rem;
-  margin-top: 4rem;
+.league-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
 }
 
-.program {
-  background: var(--surface-bg);
-  padding: 2.5rem;
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+.league-table th,
+.league-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.program::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--gradient-1);
-}
-
-.program:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--border-light);
-}
-
-.program h3 {
+.league-table th {
+  background-color: var(--surface-bg);
   color: var(--text-primary);
-  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 1rem;
-  letter-spacing: -0.01em;
+  font-size: 1rem;
 }
 
-.program p {
+.league-table td {
   color: var(--text-secondary);
-  line-height: 1.6;
-  margin: 0;
+  font-size: 0.95rem;
 }
+
+.league-info {
+  list-style: none;
+  padding: 0;
+  margin-top: 1rem;
+  font-size: 1rem;
+}
+
+.league-info li {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.league-info strong {
+  color: var(--text-primary);
+}
+
 
 /* Contact Section */
 .contact {
@@ -535,42 +534,42 @@ footer p {
     gap: 1.5rem;
     padding: 1rem 1.5rem;
   }
-  
+
   .nav-links {
     gap: 1.5rem;
   }
-  
+
   .hero {
     padding: 120px 0 80px;
   }
-  
+
   .hero-content h2 {
     font-size: 2.5rem;
     line-height: 1.2;
   }
-  
+
   .hero-content p {
     font-size: 1.1rem;
   }
-  
-  .about, .programs, .contact {
+
+  .about, .leagues, .contact {
     padding: 80px 0;
   }
-  
-  .about h2, .programs h2, .contact h2 {
+
+  .about h2, .leagues h2, .contact h2 {
     font-size: 2.25rem;
   }
-  
-  .features, .programs-grid {
+
+  .features, .leagues-grid {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  
+
   .contact-info {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  
+
   .container {
     padding: 0 20px;
   }
@@ -580,17 +579,17 @@ footer p {
   .logo h1 {
     font-size: 1.5rem;
   }
-  
+
   .nav-links {
     gap: 1rem;
     flex-wrap: wrap;
     justify-content: center;
   }
-  
+
   .hero-content h2 {
     font-size: 2rem;
   }
-  
+
   .cta-button {
     padding: 16px 28px;
     font-size: 1rem;
