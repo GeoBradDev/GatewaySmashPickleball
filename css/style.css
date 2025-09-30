@@ -396,11 +396,17 @@ nav {
   border-radius: 2px;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+  margin: 1rem 0 2rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
 .league-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
-  margin-bottom: 2rem;
+  min-width: 600px;
 }
 
 .league-table th,
@@ -408,6 +414,7 @@ nav {
   text-align: left;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
 }
 
 .league-table th {
@@ -415,11 +422,17 @@ nav {
   color: var(--text-primary);
   font-weight: 600;
   font-size: 1rem;
+  position: sticky;
+  top: 0;
 }
 
 .league-table td {
   color: var(--text-secondary);
   font-size: 0.95rem;
+}
+
+.league-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .league-info {
@@ -531,68 +544,255 @@ footer p {
 @media (max-width: 768px) {
   nav {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     padding: 1rem 1.5rem;
   }
 
   .nav-links {
-    gap: 1.5rem;
-  }
-
-  .hero {
-    padding: 120px 0 80px;
-  }
-
-  .hero-content h2 {
-    font-size: 2.5rem;
-    line-height: 1.2;
-  }
-
-  .hero-content p {
-    font-size: 1.1rem;
-  }
-
-  .about, .leagues, .contact {
-    padding: 80px 0;
-  }
-
-  .about h2, .leagues h2, .contact h2 {
-    font-size: 2.25rem;
-  }
-
-  .features, .leagues-grid {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-
-  .contact-info {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-
-  .container {
-    padding: 0 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .logo h1 {
-    font-size: 1.5rem;
-  }
-
-  .nav-links {
-    gap: 1rem;
+    gap: 1.2rem;
     flex-wrap: wrap;
     justify-content: center;
   }
 
+  .nav-links a {
+    font-size: 0.9rem;
+  }
+
+  .hero {
+    padding: 100px 0 60px;
+  }
+
+  .hero-content {
+    padding: 0 1rem;
+  }
+
   .hero-content h2 {
-    font-size: 2rem;
+    font-size: 2.2rem;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .hero-content p {
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+    padding: 0 0.5rem;
   }
 
   .cta-button {
-    padding: 16px 28px;
+    padding: 16px 32px;
+    font-size: 1.05rem;
+  }
+
+  .about, .leagues, .contact {
+    padding: 60px 0;
+  }
+
+  .about h2, .leagues h2, .contact h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .about p {
+    font-size: 1.1rem;
+    margin: 1.5rem auto 3rem;
+  }
+
+  .features, .leagues-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  .feature {
+    padding: 2rem;
+  }
+
+  .contact-info {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .contact-item {
+    padding: 1.5rem;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .league-details {
+    padding: 1.5rem;
+  }
+
+  .table-wrapper {
+    margin: 1rem -1.5rem 2rem -1.5rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .league-table {
+    min-width: 550px;
+  }
+
+  .league-table th,
+  .league-table td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  nav {
+    padding: 0.75rem 1rem;
+  }
+
+  .logo h1 {
+    font-size: 1.4rem;
+    text-align: center;
+  }
+
+  .nav-links {
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .nav-links a {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .hero {
+    padding: 80px 0 50px;
+  }
+
+  .hero-content {
+    padding: 0 0.75rem;
+  }
+
+  .hero-content h2 {
+    font-size: 1.8rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .hero-content p {
     font-size: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 0;
+  }
+
+  .cta-button {
+    padding: 14px 24px;
+    font-size: 0.95rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .about, .contact {
+    padding: 50px 0;
+  }
+
+  .about h2, .contact h2 {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .about p {
+    font-size: 1rem;
+    margin: 1rem auto 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .features {
+    margin-top: 2rem;
+    gap: 1.25rem;
+  }
+
+  .feature {
+    padding: 1.5rem;
+  }
+
+  .feature h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature p {
+    font-size: 0.95rem;
+  }
+
+  .contact-info {
+    gap: 1.25rem;
+  }
+
+  .contact-item {
+    padding: 1.25rem;
+  }
+
+  .contact-item h3 {
+    font-size: 1.15rem;
+  }
+
+  .contact-item p {
+    font-size: 1rem;
+  }
+
+  .contact-item a {
+    word-break: break-word;
+  }
+
+  .league-details {
+    padding: 1rem;
+    margin-top: 1rem;
+  }
+
+  .league-details h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .table-wrapper {
+    margin: 1rem -1rem 2rem -1rem;
+  }
+
+  .league-table {
+    min-width: 460px;
+    font-size: 0.8rem;
+  }
+
+  .league-table th,
+  .league-table td {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .league-table th {
+    font-size: 0.8rem;
+  }
+
+  .league-info {
+    font-size: 0.9rem;
+  }
+
+  .league-info li {
+    margin-bottom: 0.5rem;
+  }
+
+  .container {
+    padding: 0 12px;
+  }
+
+  footer {
+    padding: 2rem 0;
+  }
+
+  footer p {
+    font-size: 0.85rem;
   }
 }
 
