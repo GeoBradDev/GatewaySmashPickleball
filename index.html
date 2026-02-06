@@ -1,14 +1,11 @@
 <!doctype html>
-<html class="no-js" lang="">
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gateway Smash Pickleball | Indoor STL Pickleball Leagues</title>
-  <meta name="description" content="Join Gateway Smash, St. Louis’s grassroots indoor pickleball league. Affordable, organized, and open to all skill levels." />
-  <link rel="stylesheet" href="css/style.css">
-  <meta name="description"
-        content="Gateway Smash Pickleball - Premier pickleball club in St. Louis offering leagues, tournaments, and social play for all skill levels.">
+  <meta name="description" content="Join Gateway Smash, St. Louis's grassroots indoor pickleball league. Affordable, organized, and open to all skill levels.">
 
   <meta property="og:title" content="Gateway Smash Pickleball - St. Louis Pickleball Club">
   <meta property="og:type" content="website">
@@ -21,17 +18,41 @@
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
   <link rel="manifest" href="site.webmanifest">
-  <meta name="theme-color" content="#fafafa">
+  <meta name="theme-color" content="#faf7f2">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-<header>
+<header id="site-header">
   <nav>
-    <div class="logo">
-      <h1>Gateway Smash Pickleball</h1>
-    </div>
-    <ul class="nav-links">
+    <a href="#home" class="logo">
+      <span class="logo-icon" aria-hidden="true">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="16" cy="10" r="2" fill="currentColor"/>
+          <circle cx="10" cy="19" r="2" fill="currentColor"/>
+          <circle cx="22" cy="19" r="2" fill="currentColor"/>
+          <line x1="16" y1="12" x2="10" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="16" y1="12" x2="22" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="10" y1="19" x2="22" y2="19" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </span>
+      <span class="logo-text">Gateway Smash</span>
+    </a>
+
+    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+      <span class="menu-bar"></span>
+      <span class="menu-bar"></span>
+      <span class="menu-bar"></span>
+    </button>
+
+    <ul class="nav-links" id="nav-links">
       <li><a href="#home">Home</a></li>
       <li><a href="#about">About</a></li>
       <li><a href="#leagues">Leagues</a></li>
@@ -45,47 +66,76 @@
 
 <main>
   <section id="home" class="hero">
-    <div class="hero-content">
-      <h2>Welcome to Gateway Smash Pickleball</h2>
-      <p>Gateway Smash Pickleball is a grassroots, volunteer-run pickleball community in St. Louis offering affordable
-        leagues for all skill levels. We’re committed to making pickleball inclusive, fun,
-        and fitness focused no matter your background or experience.</p>
-      <a href="https://www.globalpickleball.network/network/register/5110-gateway-smash"
-         class="cta-button"
-         target="_blank"
-         rel="noopener noreferrer">
-        Join Us Today
-      </a>
+    <div class="hero-bg" aria-hidden="true">
+      <div class="hero-shape hero-shape--1"></div>
+      <div class="hero-shape hero-shape--2"></div>
+      <div class="hero-shape hero-shape--3"></div>
+    </div>
+    <div class="container hero-content">
+      <p class="hero-eyebrow">Sunday Nights at Arch Pickleball</p>
+      <h1>People Over Profits.<br>Pickleball For Everyone.</h1>
+      <p class="hero-description">Gateway Smash is a grassroots, volunteer-run pickleball community in St. Louis offering affordable
+        leagues for all skill levels. Competitive but friendly. Subs play free.</p>
+      <div class="hero-actions">
+        <a href="https://www.globalpickleball.network/network/register/5110-gateway-smash"
+           class="btn btn--primary"
+           target="_blank"
+           rel="noopener noreferrer">
+          Join the League
+        </a>
+        <a href="#about" class="btn btn--ghost">
+          Learn More
+        </a>
+      </div>
     </div>
   </section>
 
   <section id="about" class="about">
     <div class="container">
-      <h2>About Gateway Smash</h2>
-      <p>Gateway Smash Pickleball was created in response to high fees, inconsistent play, and disorganized management
-        found in many corporate leagues. We’re a grassroots, volunteer-run community focused on fairness, affordability,
-        and
-        fun, without sacrificing competitive structure. All matches are held indoors at Arch Pickleball to ensure
+      <div class="section-header">
+        <span class="section-tag">Who We Are</span>
+        <h2>Built By Players,<br>For Players</h2>
+      </div>
+      <p class="about-lead">Gateway Smash Pickleball was created in response to high fees, inconsistent play, and disorganized management
+        found in many corporate leagues. We're a grassroots, volunteer-run community focused on fairness, affordability,
+        and fun, without sacrificing competitive structure. All matches are held indoors at Arch Pickleball to ensure
         reliable play, rain or shine. By using free tools like WhatsApp, Notion, and Global Pickleball Network, we
-        keep costs low and operations simple. Every dollar collected goes directly toward court rental. Whether you’re
+        keep costs low and operations simple. Every dollar collected goes directly toward court rental. Whether you're
         new to the game or an experienced player, Gateway Smash offers a welcoming, well-run alternative for pickleball
         in St. Louis.</p>
       <div class="features">
         <div class="feature">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2C7.37 2 2 7.37 2 14s5.37 12 12 12 12-5.37 12-12S20.63 2 14 2zm0 4a3 3 0 110 6 3 3 0 010-6zm0 17c-3.17 0-5.97-1.63-7.6-4.1.04-2.52 5.07-3.9 7.6-3.9s7.56 1.38 7.6 3.9A9.96 9.96 0 0114 23z" fill="currentColor"/></svg>
+          </div>
           <h3>Inclusive & Player-First</h3>
-          <p>Gateway Smash is a grassroots, volunteer-run league built for all skill levels. Whether you’re brand new to the game or chasing a 4.0 rating, you’ll find a welcoming and supportive environment here.</p>
+          <p>Gateway Smash is a grassroots, volunteer-run league built for all skill levels. Whether you're brand new to the game or chasing a 4.0 rating, you'll find a welcoming and supportive environment here.</p>
         </div>
         <div class="feature">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M26 6l-12 12-4-4-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 6h6v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <h3>Structured Leagues & Competitive Play</h3>
           <p>Our seasonal indoor ladder leagues offer consistent, rain-or-shine match play with weekly updates using the Elo ranking system. You'll always be matched with players near your skill level for fair and fun competition.</p>
         </div>
         <div class="feature">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M23 22c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2v12zM18 4l-4 4-4-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M9 15h10M9 19h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
           <h3>Community & Connection</h3>
           <p>We use tools like WhatsApp and Global Pickleball Network to foster connection off the court. From substitute coordination to post-match banter, Gateway Smash makes it easy to get involved and stay connected.</p>
         </div>
       </div>
     </div>
+  </section>
+
+  <section id="leagues" class="leagues">
     <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Seasons</span>
+        <h2>League Schedule</h2>
+      </div>
+
       <div class="league-details">
         <h3>Tentative League Dates</h3>
         <div class="table-wrapper">
@@ -143,21 +193,31 @@
     </div>
   </section>
 
-
-
   <section id="contact" class="contact">
     <div class="container">
-      <h2>Contact Us</h2>
+      <div class="section-header">
+        <span class="section-tag">Get In Touch</span>
+        <h2>Contact Us</h2>
+      </div>
       <div class="contact-info">
         <div class="contact-item">
+          <div class="contact-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="currentColor"/></svg>
+          </div>
           <h3>Location</h3>
           <p>St. Louis, Missouri</p>
         </div>
         <div class="contact-item">
+          <div class="contact-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/></svg>
+          </div>
           <h3>Email</h3>
           <p><a href="mailto:info@gatewaysmash.com">info@gatewaysmash.com</a></p>
         </div>
         <div class="contact-item">
+          <div class="contact-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <h3>Join our WhatsApp Chat</h3>
           <p><a href="https://chat.whatsapp.com/HfX42EJy7LIC2rfZnQHWPe" target="_blank" rel="noopener noreferrer">Click here to join</a></p>
         </div>
@@ -168,7 +228,7 @@
 
 <footer>
   <div class="container">
-    <p>&copy; 2025 Gateway Smash Pickleball. All rights reserved.</p>
+    <p>&copy; 2026 Gateway Smash Pickleball. All rights reserved.</p>
   </div>
 </footer>
 <script src="js/app.js"></script>
