@@ -672,4 +672,22 @@ not arithmetic, so it needs confirming rather than deriving.
 Still unanswered from the #21 list: the ladder explanation (pods of four, three
 rotating doubles matches), the skill range, and whether Elo still updates weekly.
 
+Merged as PR #40, merge commit `51c359f`.
+
+### #21 ladder mechanics
+
+Confirmed: pods of four, three matches a night, Elo updating weekly. The "How the
+ladder works" card used those words without explaining either, which was #21's
+sharpest complaint about it. It now says what actually happens on a Sunday night.
+
+"Partnering with each of the other three once" is not an extra claim; it is what three
+matches in a pod of four means. "Beating someone rated above you moves you the most" is
+both stated in the FAQ and inherent to how Elo works, so it is safe in a way the
+league-specific configuration details are not. The FAQ's "only wins and losses count,
+point differentials are not factored in" is a configuration choice rather than a
+property of Elo, so it stays out until someone confirms it.
+
+One claim from the #21 list is still open: the skill range. "All skill levels play" and
+"chasing a 4.0" carry no range, and the FAQ self-rating guide runs 2.0 to 5.0+.
+
 Merge commit: pending
