@@ -4,3 +4,9 @@
 node_modules
 dist
 .cache
+
+# Editor configuration is per-developer, not per-project
+.idea
+.vscode
+*.swp
+.DS_Store

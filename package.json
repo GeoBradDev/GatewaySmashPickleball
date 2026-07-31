@@ -1,7 +1,6 @@
 {
   "name": "gateway-smash-pickleball",
-  "version": "1.0.0",
-  "description": "Gateway Smash Pickleball - St. Louis premier pickleball club website",
+  "description": "Grassroots, volunteer-run indoor pickleball leagues in St. Louis.",
   "private": true,
   "type": "module",
   "keywords": [
@@ -13,6 +12,9 @@
   ],
   "license": "MIT",
   "author": "Gateway Smash Pickleball",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "vite --open",

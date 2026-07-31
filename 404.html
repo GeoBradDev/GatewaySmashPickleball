@@ -3,60 +3,183 @@
 
 <head>
   <meta charset="utf-8">
-  <title>Page Not Found</title>
+  <title>Page Not Found | Gateway Smash Pickleball</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/img/favicon-32x32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#faf7f2">
+
+  <!--
+    Styles are inline on purpose. An error page has to render even when the
+    hashed stylesheet is the thing that failed, so this file depends on nothing.
+    That also means it cannot use the self-hosted webfonts, whose @font-face
+    rules live in the hashed stylesheet and whose filenames must never be
+    hardcoded. The fallback stacks below are the same ones css/style.css
+    already declares behind DM Serif Display and DM Sans, so the page lands on
+    Georgia and the system sans rather than on something unrelated.
+
+    Colour tokens are copied from the :root block in css/style.css. If the
+    palette changes there, change it here too.
+  -->
   <style>
-    * {
-      line-height: 1.2;
+    :root {
+      --cream: #faf7f2;
+      --court-green: #1a7a5c;
+      --court-green-dark: #0f5e44;
+      --amber: #e8860c;
+      --amber-light: #fef3e2;
+      --ink: #1c1c1c;
+      --ink-muted: #6b6b6b;
+      --white: #ffffff;
+    }
+
+    *,
+    *::before,
+    *::after {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
     html {
-      color: #888;
-      display: table;
-      font-family: sans-serif;
-      height: 100%;
-      text-align: center;
-      width: 100%;
+      -webkit-text-size-adjust: 100%;
     }
 
     body {
-      display: table-cell;
-      vertical-align: middle;
-      margin: 2em auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    /* The wrapper is what puts the eyebrow on its own line. Both .logo and
+       .eyebrow are inline-level, so without it they share a line. */
+    .brand {
+      margin-bottom: 2.5rem;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--court-green);
+      text-decoration: none;
+    }
+
+    .logo-text {
+      font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+      font-size: 1.35rem;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--amber);
+      background: var(--amber-light);
+      padding: 8px 20px;
+      border-radius: 50px;
+      margin-bottom: 1.75rem;
     }
 
     h1 {
-      color: #555;
-      font-size: 2em;
+      font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+      font-size: clamp(2rem, 6vw, 3rem);
       font-weight: 400;
+      line-height: 1.15;
+      margin-bottom: 1rem;
     }
 
     p {
-      margin: 0 auto;
-      width: 280px;
+      color: var(--ink-muted);
+      font-size: 1.02rem;
+      max-width: 34rem;
+      margin: 0 auto 2rem;
     }
 
-    @media only screen and (max-width: 280px) {
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 14px 32px;
+      border: 2px solid var(--court-green);
+      border-radius: 50px;
+      background: var(--court-green);
+      color: var(--white);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(26, 122, 92, 0.3);
+      transition: all 0.25s ease;
+    }
 
-      body,
-      p {
-        width: 95%;
+    .btn:hover {
+      background: var(--court-green-dark);
+      border-color: var(--court-green-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(26, 122, 92, 0.35);
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--court-green);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
       }
-
-      h1 {
-        font-size: 1.5em;
-        margin: 0 0 0.3em;
-      }
-
     }
   </style>
 </head>
 
 <body>
-  <h1>Page Not Found</h1>
-  <p>Sorry, but the page you were trying to view does not exist.</p>
+
+  <main>
+    <div class="brand">
+      <a href="/" class="logo">
+        <span aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2.5"/>
+            <circle cx="16" cy="10" r="2" fill="currentColor"/>
+            <circle cx="10" cy="19" r="2" fill="currentColor"/>
+            <circle cx="22" cy="19" r="2" fill="currentColor"/>
+            <line x1="16" y1="12" x2="10" y2="17" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="16" y1="12" x2="22" y2="17" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="10" y1="19" x2="22" y2="19" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </span>
+        <span class="logo-text">Gateway Smash</span>
+      </a>
+    </div>
+
+    <p class="eyebrow">Error 404</p>
+    <h1>This One Went Out Of Bounds</h1>
+    <p>We could not find that page. It may have moved, or the link may be out of date.</p>
+    <a href="/" class="btn">Back to Gateway Smash</a>
+  </main>
+
 </body>
 
 </html>
-<!-- IE needs 512+ bytes: https://docs.microsoft.com/archive/blogs/ieinternals/friendly-http-error-pages -->
