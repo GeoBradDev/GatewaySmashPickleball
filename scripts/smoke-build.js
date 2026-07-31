@@ -393,6 +393,38 @@ check('canonical, og:url and the sitemap all name the same origin', function () 
   }
 });
 
+// The same sentence is declared three times. Search results, link previews and
+// X cards each read a different one, so they drift apart silently.
+check('the three description tags agree', function () {
+  const found = [
+    indexHtml.match(/<meta[^>]*\bname=["']description["'][^>]*\bcontent=["']([^"']*)["']/),
+    indexHtml.match(/<meta[^>]*\bproperty=["']og:description["'][^>]*\bcontent=["']([^"']*)["']/),
+    indexHtml.match(/<meta[^>]*\bname=["']twitter:description["'][^>]*\bcontent=["']([^"']*)["']/),
+  ];
+  if (found.some((m) => !m)) {
+    throw new Error('one of description, og:description or twitter:description is missing');
+  }
+  const values = new Set(found.map((m) => m[1]));
+  if (values.size !== 1) {
+    throw new Error('descriptions disagree: ' + [...values].map((v) => JSON.stringify(v)).join(' vs '));
+  }
+});
+
+// A wrong price is the worst bug this site can ship, and the fee is now stated
+// in more than one place. If a second, genuinely different amount is ever
+// added, this check is the thing that should be updated deliberately.
+check('every price on the page states the same amount', function () {
+  const body = indexHtml.slice(indexHtml.indexOf('<body'));
+  const amounts = [...body.matchAll(/\$(\d+(?:\.\d\d)?)/g)].map((m) => m[1]);
+  if (amounts.length === 0) {
+    throw new Error('the page states no price at all, which is the first thing a player asks');
+  }
+  const distinct = new Set(amounts);
+  if (distinct.size !== 1) {
+    throw new Error('conflicting prices on one page: $' + [...distinct].join(', $'));
+  }
+});
+
 // Reads width and height out of a PNG's IHDR chunk, which is always the first
 // chunk and always at a fixed offset. Cheaper than a dependency.
 function pngSize(file) {
