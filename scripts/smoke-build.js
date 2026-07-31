@@ -144,12 +144,27 @@ check('every file in public/ reaches dist/ at the same path and size', function 
   }
 });
 
+// One origin, declared in several places that all have to agree. og:url was
+// shipped empty, which is the failure mode: nothing breaks, link previews just
+// quietly have no canonical target.
+const CANONICAL = 'https://www.gatewaysmash.com/';
+const ORIGIN = CANONICAL.replace(/\/$/, '');
+
 // Resolves a URL as written in the HTML against dist/, and reports the ones
-// that do not exist. Root-relative and relative both land in the same place
-// here, since dist/ is the document root.
+// that do not exist. Root-relative and relative both land in the same place,
+// since dist/ is the document root. Absolute URLs on our own origin are
+// resolved to their path; absolute URLs anywhere else cannot be checked
+// against dist/ at all and are reported as such.
 function missingFromDist(urls) {
   return urls.filter(function (url) {
-    return !fs.existsSync(path.join(distDir, url.replace(/^\//, '')));
+    let rel = url;
+    if (/^https?:\/\//.test(url)) {
+      if (!url.startsWith(ORIGIN + '/')) {
+        return true;
+      }
+      rel = url.slice(ORIGIN.length);
+    }
+    return !fs.existsSync(path.join(distDir, rel.split('?')[0].replace(/^\//, '')));
   });
 }
 
@@ -254,10 +269,38 @@ check('manifest and meta theme colours agree', function () {
 // Only subresources are checked; outbound links in the copy are the point of
 // the copy and are left alone.
 check('the built page loads no third-party subresources', function () {
-  const external = [
-    ...[...indexHtml.matchAll(/<(?:link|script)[^>]*\b(?:href|src)=["'](https?:\/\/[^"']+)["']/g)],
-    ...[...indexHtml.matchAll(/<link[^>]*\brel=["']preconnect["'][^>]*\bhref=["']([^"']+)["']/g)],
-  ].map((m) => m[1]);
+  // Only rels that actually cause a fetch. canonical and alternate are
+  // metadata: they name a URL, they do not load it, and canonical is
+  // required to be absolute.
+  const FETCHING_RELS = new Set([
+    'stylesheet',
+    'preconnect',
+    'dns-prefetch',
+    'preload',
+    'prefetch',
+    'modulepreload',
+    'icon',
+    'apple-touch-icon',
+    'manifest',
+  ]);
+
+  const external = [];
+  for (const match of indexHtml.matchAll(/<link\b[^>]*>/g)) {
+    const tag = match[0];
+    const rel = tag.match(/\brel=["']([^"']+)["']/);
+    const href = tag.match(/\bhref=["']([^"']+)["']/);
+    if (!rel || !href || !FETCHING_RELS.has(rel[1].toLowerCase())) {
+      continue;
+    }
+    if (/^https?:\/\//.test(href[1]) && !href[1].startsWith(ORIGIN + '/')) {
+      external.push(href[1]);
+    }
+  }
+  for (const match of indexHtml.matchAll(/<script[^>]*\bsrc=["'](https?:\/\/[^"']+)["']/g)) {
+    if (!match[1].startsWith(ORIGIN + '/')) {
+      external.push(match[1]);
+    }
+  }
   if (external.length > 0) {
     throw new Error('third-party subresources in dist/index.html: ' + external.join(', '));
   }
@@ -299,6 +342,97 @@ check('both font families are self-hosted, hashed, and present', function () {
       throw new Error('not a woff2 file: ' + ref);
     }
   });
+});
+
+check('canonical, og:url and the sitemap all name the same origin', function () {
+  function meta(pattern, label) {
+    const match = indexHtml.match(pattern);
+    if (!match || !match[1]) {
+      throw new Error(label + ' is missing or empty');
+    }
+    return match[1];
+  }
+
+  const canonical = meta(
+    /<link[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']*)["']/,
+    'rel=canonical'
+  );
+  const ogUrl = meta(
+    /<meta[^>]*\bproperty=["']og:url["'][^>]*\bcontent=["']([^"']*)["']/,
+    'og:url'
+  );
+  if (canonical !== CANONICAL || ogUrl !== CANONICAL) {
+    throw new Error(
+      'expected ' + CANONICAL + ', got canonical ' + canonical + ' and og:url ' + ogUrl
+    );
+  }
+
+  // Scrapers do not resolve relative URLs, so these must be absolute.
+  for (const property of ['og:image', 'twitter:image']) {
+    const pattern = new RegExp(
+      '<meta[^>]*\\b(?:property|name)=["\']' + property + '["\'][^>]*\\bcontent=["\']([^"\']*)["\']'
+    );
+    const value = meta(pattern, property);
+    if (!value.startsWith('https://')) {
+      throw new Error(property + ' is not absolute: ' + value);
+    }
+  }
+
+  const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
+  if (!sitemap.includes('http://www.sitemaps.org/schemas/sitemap/0.9')) {
+    throw new Error('sitemap.xml does not use the sitemaps.org namespace');
+  }
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (!locs.includes(CANONICAL)) {
+    throw new Error('sitemap.xml does not list ' + CANONICAL + ', it lists ' + locs.join(', '));
+  }
+
+  const robots = fs.readFileSync(path.join(distDir, 'robots.txt'), 'utf8');
+  if (!robots.includes('Sitemap: ' + CANONICAL + 'sitemap.xml')) {
+    throw new Error('robots.txt does not point at the sitemap, which is how it gets discovered');
+  }
+});
+
+// Structured data that disagrees with the page is worse than none, and a JSON
+// syntax error makes the whole block silently invisible to crawlers.
+check('the structured data parses and matches the page', function () {
+  const block = indexHtml.match(
+    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
+  );
+  if (!block) {
+    throw new Error('no JSON-LD block in dist/index.html');
+  }
+
+  let data;
+  try {
+    data = JSON.parse(block[1]);
+  } catch (error) {
+    throw new Error('JSON-LD does not parse, so crawlers ignore it: ' + error.message, {
+      cause: error,
+    });
+  }
+
+  if (data['@type'] !== 'SportsClub') {
+    throw new Error('unexpected @type: ' + data['@type']);
+  }
+  if (data.url !== CANONICAL) {
+    throw new Error('JSON-LD url ' + data.url + ' disagrees with the canonical ' + CANONICAL);
+  }
+  // The email is the one claim here a visitor can check against the page, so
+  // it has to appear in the visible markup. Search the page with the JSON-LD
+  // removed: searching the whole document would find the block's own copy and
+  // the check could never fail.
+  const withoutJsonLd = indexHtml.replace(block[0], '');
+  if (!withoutJsonLd.includes(data.email)) {
+    throw new Error(
+      'JSON-LD email ' + data.email + ' appears nowhere in the visible page'
+    );
+  }
+  if (!withoutJsonLd.includes(data.location.name)) {
+    throw new Error(
+      'JSON-LD venue ' + data.location.name + ' appears nowhere in the visible page'
+    );
+  }
 });
 
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
