@@ -28,6 +28,8 @@
 
 <body>
 
+<a href="#home" class="skip-link">Skip to main content</a>
+
 <header id="site-header">
   <nav>
     <a href="#home" class="logo">
@@ -45,7 +47,10 @@
       <span class="logo-text">Gateway Smash</span>
     </a>
 
-    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+    <!-- aria-label is rewritten by js/app.js on open and close, because the
+         hamburger-to-X animation announces state to sighted users only. -->
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open navigation menu" aria-controls="nav-links"
+            aria-expanded="false">
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
@@ -64,7 +69,8 @@
 </header>
 
 <main>
-  <section id="home" class="hero">
+  <!-- tabindex makes the skip link actually move focus here, not just scroll. -->
+  <section id="home" class="hero" tabindex="-1">
     <div class="hero-bg" aria-hidden="true">
       <div class="hero-shape hero-shape--1"></div>
       <div class="hero-shape hero-shape--2"></div>
@@ -139,13 +145,19 @@
         <h3>Tentative League Dates</h3>
         <div class="table-wrapper">
           <table class="league-table">
+            <!-- Under the mobile breakpoint each row restacks into a card and the
+                 thead is hidden, which breaks the layout-inferred link between a
+                 cell and its header. scope states it outright instead. -->
+            <caption class="visually-hidden">
+              Tentative season dates, with registration opening dates, scheduled byes, and Drinks with Dinks nights.
+            </caption>
             <thead>
               <tr>
-                <th>Season</th>
-                <th>Season Dates</th>
-                <th>Registration Opens</th>
-                <th>Bye (reason)</th>
-                <th>Drinks with Dinks</th>
+                <th scope="col">Season</th>
+                <th scope="col">Season Dates</th>
+                <th scope="col">Registration Opens</th>
+                <th scope="col">Bye (reason)</th>
+                <th scope="col">Drinks with Dinks</th>
               </tr>
             </thead>
             <tbody>
