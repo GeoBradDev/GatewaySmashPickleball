@@ -192,6 +192,58 @@ check('manifest and meta theme colours agree', function () {
   }
 });
 
+// Fonts used to come from fonts.googleapis.com, which meant a render-blocking
+// stylesheet on a third-party origin before the font URLs were even known.
+// Only subresources are checked; outbound links in the copy are the point of
+// the copy and are left alone.
+check('the built page loads no third-party subresources', function () {
+  const external = [
+    ...[...indexHtml.matchAll(/<(?:link|script)[^>]*\b(?:href|src)=["'](https?:\/\/[^"']+)["']/g)],
+    ...[...indexHtml.matchAll(/<link[^>]*\brel=["']preconnect["'][^>]*\bhref=["']([^"']+)["']/g)],
+  ].map((m) => m[1]);
+  if (external.length > 0) {
+    throw new Error('third-party subresources in dist/index.html: ' + external.join(', '));
+  }
+
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const remote = [...css.matchAll(/url\(\s*["']?(https?:\/\/[^)"']+)/g)].map((m) => m[1]);
+  if (remote.length > 0) {
+    throw new Error('third-party urls in the emitted css: ' + remote.join(', '));
+  }
+});
+
+// The @font-face src values are relative, so Vite hashes the woff2 files and
+// rewrites them. If that ever stops working the CSS still parses and the page
+// silently falls back to Georgia and the system sans.
+check('both font families are self-hosted, hashed, and present', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const families = [...css.matchAll(/@font-face\{[^}]*font-family:\s*([^;]+);/g)].map((m) =>
+    m[1].replace(/["']/g, '').trim()
+  );
+  ['DM Sans', 'DM Serif Display'].forEach(function (family) {
+    if (!families.includes(family)) {
+      throw new Error('no @font-face for ' + family + ', found: ' + families.join(', '));
+    }
+  });
+
+  const refs = [...css.matchAll(/url\(\s*["']?([^)"']+\.woff2)["']?\s*\)/g)].map((m) => m[1]);
+  if (refs.length !== 4) {
+    throw new Error('expected 4 woff2 references, found ' + refs.length + ': ' + refs.join(', '));
+  }
+  refs.forEach(function (ref) {
+    if (!/-[A-Za-z0-9_-]{8,}\.woff2$/.test(ref)) {
+      throw new Error('font is not content-hashed: ' + ref);
+    }
+    const target = path.join(distDir, ref.replace(/^\//, ''));
+    if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
+      throw new Error('font missing from dist/: ' + ref);
+    }
+    if (fs.readFileSync(target).subarray(0, 4).toString() !== 'wOF2') {
+      throw new Error('not a woff2 file: ' + ref);
+    }
+  });
+});
+
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
 // children, when given, is what querySelectorAll returns.
 function createElementStub(children) {

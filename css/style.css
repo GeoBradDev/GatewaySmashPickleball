@@ -3,6 +3,69 @@
    Warm, light, community-forward aesthetic
    ============================================================ */
 
+/* ============================================================
+   Fonts — self-hosted
+
+   These were a render-blocking stylesheet on fonts.googleapis.com, which cost
+   two extra DNS lookups and TLS handshakes before the font URLs were even
+   known. Served from our own origin the browser is already connected, and the
+   files are content-hashed by Vite along with everything else because the
+   url() paths below are relative.
+
+   Both families are the variable builds. One DM Sans file covers 400 through
+   700, where four static weights would have cost 147KB against this 62KB. The
+   descriptors, including the unicode-range splits, are copied verbatim from
+   what Google serves, so the rendering is identical and the latin-ext file
+   only downloads if a visitor's content actually needs it.
+
+   Weight 300 was requested from Google but never used anywhere in this
+   stylesheet, so it is gone.
+
+   Both families are under the SIL Open Font License 1.1. The full texts are in
+   fonts/OFL-DM-Sans.txt and fonts/OFL-DM-Serif-Display.txt, which is the
+   condition for redistributing them from our own origin.
+   ============================================================ */
+
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/dm-serif-display-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/dm-serif-display-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* --- Design Tokens --- */
 :root {
   /* Palette */

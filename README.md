@@ -38,6 +38,7 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 - `404.html` - Error page
 - `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)
+- `fonts/` - Self-hosted DM Sans and DM Serif Display woff2 plus their OFL licences, referenced by `@font-face` in `css/style.css`
 - `public/` - Static files copied to `dist/` unchanged: `img/`, site icons, `robots.txt`, `site.webmanifest`
 - `vite.config.js` - Build configuration
 
@@ -51,6 +52,11 @@ neither the stylesheet link nor the script `src` should be hardcoded to a built 
 
 Files in `public/` bypass all of that and are copied to `dist/` byte for byte at the
 same relative path.
+
+Fonts are self-hosted rather than loaded from Google Fonts, so the page makes no
+third-party requests at all. The `@font-face` rules at the top of `css/style.css`
+use relative `url()` paths, which is what gets the woff2 files content-hashed along
+with everything else. `npm run smoke` fails if a third-party subresource reappears.
 
 ## 🗓️ How to Update the League Schedule
 
