@@ -13,7 +13,10 @@ This file provides architectural context for AI assistants working on this codeb
 - `LICENSE.txt` - Project license.
 - `vite.config.js` - Build configuration. Declares `index.html` and `404.html` as the two entry points.
 - `scripts/smoke-build.js` - Dependency-free assertions against `dist/` after a build. Run via `npm run smoke`.
-- `.github/workflows/ci.yml` - CI build check. Runs `npm ci` and `npm run smoke` on pull requests to `main` and on pushes to `main`. It does not deploy.
+- `scripts/check-links.js` - Dependency-free outbound link check. Not part of `npm test`; see below.
+- `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
+- `.github/workflows/ci.yml` - CI check. Runs `npm ci` and `npm test` on pull requests to `main` and on pushes to `main`. It does not deploy.
+- `.github/workflows/links.yml` - Weekly outbound link check, kept out of CI on purpose.
 
 ## Build
 
@@ -40,6 +43,29 @@ even known. `npm run smoke` fails if any third-party subresource reappears.
 
 `index.html` deliberately has **no** hardcoded stylesheet link. Adding one back would
 ship the unhashed, unminified copy alongside the hashed one.
+
+## Checks
+
+`npm test` is `npm run lint` then `npm run smoke`, and is what CI runs.
+
+Assert against **built output**, not source. A green build is not evidence the site
+works: issue #1 compiled cleanly and shipped a page that loaded `app.js` twice. When
+adding a check, add it to `scripts/smoke-build.js`, which stays dependency-free, and
+**negative-test it** by breaking the thing it guards. A check that cannot fail is
+worse than no check, because it reads as coverage.
+
+Prefer `scripts/smoke-build.js` over reaching for a new linter. html-validate is
+there for structural HTML errors, but it does not know that a `type="image/svg+xml"`
+on a `.png` is wrong, because that markup is structurally valid. Semantic checks like
+that belong in the smoke script.
+
+`npm run check-links` is deliberately outside `npm test`. Third-party hosts can
+rate-limit a CI runner, and a pull request that goes red for that reason teaches
+people to ignore red.
+
+Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
+stylesheet that has produced no defects, and **prettier** would reformat every file
+in the repo for a formatting problem `.editorconfig` already covers.
 
 ## Icons and the web manifest
 

@@ -19,6 +19,7 @@ jobs:
   build:
     name: Build and smoke check
     runs-on: ubuntu-latest
+    # Node comes from .nvmrc so CI and local development cannot drift apart.
     # The build takes seconds. Anything near this is a stall, not slow work,
     # and should not sit on a runner for the six-hour default.
     timeout-minutes: 10
@@ -27,14 +28,19 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
 
       # npm ci, not npm install: the lockfile is the contract, and a build
       # that only passes against drifted local dependencies proves nothing.
       - run: npm ci
 
-      # npm run smoke is the production build plus scripts/smoke-build.js.
-      # The build alone would not have caught issue #1, which compiled green
-      # and shipped a page that loaded app.js twice.
-      - run: npm run smoke
+      # npm test is lint plus the production build plus
+      # scripts/smoke-build.js. The build alone would not have caught issue #1,
+      # which compiled green and shipped a page that loaded app.js twice.
+      #
+      # Outbound links are deliberately not checked here. They all point at
+      # third parties that can rate-limit or block a runner IP, and a build
+      # that fails for that reason teaches people to ignore red. See
+      # links.yml, which runs on a schedule where a failure is a notification.
+      - run: npm test

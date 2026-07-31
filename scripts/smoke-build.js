@@ -171,6 +171,43 @@ check('every icon and manifest URL in dist/index.html resolves', function () {
   }
 });
 
+// index.html once declared a PNG as type="image/svg+xml". html-validate does
+// not catch that, because the markup is structurally valid; only the claim
+// about the file is wrong. So it is checked here.
+check('every declared link type matches the file it points at', function () {
+  const EXTENSION_TYPES = {
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.ico': ['image/x-icon', 'image/vnd.microsoft.icon'],
+    '.webp': 'image/webp',
+    '.woff2': 'font/woff2',
+    '.json': 'application/json',
+    '.webmanifest': 'application/manifest+json',
+  };
+
+  const wrong = [];
+  for (const match of indexHtml.matchAll(/<link\b[^>]*>/g)) {
+    const tag = match[0];
+    const href = tag.match(/\bhref=["']([^"']+)["']/);
+    const type = tag.match(/\btype=["']([^"']+)["']/);
+    if (!href || !type) {
+      continue;
+    }
+    const ext = path.extname(href[1].split('?')[0]).toLowerCase();
+    const expected = EXTENSION_TYPES[ext];
+    if (!expected) {
+      continue;
+    }
+    const allowed = Array.isArray(expected) ? expected : [expected];
+    if (!allowed.includes(type[1])) {
+      wrong.push(href[1] + ' declared as ' + type[1] + ', expected ' + allowed.join(' or '));
+    }
+  }
+  if (wrong.length > 0) {
+    throw new Error(wrong.join('; '));
+  }
+});
+
 check('the web manifest is installable and its icons exist', function () {
   const manifest = JSON.parse(fs.readFileSync(path.join(distDir, 'site.webmanifest'), 'utf8'));
 

@@ -418,4 +418,57 @@ copy rather than the repo, so no pull request can remove it:
 git branch -d update-styling
 ```
 
+Merged as PR #34, merge commit `a7e7400`.
+
+### #13 No tests, no linting, npm test wired to fail
+
+The issue's highest-value item, a build smoke test, already existed: it was built
+during the Vite migration and has grown to 17 checks. What was left was the rest.
+
+`npm test` no longer fails on purpose. It is now `npm run lint && npm run smoke`,
+which is what CI runs.
+
+**One of the issue's premises does not hold.** It says html-validate "would have
+caught the wrong favicon MIME type". It does not, and this was tested rather than
+assumed: reintroducing `type="image/svg+xml"` on a `.png` and running html-validate
+passes clean, because the markup is structurally valid and only the claim about the
+file is false. That check went into `scripts/smoke-build.js` instead, where it
+belongs, and it does catch it.
+
+html-validate still earns its place. Run against the two pages it immediately found
+four real problems: a `<button>` with no `type`, which defaults to `submit` and is a
+live bug the moment the page grows a form, and three raw `&` characters in feature
+headings. All fixed. Its `doctype-style` rule is off, since lowercase `<!doctype
+html>` is valid HTML5 and is what both this repo and Vite emit.
+
+ESLint found nothing in `js/app.js`, which is the correct outcome: the null-guard the
+issue predicted a linter would flag was added back in #1. It did catch four undefined
+globals in the new link checker. Both configs were negative-tested by introducing an
+undefined variable.
+
+Dependency cost was measured before choosing rather than assumed, each in a clean
+directory:
+
+| Tool | Packages | Adopted |
+|---|---|---|
+| html-validate | 10 | yes |
+| eslint | 53 | yes |
+| stylelint | 95 | no |
+| prettier | 1 | no |
+
+stylelint costs 95 packages to lint a hand-written stylesheet that has produced no
+defects. Prettier is only one package, but running it would reformat every file in
+the repo, and `.editorconfig` already encodes the formatting rules that matter. Both
+rejections are recorded in `CLAUDE.md` so the question does not get relitigated.
+
+Outbound link checking is `scripts/check-links.js`, dependency-free, using built-in
+`fetch`. It is **not** in `npm test`, on purpose: every link points at a third party
+that can rate-limit or block a runner IP, and a pull request that goes red for that
+reason teaches people to ignore red. It runs weekly instead, with manual dispatch.
+All three links currently resolve: the Global Pickleball Network registration, the
+Notion FAQ, and the WhatsApp invite.
+
+CI now takes its Node version from `.nvmrc` rather than a hardcoded `'24'`, so the
+pin added in #14 cannot drift from what CI actually runs.
+
 Merge commit: pending
