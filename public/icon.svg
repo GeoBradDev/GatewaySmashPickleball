@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Gateway Smash">
+  <!--
+    The canonical form of the mark. Identical geometry to the inline logo in the
+    header of index.html; every PNG in img/ is a raster export of this.
+    Background is --cream and the mark is --court-green, so it holds up against
+    both light and dark browser chrome.
+  -->
+  <rect width="32" height="32" fill="#faf7f2"/>
+  <g stroke="#1a7a5c" fill="#1a7a5c" stroke-linecap="round">
+    <circle cx="16" cy="16" r="14" fill="none" stroke-width="2.5"/>
+    <line x1="16" y1="12" x2="10" y2="17" stroke-width="1.5"/>
+    <line x1="16" y1="12" x2="22" y2="17" stroke-width="1.5"/>
+    <line x1="10" y1="19" x2="22" y2="19" stroke-width="1.5"/>
+    <circle cx="16" cy="10" r="2" stroke="none"/>
+    <circle cx="10" cy="19" r="2" stroke="none"/>
+    <circle cx="22" cy="19" r="2" stroke="none"/>
+  </g>
+</svg>
