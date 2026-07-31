@@ -19,7 +19,7 @@ import path from 'node:path';
 // read as three because the new canonical URL took its place.
 const rootDir = path.resolve(import.meta.dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const PAGES = ['index.html', 'faq/index.html', '404.html'];
+const PAGES = ['index.html', 'faq/index.html', 'subs/index.html', '404.html'];
 const TIMEOUT_MS = 20000;
 
 // Some hosts serve a bot wall to anything that does not look like a browser.

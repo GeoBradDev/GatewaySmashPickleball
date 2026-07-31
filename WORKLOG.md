@@ -818,4 +818,48 @@ Verified: both pages pass the keyboard suite. On `/faq/` the drawer is inert whe
 closed, the skip link moves focus to the page body, opening moves focus to the first
 nav link, and Escape restores focus to the toggle. All four outbound links resolve.
 
+Merged as PR #44, merge commit `bbb618f`.
+
+## Batch 7 continued: #19 substitute page
+
+Confirmed: subs are picked up from the GPN waitlist, WhatsApp is the admin channel, and
+the blunt voice stays.
+
+`/subs/` is the third page. The source copy in the issue is used close to verbatim, and
+the tone is untouched: "No waitlist, no game", "no exceptions", "Please do not ask" all
+survive intact. The copy style guide already says not to flatten that register, and the
+instruction was explicit.
+
+Only two edits were made, both factual rather than tonal, and both flagged by the issue
+itself:
+
+- *"Presumably, you joined this chat to play pickleball"* had no referent on a web page,
+  where a first-time visitor has joined nothing. It reads "Presumably you are here to
+  play pickleball, so follow through", which keeps the edge and loses the broken
+  reference.
+- *"Message an admin directly"* was a dead end without a channel. It now links the
+  WhatsApp group, and stays a blocking step, because nobody is active as a sub until an
+  admin adds them.
+
+Also added the secondary call to action the issue asks for, in the Leagues section
+rather than the hero, which already carries two buttons.
+
+**One recommendation in the issue was not followed.** It suggests `HowTo` structured
+data for the setup sequence. Google retired `HowTo` rich results in 2023, so that markup
+produces nothing now. Adding it would be dead weight that reads like coverage. Skipped
+deliberately.
+
+The per-page smoke check was generalised rather than duplicated: it now walks `dist/`
+for every `index.html` and asserts each has its own canonical, exactly one `h1`, a
+`sitemap.xml` entry, and the shared header. A page added to `vite.config.js` is covered
+the moment it builds, instead of needing someone to remember to write a check.
+
+Verified: three pages all serve 200, six outbound links resolve, html-validate clean on
+all four built pages, no console errors, and every `target="_blank"` carries
+`rel="noopener noreferrer"`.
+
+The keyboard suite went to 18/19 on the nav gaining a sixth item, which was a hardcoded
+count in the check rather than a defect. Both that count and the nav link list are now
+read from the page, so the next nav item cannot silently stop being checked.
+
 Merge commit: pending

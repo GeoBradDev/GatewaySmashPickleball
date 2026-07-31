@@ -714,6 +714,25 @@ nav {
   }
 }
 
+.league-sub-cta {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-light);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.league-sub-cta a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 122, 92, 0.3);
+  text-underline-offset: 3px;
+}
+
+.league-sub-cta a:hover {
+  text-decoration-color: var(--court-green);
+}
+
 /* ============================================================
    Contact
    ============================================================ */

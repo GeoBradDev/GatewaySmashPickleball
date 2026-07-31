@@ -60,6 +60,7 @@ red for that reason teaches people to ignore red. It runs weekly instead, via
 
 - `index.html` - The main homepage and schedule
 - `faq/` - The FAQ page, served at `/faq/`
+- `subs/` - Substitute player page, served at `/subs/`
 - `404.html` - Error page
 - `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)
