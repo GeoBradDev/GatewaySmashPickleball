@@ -759,4 +759,63 @@ Not done: the hero CTA still says "Join the League" without naming a season, ite
 the issue. It links to the GPN network page rather than a season-specific ladder event,
 and which of those it should point at is still an open question.
 
+Merged as PR #43, merge commit `fdd1b3f`.
+
+## Batch 7 continued: #20 the FAQ moves on-site
+
+Confirmed: remove the refund threshold, subs use the GPN waitlist, GroupMe is dead.
+
+The FAQ now lives at `/faq/`, a directory rather than `faq.html` so the clean URL works
+on any static host without a rewrite rule. It is the second real page on the site, and
+the first use of the partials added in #39, so the header, nav and footer came for
+free.
+
+Ported from the Notion source with four substantive changes, all instructed:
+
+- **GroupMe is gone.** Every reference now points at the WhatsApp group. The Notion
+  page routed people to a chat that no longer exists.
+- **The cost breakdown is gone**, so the site no longer publishes what Arch charges.
+- **The refund threshold is gone.** What remains is "no refunds once registration
+  closes, unless the whole league is cancelled". Note this reads harder than the
+  original, which paired that line with a full refund if the roster did not fill.
+- **Figures updated**: $70 not $50, 56 players not 32, range 2.0 to 4.0+.
+
+Season dates are deliberately not repeated here. They live in one place, the schedule
+on the homepage, which computes its own status; a second copy would be a second thing
+to forget. The FAQ links to it instead. The GPN link is the network page rather than
+the season-scoped ladder event the Notion page used, which pointed at a 2025 season.
+
+Copy edited to the same style guide as the homepage: sentence case, no em dashes,
+straight quotes, no rule-of-three padding.
+
+The page is **819 words**. The entire site was 483 before it, so this roughly triples
+the indexed content and adds a second indexable URL, which was #18's single
+highest-leverage recommendation.
+
+Three new smoke checks, all negative-tested:
+
+- The FAQ page has its own canonical, exactly one `h1`, and an entry in `sitemap.xml`.
+- The `FAQPage` structured data matches the visible page. Each question and the opening
+  clause of each answer must appear in the rendered text **with the JSON-LD stripped
+  out**, so the block cannot satisfy itself the way the homepage check once did.
+- No built page links to Notion or mentions GroupMe.
+
+That second check earned its place immediately: it failed on the first run because the
+JSON-LD asked "When and where does the league play?" while the heading read "When and
+where". Fixing the heading to match is also the better heading for search. It failed a
+second time on an answer whose wording had drifted from the page.
+
+Two adjustments fell out of adding a second page:
+
+- Nav links in the header partial are now root-relative. `#about` only resolves on the
+  homepage, and from `/faq/` those links went nowhere.
+- `check-links` now skips our own origin. A canonical tag pointing at a page that is not
+  deployed yet fails every time until it ships, which is noise rather than signal. That
+  those files exist is already asserted against `dist/`. The checker exists for third
+  parties that rotate underneath us.
+
+Verified: both pages pass the keyboard suite. On `/faq/` the drawer is inert when
+closed, the skip link moves focus to the page body, opening moves focus to the first
+nav link, and Escape restores focus to the toggle. All four outbound links resolve.
+
 Merge commit: pending

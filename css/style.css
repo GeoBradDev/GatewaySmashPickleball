@@ -631,6 +631,90 @@ nav {
 }
 
 /* ============================================================
+   Prose pages (/faq/)
+   ============================================================ */
+.page-section {
+  padding: 140px 0 var(--section-pad);
+  background: var(--white);
+}
+
+.container--prose {
+  max-width: 760px;
+}
+
+.page-lead {
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  margin-bottom: 2.5rem;
+}
+
+.page-section h2 {
+  font-size: 1.6rem;
+  margin: 2.5rem 0 0.75rem;
+}
+
+.page-section h2:first-of-type {
+  margin-top: 0;
+}
+
+.page-section p {
+  margin-bottom: 1rem;
+}
+
+.prose-list {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.prose-list li {
+  margin-bottom: 0.5rem;
+}
+
+.prose-list--steps {
+  list-style: decimal;
+}
+
+.prose-note {
+  padding: 12px 18px;
+  background: var(--amber-light);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+}
+
+.page-section a {
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 122, 92, 0.3);
+  text-underline-offset: 3px;
+}
+
+.page-section a:hover {
+  text-decoration-color: var(--court-green);
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 3rem;
+}
+
+.page-actions a {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .page-section {
+    padding-top: 110px;
+  }
+
+  .page-actions .btn {
+    width: 100%;
+  }
+}
+
+/* ============================================================
    Contact
    ============================================================ */
 .contact {
