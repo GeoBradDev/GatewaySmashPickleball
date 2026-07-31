@@ -154,4 +154,70 @@ not be verified from the repo, since there is no `render.yaml`. The publish dire
 stays `dist/`, so this is expected to be a no-op, but it is the one thing that could
 take the site down and it needs a human with dashboard access to confirm.
 
+Merged as PR #30, merge commit `8b5e292`.
+
+## Batch 3: bugs and accessibility
+
+### #6 Closed mobile nav stays focusable, and #7 accessibility gaps
+
+Handled together, because three of #7's five items live in the same nav code as
+#6 and could not be reviewed apart from it. Split into two commits: the nav work,
+then the table work.
+
+One premise in #6 was off. It located the drawer in "the max-width 900px block",
+but the mobile nav rules are in the `max-width: 768px` block; 900px only adjusts
+section padding and grid columns. The `matchMedia` gate uses 768px to match the
+stylesheet. Getting this wrong in the other direction would have inerted the real
+nav between 769px and 900px.
+
+**#6, in two layers.** CSS `visibility` does the work, because it needs no JS.
+That matters here: the toggle requires JS to open the drawer at all, so a visitor
+without JS would otherwise be left with five permanently focusable links they can
+never see. `js/app.js` then syncs `inert` on top, gated on `matchMedia`, since
+`inert` is not media-query aware and inerting the desktop nav would take out the
+whole navigation.
+
+The visibility transition is `0s linear 0.35s`, not `0.35s`. This was found by
+measurement, not by design: with a real duration the computed value stays `hidden`
+at progress 0, so the drawer is still unfocusable on the frame it opens and the
+focus move for #7 silently fails. Probing it frame by frame showed `hidden`
+synchronously after the class change, `hidden` after one `requestAnimationFrame`,
+and `visible` only by 100ms. Delaying the flip out instead of stretching it keeps
+the panel visible while it slides off-screen, and the reduced-motion block gained
+a matching `transition-delay` so an instant close does not leave the drawer
+focusable for another 350ms.
+
+**#7.** Skip link targeting `#home`, which gains `tabindex="-1"` so focus actually
+lands there instead of only scrolling. `aria-controls` on the toggle plus an
+`aria-label` that tracks state, since the hamburger-to-X animation only ever
+communicated state to sighted users. A focus trap covering the toggle and the five
+links; Escape handling and focus restoration already worked. `scope="col"` on every
+`th` and a visually-hidden `caption`, because the mobile card restacking hides the
+thead and breaks the cell-to-header association. The em-dash placeholder for an
+empty cell moves from `--ink-faint` to `--ink-muted`, roughly 2.6:1 to 5:1 on cream.
+
+Verification, all against the built site rather than the source:
+
+- `npm run smoke`: 11 checks, up from 7. The 4 new ones cover inert on a closed
+  drawer, inert cleared plus focus moved on open, inert restored on close, and the
+  desktop nav never being inert. The DOM stub grew `removeAttribute`,
+  `querySelectorAll` and a `matchMedia` that can report either breakpoint.
+- Keyboard-only walkthrough in headless Chrome over CDP, using real dispatched key
+  events rather than synthetic clicks: 19 checks at 390px and 1280px. Closed, ten
+  Tab presses never enter the drawer and the first stop is the skip link. The
+  accessibility tree contains no nav links at all while closed. Enter on the toggle
+  opens it and focus lands on Home. Tab cycles Home, About, Leagues, FAQs, Contact,
+  toggle, Home; Shift+Tab reverses; neither escapes. Escape closes, restores focus
+  to the toggle and re-inerts. At 1280px the nav is never inert and all five links
+  are still reachable.
+- Layout diff against `main` at 390px, 800px and 1280px, comparing rect and key
+  computed styles for all 168 elements. The only differences are the intended
+  `visible` to `hidden` flip on the closed drawer, with identical geometry, and a
+  0.5px sub-pixel shift on the first table row caused by the new caption.
+
+Not done, and deliberately: #7 suggests considering a horizontally scrollable table
+on mobile instead of the card restacking. `scope` plus the caption fixes the stated
+defect, and swapping the mobile presentation is a visual redesign rather than an
+accessibility fix.
+
 Merge commit: pending
