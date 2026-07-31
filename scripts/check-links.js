@@ -64,8 +64,13 @@ for (const page of PAGES) {
 }
 
 // A refactor that moves links out of the scanned files should fail loudly
-// rather than quietly check fewer of them.
-const MINIMUM_EXPECTED = 4;
+// rather than quietly check fewer of them. Keep this equal to the real count,
+// not below it. It sat at 4 while dist/ carried 6, because #19 added the subs
+// page's two links without moving it, and a floor with slack in it cannot do
+// the job this comment describes: both DUPR links could have gone and this
+// would still have passed. Removing a link on purpose means editing this line,
+// which is the point.
+const MINIMUM_EXPECTED = 7;
 if (links.size < MINIMUM_EXPECTED) {
   console.error(
     'Only found ' + links.size + ' outbound links, expected at least ' +

@@ -32,6 +32,36 @@ const indexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
 // A content hash, as Vite emits it: name-HASH.ext with a base64url-ish hash.
 const HASHED = /-[A-Za-z0-9_-]{8,}\.(js|css)$/;
 
+// The JSON-LD <script> and its contents. Four checks need this, against two
+// different pages, and each wants to report its own failure in its own words,
+// so the pattern is shared while the error messages stay local. It had been
+// copied out once per check, which is the same trap as any other list kept in
+// step by hand: widen one copy and the others silently keep matching less.
+// Deliberately not /g. String.match with a global regex returns every match and
+// no capture groups at all, so block[1] would be undefined and JSON.parse would
+// throw on it.
+const JSON_LD_BLOCK =
+  /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/;
+
+// The page as a reader and a crawler actually receive it. Every "the page must
+// say this too" assertion has to search *this*, never the raw file, because
+// three parts of the file carry text nobody reads: the JSON-LD block would
+// satisfy itself, <head> holds meta content, and HTML comments are stripped by
+// no build step here and survive into dist/ intact.
+//
+// The comment case is not hypothetical. #48 added an address to the page and a
+// comment above the block explaining that the address comes from the Contact
+// section. Deleting the address from the Contact card then left the check
+// green, because it found the sentence describing the rule instead of the page
+// obeying it. An assertion that a comment can satisfy is worse than no
+// assertion: it reads as coverage.
+function visiblePage(html, block) {
+  return html
+    .slice(html.indexOf('<body'))
+    .replace(block, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+}
+
 // Pulls the single asset URL matching a pattern out of the built HTML, and
 // fails loudly on zero or many. Returns the dist-relative path.
 function soleAssetRef(label, pattern) {
@@ -465,9 +495,7 @@ check('every Location on the homepage names the same venue', function () {
   // hardcoded here, so a venue change has one place to edit and not three.
   // The block's own existence and syntax are the previous check's job; this
   // one only needs to not crash with a stack trace if it is ever missing.
-  const ldBlock = indexHtml.match(
-    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
-  );
+  const ldBlock = indexHtml.match(JSON_LD_BLOCK);
   if (!ldBlock) {
     throw new Error('no JSON-LD block to check the Location values against');
   }
@@ -548,9 +576,7 @@ check('og:image dimensions match the actual file', function () {
 // Structured data that disagrees with the page is worse than none, and a JSON
 // syntax error makes the whole block silently invisible to crawlers.
 check('the structured data parses and matches the page', function () {
-  const block = indexHtml.match(
-    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
-  );
+  const block = indexHtml.match(JSON_LD_BLOCK);
   if (!block) {
     throw new Error('no JSON-LD block in dist/index.html');
   }
@@ -571,10 +597,10 @@ check('the structured data parses and matches the page', function () {
     throw new Error('JSON-LD url ' + data.url + ' disagrees with the canonical ' + CANONICAL);
   }
   // The email is the one claim here a visitor can check against the page, so
-  // it has to appear in the visible markup. Search the page with the JSON-LD
-  // removed: searching the whole document would find the block's own copy and
-  // the check could never fail.
-  const withoutJsonLd = indexHtml.replace(block[0], '');
+  // it has to appear in the visible markup. See visiblePage: searching the
+  // whole document would find the block's own copy, or the comment above it,
+  // and the check could never fail.
+  const withoutJsonLd = visiblePage(indexHtml, block[0]);
   if (!withoutJsonLd.includes(data.email)) {
     throw new Error(
       'JSON-LD email ' + data.email + ' appears nowhere in the visible page'
@@ -594,6 +620,130 @@ check('the structured data parses and matches the page', function () {
         ' appears nowhere in the visible page'
     );
   }
+  // #48. The street address is the NAP signal local ranking leans on, and it is
+  // also the only claim in this block a visitor could stand in front of and
+  // check. Requiring it on the page is what stops a wrong one from being quietly
+  // true in markup no reader ever sees.
+  //
+  // It is stated twice on purpose and both copies matter. SportsClub descends
+  // from LocalBusiness, whose only required properties are name and address, and
+  // the club's own address is the one a local search consumer reads; the venue
+  // Place keeps its own so that node still describes a building on its own
+  // terms. They are one address, so they have to agree field for field or the
+  // block contradicts itself. #48 was first built with only the Place copy,
+  // which passed every check here while leaving the club node with no address at
+  // all, which is the whole thing the issue was filed to fix.
+  if (!data.address) {
+    throw new Error(
+      'the SportsClub states no address of its own, only the venue Place, and the ' +
+        'club address is the field local search reads'
+    );
+  }
+  const ADDRESS_FIELDS = [
+    'streetAddress',
+    'addressLocality',
+    'addressRegion',
+    'postalCode',
+    'addressCountry',
+  ];
+  ADDRESS_FIELDS.forEach(function (field) {
+    if (!data.address[field]) {
+      throw new Error('JSON-LD SportsClub address is missing ' + field);
+    }
+    if (data.address[field] !== data.location.address[field]) {
+      throw new Error(
+        'the club address and the venue address disagree on ' + field + ': ' +
+          data.address[field] + ' against ' + data.location.address[field]
+      );
+    }
+  });
+  // Only the parts the Contact card spells out can be required on the page.
+  // addressCountry is written nowhere a reader would see it.
+  ['streetAddress', 'postalCode'].forEach(function (field) {
+    if (!withoutJsonLd.includes(data.address[field])) {
+      throw new Error(
+        'JSON-LD ' + field + ' ' + data.address[field] +
+          ' appears nowhere in the visible page'
+      );
+    }
+  });
+});
+
+// #48. schema.org defines addressRegion and addressCountry on PostalAddress, not
+// on Place or City, so setting them straight on the City meant every consumer
+// dropped them and read a bare "St. Louis", which names a city in nine states.
+// Nothing errored and nothing looked wrong; the qualification simply stopped
+// existing. That is the failure mode of any property put on a type that does not
+// define it, and the flat form is the one someone would naturally write again.
+check('the city this league serves says which state it is in', function () {
+  const block = indexHtml.match(JSON_LD_BLOCK);
+  if (!block) {
+    throw new Error('no JSON-LD block in dist/index.html');
+  }
+  const area = JSON.parse(block[1]).areaServed;
+
+  if (area.addressRegion || area.addressCountry) {
+    throw new Error(
+      'areaServed states addressRegion or addressCountry directly on the City, ' +
+        'where schema.org does not define them, so consumers drop them'
+    );
+  }
+  if (!area.address || area.address['@type'] !== 'PostalAddress') {
+    throw new Error('areaServed carries no PostalAddress to qualify it');
+  }
+  if (area.address.addressRegion !== 'MO' || area.address.addressCountry !== 'US') {
+    throw new Error(
+      'areaServed is not qualified as MO, US: ' + JSON.stringify(area.address)
+    );
+  }
+});
+
+// #48. sameAs is an identity claim: it tells a search engine that this site and
+// that profile are the same real-world thing. The same rule the rest of the block
+// follows applies to it, so each URL has to be one a visitor can follow from the
+// page rather than a claim only a crawler sees. A profile worth claiming as your
+// own is worth linking to, and one not worth linking is a weak signal anyway.
+check('every sameAs profile is a link the page actually offers', function () {
+  const block = indexHtml.match(JSON_LD_BLOCK);
+  if (!block) {
+    throw new Error('no JSON-LD block in dist/index.html');
+  }
+  let data;
+  try {
+    data = JSON.parse(block[1]);
+  } catch (error) {
+    throw new Error('JSON-LD does not parse, so crawlers ignore it: ' + error.message, {
+      cause: error,
+    });
+  }
+
+  // schema.org allows a bare string as well as an array, and a page with one
+  // profile is the shape most likely to be written that way. Reporting "states
+  // no sameAs profiles" for a page that states exactly one would send the next
+  // maintainer looking for the wrong thing.
+  const profiles = [].concat(data.sameAs ?? []);
+  if (profiles.length === 0) {
+    throw new Error('JSON-LD states no sameAs profiles');
+  }
+
+  // Compare parsed href values, not raw substrings. An href has to write & as
+  // &amp;, so matching the JSON value against the markup byte for byte fails on
+  // any URL carrying a query string, and the next sameAs candidate named in the
+  // comment above the block is exactly that shape. Reading the attribute out
+  // also makes the check indifferent to quote style.
+  const linked = new Set(
+    [...visiblePage(indexHtml, block[0]).matchAll(/\bhref=["']([^"']+)["']/g)].map(
+      function (match) {
+        return match[1].replace(/&amp;/g, '&');
+      }
+    )
+  );
+
+  profiles.forEach(function (url) {
+    if (!linked.has(url)) {
+      throw new Error('sameAs ' + url + ' is claimed but never linked from the page');
+    }
+  });
 });
 
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
@@ -1205,9 +1355,7 @@ const subsHtml = fs.readFileSync(path.join(distDir, 'subs', 'index.html'), 'utf8
 // FAQ rich results need every answer to exist on the page. Structured data
 // that promises text the visitor cannot find is worse than none.
 check('the FAQ structured data matches the visible page', function () {
-  const block = faqHtml.match(
-    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
-  );
+  const block = faqHtml.match(JSON_LD_BLOCK);
   if (!block) {
     throw new Error('no JSON-LD on the FAQ page');
   }
@@ -1224,10 +1372,10 @@ check('the FAQ structured data matches the visible page', function () {
     throw new Error('too few questions to be worth marking up');
   }
 
-  // Strip tags and the JSON-LD itself before searching, so the block cannot
-  // satisfy itself the way the homepage check once did.
-  const visible = faqHtml
-    .replace(block[0], '')
+  // Strip tags, and the JSON-LD and comments before them, so neither the block
+  // nor an explanatory comment can satisfy this the way the homepage check was
+  // shown to be satisfiable in #48.
+  const visible = visiblePage(faqHtml, block[0])
     .replace(/<[^>]+>/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ');

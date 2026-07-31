@@ -76,6 +76,14 @@ Checking source silently stopped covering the FAQ link when the nav moved into a
 partial, and the total still read as three because the canonical URL took its place,
 so `check-links` now fails if it finds fewer links than expected.
 
+**`MINIMUM_EXPECTED` in `scripts/check-links.js` must equal the real number of
+outbound links in `dist/`, not sit below it.** A floor with slack in it cannot do the
+job the paragraph above describes. It read 4 while `dist/` carried 6, because #19 added
+the substitute page's two links without moving it, so both DUPR links could have
+vanished with the check still green. #48 set it to 7 and it is now exact. Adding a link
+means raising it; removing one on purpose means lowering it, and having to edit this
+line is the point.
+
 `npm run check-links` is deliberately outside `npm test`. Third-party hosts can
 rate-limit a CI runner, and a pull request that goes red for that reason teaches
 people to ignore red.
@@ -112,10 +120,38 @@ holds it in one constant.
 `og:image` and `twitter:image` must be **absolute**. Scrapers do not resolve relative
 URLs, and a relative one fails silently.
 
-The JSON-LD may only state things the visible page also states. A smoke check
-enforces this for the email, the venue, and the venue's municipality by searching the
-page with the JSON-LD block stripped out. Structured data that disagrees with the page
-is worse than none.
+The JSON-LD may only state things the visible page also states. Smoke checks enforce
+this for the email, the venue, the venue's municipality, the street address, the
+postal code, and every `sameAs` URL, which has to appear as a real `href` a visitor
+can follow. Structured data that disagrees with the page is worse than none.
+
+**"The visible page" means `visiblePage()` in `scripts/smoke-build.js`, never the raw
+file.** It drops `<head>`, the JSON-LD block, and HTML comments, and all three matter:
+the block would otherwise satisfy itself, `<head>` holds text no reader sees, and
+nothing in this build strips comments, so they reach `dist/` intact. #48 proved the
+last one by deleting the address from the Contact card and leaving the comment above
+the JSON-LD that explains where the address comes from. Every check stayed green. Any
+new "the page must say this too" assertion has to search `visiblePage()` output or it
+can be satisfied by a sentence describing the rule instead of the page obeying it.
+
+The address is stated **twice** in the JSON-LD, on the `SportsClub` and on the venue
+`Place`, and a smoke check requires the two to agree field for field. `SportsClub`
+descends from `LocalBusiness`, whose only required properties are `name` and
+`address`, so a club carrying an address only on the nested `Place` reads to a local
+search consumer as a business with no address at all. That was the state #48 shipped
+in on its first pass, and every check passed.
+
+A property set on a type that does not define it does not error. It is silently
+dropped, which reads as coverage while doing nothing. `sport` was set on `SportsClub`
+(schema.org defines it on `SportsEvent` and `SportsOrganization` only) and
+`addressRegion` / `addressCountry` were set straight on the `areaServed` `City`
+(defined on `PostalAddress`), leaving a bare "St. Louis" that names a city in nine
+states. #48 removed the first and nested the second in a `PostalAddress`. Check the
+domain before adding a property.
+
+There is no `telephone`, deliberately. The league has no phone number, and Arch
+Pickleball's front desk is a different organisation that cannot answer for the league.
+This is a decision, not a gap: reopen it only if the league gets its own number.
 
 The homepage must name **St. Louis** in its `<title>` and in at least one `h2`. The
 `h1` is exempt, because it is a wordmark. This is a smoke check, and it exists because
@@ -240,13 +276,16 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 
 ## Integrations & Contact
 
-- **Community Chat:** WhatsApp (linked in `index.html:257` and about copy at `index.html:126`).
+- **Community Chat:** WhatsApp (linked in `index.html:259` and about copy at `index.html:126`).
+- **Global Pickleball Network:** registration and the ladder. The club page is the
+  site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
+  URL is a separate, action-shaped link and is not an identity claim.
 - *Note:* GroupMe was historically used but removed completely.
 
 ## Maintenance Notes
 
 The most frequently edited part of the site is the **League Schedule**.
-- **Location:** `index.html`, around line 136 under `<h2>League schedule</h2>`.
+- **Location:** `index.html`, around line 138 under `<h2>League schedule</h2>`.
 - **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
 
 Each row's `data-start`, `data-end` and `data-registration` attributes are the
