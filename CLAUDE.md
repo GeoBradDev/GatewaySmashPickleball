@@ -1,51 +1,29 @@
-# CLAUDE.md
+# Gateway Smash Pickleball
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Gateway Smash Pickleball is a static website for a grassroots pickleball league in St. Louis. This is a simple frontend-only project built with vanilla HTML, CSS, and JavaScript, using Webpack for bundling and development.
-
-## Common Commands
-
-- **Development server**: `npm start` - Starts webpack dev server with live reload and opens browser
-- **Production build**: `npm run build` - Creates optimized production build in `dist/` directory
-- **Test**: No test framework configured - `npm test` returns an error message
+This file provides architectural context for AI assistants working on this codebase. For human contributor setup, build commands, and general site overview, see the authoritative [README.md](README.md).
 
 ## Project Structure
 
-The project follows a simple static site structure:
+- `index.html` - The main homepage containing the copy, schedule, and layout.
+- `404.html` - Error page for broken links.
+- `css/style.css` - Custom styles and layout rules.
+- `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, and scroll-driven header shadow).
+- `img/` - Image assets and photography.
+- `icon.svg`, `icon.png`, `favicon.ico` - Site icons.
+- `site.webmanifest`, `robots.txt` - Standard web metadata files.
+- `LICENSE.txt` - Project license.
+- `webpack.*.js` - Webpack build configuration files.
 
-- `index.html` - Main homepage with embedded content sections
-- `css/style.css` - All styles for the website
-- `js/app.js` - Main JavaScript entry point (currently minimal/empty)
-- `img/` - Favicon and icon assets
-- `webpack.*.js` - Webpack configuration files for dev and production builds
+## Integrations & Contact
 
-## Build Configuration
+- **Community Chat:** WhatsApp (linked in `index.html:243` and about copy at `index.html:102`).
+- *Note:* GroupMe was historically used but removed completely.
 
-The project uses Webpack with separate configurations:
+## Maintenance Notes
 
-- `webpack.common.js` - Base configuration with entry point at `js/app.js`
-- `webpack.config.dev.js` - Development configuration with live reload and hot module replacement
-- `webpack.config.prod.js` - Production configuration that copies static assets (CSS, images, favicon files) and generates optimized output
+The most frequently edited part of the site is the **League Schedule**.
+- **Location:** `index.html`, around line 136 under `<h2>League Schedule</h2>`.
+- **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
 
-## Content Management
-
-The website content is entirely contained within `index.html` including:
-- Hero section with call-to-action to external registration
-- About section with features
-- League schedule table with tentative dates
-- Contact information with external links to GroupMe and email
-
-External integrations:
-- Global Pickleball Network for registration
-- GroupMe for community chat
-- Notion for FAQs (linked in navigation)
-
-## Development Notes
-
-- This is a frontend-only static website with no backend or database
-- All content is hardcoded in HTML - updates require direct HTML editing
-- CSS and JavaScript are minimal - mainly static content presentation
-- Production build copies all assets to `dist/` directory for deployment
+> **CRITICAL RULE FOR AI ASSISTANTS:**
+> Whenever a change alters the tech stack, an integration (e.g., WhatsApp), or the project layout, this `CLAUDE.md` file MUST be updated in the same commit to prevent it from drifting from reality.
