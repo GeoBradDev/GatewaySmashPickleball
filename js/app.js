@@ -16,18 +16,48 @@ import '../css/style.css';
     return;
   }
 
+  // Mirrors the breakpoint that turns .nav-links into the off-canvas drawer in
+  // css/style.css. `inert` is not media-query aware, so the two have to be kept
+  // in step by hand: inerting the desktop nav would make it unusable.
+  var mobile = window.matchMedia('(max-width: 768px)');
+
+  // A closed drawer is moved off-screen by a transform, which hides it from
+  // sight but leaves it in the tab order and the accessibility tree. CSS
+  // visibility handles that before this script runs; `inert` is the belt to
+  // that suspenders and additionally blocks pointer events and find-in-page.
+  function syncInert() {
+    if (mobile.matches && !nav.classList.contains('open')) {
+      nav.setAttribute('inert', '');
+    } else {
+      nav.removeAttribute('inert');
+    }
+  }
+
+  function navLinks() {
+    return nav.querySelectorAll('a[href]');
+  }
+
   function openMenu() {
     toggle.classList.add('active');
     toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', 'Close navigation menu');
     nav.classList.add('open');
     document.body.classList.add('menu-open');
+    // Before the focus call, not after: focus is refused inside an inert tree.
+    syncInert();
+    var links = navLinks();
+    if (links.length > 0) {
+      links[0].focus();
+    }
   }
 
   function closeMenu() {
     toggle.classList.remove('active');
     toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Open navigation menu');
     nav.classList.remove('open');
     document.body.classList.remove('menu-open');
+    syncInert();
   }
 
   toggle.addEventListener('click', function () {
@@ -64,6 +94,38 @@ import '../css/style.css';
       toggle.focus();
     }
   });
+
+  // Keep Tab inside the open drawer. The page behind it stays focusable, so
+  // without this the third Tab walks out of the menu and into content the
+  // overlay is covering. The toggle doubles as the close button and sits above
+  // the panel, so it is part of the cycle rather than an escape hatch.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || !nav.classList.contains('open')) {
+      return;
+    }
+    var cycle = [toggle].concat(Array.prototype.slice.call(navLinks()));
+    var first = cycle[0];
+    var last = cycle[cycle.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+
+  // Crossing the breakpoint with the drawer open would otherwise leave the
+  // desktop nav carrying menu-open state and a full-page overlay.
+  mobile.addEventListener('change', function () {
+    if (!mobile.matches && nav.classList.contains('open')) {
+      closeMenu();
+    } else {
+      syncInert();
+    }
+  });
+
+  syncInert();
 
   // Header shadow on scroll
   var scrollThreshold = 10;

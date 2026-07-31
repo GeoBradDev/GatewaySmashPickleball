@@ -125,11 +125,13 @@ check('every file in public/ reaches dist/ at the same path and size', function 
 });
 
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
-function createElementStub() {
+// children, when given, is what querySelectorAll returns.
+function createElementStub(children) {
   const classes = new Set();
   const element = {
     attributes: {},
     listeners: {},
+    focused: 0,
     classList: {
       add: function (name) {
         classes.add(name);
@@ -144,20 +146,32 @@ function createElementStub() {
     setAttribute: function (name, value) {
       element.attributes[name] = value;
     },
+    removeAttribute: function (name) {
+      delete element.attributes[name];
+    },
+    hasAttribute: function (name) {
+      return Object.prototype.hasOwnProperty.call(element.attributes, name);
+    },
+    querySelectorAll: function () {
+      return children || [];
+    },
     addEventListener: function (type, handler) {
       element.listeners[type] = handler;
     },
     contains: function () {
       return false;
     },
-    focus: noop,
+    focus: function () {
+      element.focused += 1;
+    },
   };
   return element;
 }
 
 // elementsById maps an id to a stub, or is null to model a page that has
-// none of the header elements at all.
-function runBundle(elementsById) {
+// none of the header elements at all. isMobile drives matchMedia, which is
+// how the bundle decides whether the nav is the off-canvas drawer.
+function runBundle(elementsById, isMobile) {
   const bundle = fs.readFileSync(path.join(distDir, scriptRef), 'utf8');
   const sandbox = {
     document: {
@@ -174,6 +188,7 @@ function runBundle(elementsById) {
         return { relList: { supports: function () { return true; } } };
       },
       body: createElementStub(),
+      activeElement: null,
     },
     requestAnimationFrame: noop,
     console: console,
@@ -181,37 +196,94 @@ function runBundle(elementsById) {
   sandbox.window = sandbox;
   sandbox.window.addEventListener = noop;
   sandbox.window.scrollY = 0;
+  sandbox.window.matchMedia = function () {
+    return { matches: Boolean(isMobile), addEventListener: noop };
+  };
 
   vm.runInNewContext(bundle, sandbox, { timeout: 5000 });
 }
 
 check('the bundle survives a page with no menu elements', function () {
-  runBundle(null);
+  runBundle(null, true);
 });
 
-check('the bundle opens the menu on the first toggle click', function () {
+// Builds the header trio and runs the bundle against it.
+function mountHeader(isMobile) {
+  const links = [createElementStub(), createElementStub()];
   const toggle = createElementStub();
-  const nav = createElementStub();
+  const nav = createElementStub(links);
 
-  runBundle({
-    'menu-toggle': toggle,
-    'nav-links': nav,
-    'site-header': createElementStub(),
-  });
+  runBundle(
+    {
+      'menu-toggle': toggle,
+      'nav-links': nav,
+      'site-header': createElementStub(),
+    },
+    isMobile
+  );
 
-  if (typeof toggle.listeners.click !== 'function') {
+  return { toggle: toggle, nav: nav, links: links };
+}
+
+check('the bundle opens the menu on the first toggle click', function () {
+  const header = mountHeader(true);
+
+  if (typeof header.toggle.listeners.click !== 'function') {
     throw new Error('no click handler was registered on #menu-toggle');
   }
 
-  toggle.listeners.click();
+  header.toggle.listeners.click();
 
-  if (!nav.classList.contains('open')) {
+  if (!header.nav.classList.contains('open')) {
     throw new Error('one click did not add the open class to #nav-links');
   }
-  if (toggle.attributes['aria-expanded'] !== 'true') {
+  if (header.toggle.attributes['aria-expanded'] !== 'true') {
     throw new Error(
-      'one click left aria-expanded as ' + JSON.stringify(toggle.attributes['aria-expanded'])
+      'one click left aria-expanded as ' +
+        JSON.stringify(header.toggle.attributes['aria-expanded'])
     );
+  }
+});
+
+// The regression #6 was about: a transform hides the drawer but leaves every
+// link focusable and in the accessibility tree.
+check('the closed drawer is inert below the mobile breakpoint', function () {
+  const header = mountHeader(true);
+  if (!header.nav.hasAttribute('inert')) {
+    throw new Error('#nav-links is not inert while closed at mobile width');
+  }
+});
+
+check('opening clears inert and moves focus into the drawer', function () {
+  const header = mountHeader(true);
+  header.toggle.listeners.click();
+
+  if (header.nav.hasAttribute('inert')) {
+    throw new Error('#nav-links stayed inert after opening');
+  }
+  if (header.links[0].focused !== 1) {
+    throw new Error(
+      'opening did not focus the first nav link (focus calls: ' + header.links[0].focused + ')'
+    );
+  }
+});
+
+check('closing puts inert back', function () {
+  const header = mountHeader(true);
+  header.toggle.listeners.click();
+  header.toggle.listeners.click();
+
+  if (!header.nav.hasAttribute('inert')) {
+    throw new Error('#nav-links did not regain inert after closing');
+  }
+});
+
+// inert is not media-query aware, so the desktop nav has to be excluded by
+// hand. Getting this wrong makes the whole nav unreachable on desktop.
+check('the desktop nav is never inert', function () {
+  const header = mountHeader(false);
+  if (header.nav.hasAttribute('inert')) {
+    throw new Error('#nav-links is inert above the mobile breakpoint');
   }
 });
 

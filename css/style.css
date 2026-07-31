@@ -656,12 +656,25 @@ footer p {
     gap: 0;
     box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1);
     transform: translateX(100%);
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Hidden, not merely moved. A transform leaves the links focusable and in
+       the accessibility tree, so a keyboard user tabs through five invisible
+       links. visibility takes them out of both and needs no JS to do it.
+
+       The 0s duration is deliberate. Giving visibility a real duration makes
+       its computed value stay `hidden` at progress 0, so the drawer is still
+       unfocusable on the frame it opens and js/app.js cannot move focus into
+       it. Here the flip out is instead delayed by the length of the slide, so
+       the panel stays visible on its way off-screen. */
+    visibility: hidden;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s;
     z-index: 105;
   }
 
   .nav-links.open {
     transform: translateX(0);
+    /* No delay on the way in: visible on the same frame the class lands. */
+    visibility: visible;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
   }
 
   .nav-links li {
@@ -979,6 +992,29 @@ footer p {
 /* ============================================================
    Accessibility
    ============================================================ */
+/* Off-screen until focused, rather than .visually-hidden plus an override that
+   has to undo clip, size and margin. z-index clears the header (100) and the
+   mobile drawer (105). */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  padding: 12px 20px;
+  background: var(--court-green);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-sm) 0;
+  transform: translateY(-101%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1005,6 +1041,9 @@ footer p {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* Without this the mobile drawer's delayed visibility flip survives, so a
+       menu that closed instantly would stay focusable for another 350ms. */
+    transition-delay: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }

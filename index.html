@@ -28,6 +28,8 @@
 
 <body>
 
+<a href="#home" class="skip-link">Skip to main content</a>
+
 <header id="site-header">
   <nav>
     <a href="#home" class="logo">
@@ -45,7 +47,10 @@
       <span class="logo-text">Gateway Smash</span>
     </a>
 
-    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+    <!-- aria-label is rewritten by js/app.js on open and close, because the
+         hamburger-to-X animation announces state to sighted users only. -->
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open navigation menu" aria-controls="nav-links"
+            aria-expanded="false">
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
@@ -64,7 +69,8 @@
 </header>
 
 <main>
-  <section id="home" class="hero">
+  <!-- tabindex makes the skip link actually move focus here, not just scroll. -->
+  <section id="home" class="hero" tabindex="-1">
     <div class="hero-bg" aria-hidden="true">
       <div class="hero-shape hero-shape--1"></div>
       <div class="hero-shape hero-shape--2"></div>
