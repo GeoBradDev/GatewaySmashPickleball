@@ -38,6 +38,9 @@ export default defineConfig({
         // static host without needing a clean-URL rewrite rule.
         faq: resolve(import.meta.dirname, 'faq/index.html'),
         subs: resolve(import.meta.dirname, 'subs/index.html'),
+        // Quoted because of the dashes. Same directory-per-page shape as the
+        // two above, so the URL is /code-of-conduct/ with no rewrite rule.
+        'code-of-conduct': resolve(import.meta.dirname, 'code-of-conduct/index.html'),
         404: resolve(import.meta.dirname, '404.html'),
       },
     },

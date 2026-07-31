@@ -21,7 +21,7 @@
     "start": "vite --open",
     "build": "vite build",
     "preview": "vite preview",
-    "smoke": "npm run build && html-validate dist/index.html dist/faq/index.html dist/subs/index.html dist/404.html && node scripts/smoke-build.js",
+    "smoke": "npm run build && html-validate \"dist/**/*.html\" && node scripts/smoke-build.js",
     "check-links": "npm run build && node scripts/check-links.js"
   },
   "devDependencies": {

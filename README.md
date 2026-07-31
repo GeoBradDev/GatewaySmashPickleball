@@ -61,11 +61,12 @@ red for that reason teaches people to ignore red. It runs weekly instead, via
 - `index.html` - The main homepage and schedule
 - `faq/` - The FAQ page, served at `/faq/`
 - `subs/` - Substitute player page, served at `/subs/`
+- `code-of-conduct/` - Conduct policy, served at `/code-of-conduct/`, linked from the footer
 - `404.html` - Error page
 - `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2 plus their OFL licences, referenced by `@font-face` in `css/style.css`
-- `partials/` - Shared header and footer, included with `{{> header}}`. Edit the nav here, not in each page
+- `partials/` - Shared header and footer, included with `{{> header}}`. Edit the nav and the footer links here, not in each page
 - `public/` - Static files copied to `dist/` unchanged: `img/`, site icons, `robots.txt`, `site.webmanifest`
 - `vite.config.js` - Build configuration
 

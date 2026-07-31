@@ -1032,3 +1032,58 @@ label with `textContent`, which would silently wipe a visually-hidden span insid
 append a second id to `aria-describedby` instead.
 
 Merge commit: pending
+
+## Batch 8 continued: #46 code of conduct
+
+`/code-of-conduct/` is the fourth content page, following the shape `/faq/` and
+`/subs/` set: a directory rather than a `.html`, both partials, and the existing
+`page-section` / `container--prose` / `prose-list` classes with no new components.
+
+The issue listed five open questions as the organizers' calls rather than copy
+decisions, and all five were settled before drafting:
+
+| Question | Settled as |
+| --- | --- |
+| On-court standards | All four candidates: line calls, sideline coaching, noise, playing to the level of the court |
+| Harassment and discrimination | Plain prohibition, no catalogue of example behaviours |
+| Reporting channel | `info@gatewaysmash.com`, handled discreetly, confidentiality explicitly not promised |
+| Consequences | Removal on the table, organizers' discretion, no refund on removal |
+| Venue rules | Arch Pickleball's own rules apply on top of the league's |
+
+The confidentiality wording is the one worth remembering. More than one organizer
+reads that inbox, so the page says "treat it as discreet rather than private" and a
+smoke check fails if the word "confidential" ever appears on it. A code of conduct
+that promises a confidentiality nobody can deliver is worse than one that does not
+mention it.
+
+No JSON-LD. No schema.org type fits a conduct policy, and the `FAQPage` check would
+not cover it, so markup here would be dead weight that reads as coverage. Same
+reasoning that kept `HowTo` off the substitute page in #19.
+
+Linked from the footer rather than the nav, which was already six items and is the
+path to joining. `partials/footer.html` had no links at all before this, so the
+footer's first link needed a colour: `--cream` at 15.95:1 on `--ink`, checked at
+4.5:1 because footer text is 0.85rem.
+
+**A gap the issue did not mention, found in review.** `npm run smoke` named its four
+pages to html-validate one by one. The new page was not in that list, so it built and
+would have shipped without ever being structurally validated, and nothing would have
+gone red. Confirmed by putting an `<img>` with no `alt` on the page and watching
+`npm run smoke` report all checks passed. The command now takes `"dist/**/*.html"`,
+quoted so the shell leaves the glob to html-validate, which puts it in the same class
+as the per-page smoke checks: the next page is covered without anyone remembering.
+
+Four checks added, each negative-tested by breaking what it guards: every content
+page links to the page; the FAQ and subs link to it from their prose, with `<footer>`
+stripped first so the shared link cannot satisfy it; the reporting address matches
+the homepage and the page never claims confidentiality; and the footer link clears
+4.5:1. The page floor moved from 3 to 4. Removing the footer link reports two pages
+rather than four, because the FAQ and subs still hold their prose links, which is the
+check working rather than a gap.
+
+Verified: `npm ci` then `npm test` exits 0 with 43 ok and 0 not ok. All five pages
+build, all four routes serve 200 under `vite preview`, the footer link and both prose
+links navigate, no console messages on any page, and `npm run check-links` resolves
+all 6 outbound links. Rendered at 1280 and at 390 wide.
+
+Merge commit: pending
