@@ -863,3 +863,75 @@ count in the check rather than a defect. Both that count and the nav link list a
 read from the page, so the next nav item cannot silently stop being checked.
 
 Merge commit: pending
+
+## Batch 8: #18, the parts that were left
+
+#18 was filed as seven findings. Five of them have since been answered by other work,
+and re-reading it against `main` at `8fd9228` was most of the job:
+
+| Finding | State before this pass |
+| --- | --- |
+| 1 Cloudflare blocks AI crawlers | Dashboard setting. The repo `robots.txt` disallows nothing |
+| 2 FAQ on Notion | Done by #20. `/faq/` is on-site with `FAQPage` markup |
+| 3 One indexable URL | 1 to 3: `/`, `/faq/`, `/subs/`, all in `sitemap.xml` |
+| 4 Headings in brand voice | Half done by #37. Title and About `h2` still carried no keyword |
+| 5 Local SEO signals | Open. No address, phone, or `sameAs`, and two Locations disagreed |
+| 6 Zero images | `og:image` is a real 1200x630 card now. Still no `<img>` anywhere |
+| 7 Under 500 words | 483 to 1,744 rendered across three pages |
+
+That left two things doable without inventing a fact, and both are done.
+
+**The title said "STL".** Every other tag said "St. Louis", and searchers type the full
+name, so the highest-value field on the page was competing for the wrong string while
+nothing looked broken. It is now "Gateway Smash | Indoor Pickleball Leagues in St.
+Louis", 54 characters, inside the roughly 60 that render before truncation.
+
+**No `h2` carried a keyword.** The About heading was "Built by players, for players",
+which tells a search engine nothing. It is now "Indoor pickleball leagues in St. Louis",
+which is #18's own suggestion. The voice line was not cut: it opens the lead paragraph
+underneath, where it reads as a sentence instead of as a wasted heading slot. The `h1`
+was not touched, because it is a wordmark and the copy style guide says so.
+
+Measured rather than eyeballed, since the new heading is longer. Headless Chrome at
+1440, 768, 390, and 320 CSS pixels: no horizontal overflow at any width, and
+`document.scrollWidth` equals the viewport in every case. At 320 the heading wraps to
+three lines where the old one took two, 34px taller with nothing clipped. An alternate
+break, "Indoor pickleball / leagues in St. Louis", holds two lines everywhere but splits
+the compound noun, so the current break was kept deliberately.
+
+**The two Locations disagreed.** Contact said "St. Louis, Missouri" and League Info said
+"Arch Pickleball, Bridgeton", which are different municipalities. Contact now reads
+"Arch Pickleball, Bridgeton, MO".
+
+Three checks, each negative-tested by breaking the thing it guards:
+
+- *the homepage names its city in the title and in a heading.* Both halves were proven
+  to fail on their own: reverting the title alone reports the title, and reverting the
+  `h2` alone reports the headings it did find. Without that second test the heading
+  assertion would have been carried by the title and never observed failing.
+- *every Location on the homepage names the same venue.* Fails from either side, tested
+  by breaking Contact and then by breaking League Info separately. It anchors on the
+  venue and locality in the JSON-LD rather than hardcoding them, so the three move
+  together.
+- *the structured data parses and matches the page*, strengthened. It already required
+  the JSON-LD email and venue name on the visible page but not `addressLocality`, so
+  Bridgeton could have been swapped for any suburb with every check still green.
+  Negative-tested by swapping it for Chesterfield.
+
+29 checks to 31. `npm test` exits 0 with 31 ok and 0 not ok.
+
+**What is still open, and why none of it is a commit.** Photographs of actual play, a
+street address, a phone number, and social profiles for `sameAs` all need facts or
+assets that nobody has supplied yet. The address and social URLs were offered during
+this pass but did not arrive, so nothing was invented: the JSON-LD rule in `CLAUDE.md`
+means anything added there has to be visible on the page, and a made-up street number
+would be visible and wrong. The Cloudflare AI-crawler block is a dashboard setting that
+no commit in this repo can reach. Each is now its own issue.
+
+**Splitting into `/leagues`, `/pricing`, and `/location` was declined.** #18 proposes it
+under finding 3, but the substance of that finding, one indexable URL, was already
+answered by going to three. Carving three more pages out of a 499-word homepage produces
+thin pages competing with each other, which ranks worse than one page that covers the
+topic. Worth revisiting if the content grows.
+
+Merge commit: pending

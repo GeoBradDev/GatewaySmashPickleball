@@ -106,8 +106,20 @@ holds it in one constant.
 URLs, and a relative one fails silently.
 
 The JSON-LD may only state things the visible page also states. A smoke check
-enforces this for the email and the venue by searching the page with the JSON-LD
-block stripped out. Structured data that disagrees with the page is worse than none.
+enforces this for the email, the venue, and the venue's municipality by searching the
+page with the JSON-LD block stripped out. Structured data that disagrees with the page
+is worse than none.
+
+The homepage must name **St. Louis** in its `<title>` and in at least one `h2`. The
+`h1` is exempt, because it is a wordmark. This is a smoke check, and it exists because
+the title once said "STL" while every other tag said "St. Louis": searchers type the
+full name, so the abbreviation was competing for the wrong string while nothing
+appeared broken.
+
+The page states a location twice, in the League Info list and in the Contact section.
+A smoke check requires both to name the venue and municipality the JSON-LD claims, so
+all three move together. They previously disagreed, Bridgeton against St. Louis, which
+is the kind of contradiction no build step can see.
 
 Note that the served `robots.txt` is **not** the one in this repo. Cloudflare prepends
 a managed block that disallows AI crawlers, and the repo file is appended underneath.
@@ -138,6 +150,10 @@ The league's pitch is that it is the human alternative to disorganized corporate
 leagues, so the copy should not read like a corporate league wrote it.
 
 - Sentence case for headings. The `h1` is the exception: it is a wordmark.
+- Headings carry search language as well as voice. The About `h2` names the city;
+  "Built by players, for players" moved into the lead paragraph rather than being
+  cut, because a heading that tells a search engine nothing is a wasted slot. A
+  smoke check fails if no `h2` names St. Louis.
 - No em dashes. En dashes only in numeric ranges (`Apr 12 – Jun 7`, `6:00–8:00 PM`),
   never as a general separator.
 - Straight quotes and apostrophes.
@@ -158,13 +174,13 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 
 ## Integrations & Contact
 
-- **Community Chat:** WhatsApp (linked in `index.html:242` and about copy at `index.html:101`).
+- **Community Chat:** WhatsApp (linked in `index.html:247` and about copy at `index.html:116`).
 - *Note:* GroupMe was historically used but removed completely.
 
 ## Maintenance Notes
 
 The most frequently edited part of the site is the **League Schedule**.
-- **Location:** `index.html`, around line 135 under `<h2>League Schedule</h2>`.
+- **Location:** `index.html`, around line 135 under `<h2>League schedule</h2>`.
 - **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
 
 > **CRITICAL RULE FOR AI ASSISTANTS:**
