@@ -2,11 +2,11 @@
 
 Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volunteer-run alternative to corporate pickleball leagues in St. Louis.
 
-- **Live Site:** [https://geobraddev.github.io/GatewaySmashPickleball/](https://geobraddev.github.io/GatewaySmashPickleball/)
+- **Live Site:** [https://www.gatewaysmash.com](https://www.gatewaysmash.com)
 
 ## Prerequisites
 
-- Node.js (version 20 or higher recommended)
+- Node.js (version 20 or higher recommended; CI builds on Node 24)
 - npm
 
 ## Getting Started
@@ -22,6 +22,10 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 3. Build the production site:
    ```bash
    npm run build
+   ```
+4. Build and check the output, which is what CI runs:
+   ```bash
+   npm run smoke
    ```
 
 ## Project Layout
@@ -41,7 +45,27 @@ Updating the schedule is the most common recurring maintenance task.
 
 ## Deployment
 
-Changes to the `main` branch are automatically built and deployed.
+The production site is [https://www.gatewaysmash.com](https://www.gatewaysmash.com).
+
+| Layer | Service |
+| --- | --- |
+| DNS and CDN | Cloudflare |
+| Origin host | Render |
+| Release trigger | Push to `main` |
+
+Pushing to `main` is the release. Render rebuilds from the branch and publishes the
+webpack production output, typically within seconds of the merge. There is no manual
+deploy step and no deploy workflow in this repository. The apex domain and plain HTTP
+both redirect to the canonical `https://www.gatewaysmash.com`.
+
+The Render service settings and the Cloudflare DNS records live in those dashboards,
+not in this repo. Moving the site to a different host means changing them there and
+updating this section to match.
+
+Because a push to `main` reaches production without review, the CI workflow in
+`.github/workflows/ci.yml` runs `npm ci` and `npm run smoke` on every pull request
+targeting `main`. Keep it green before merging. The check reports its result but does
+not block merges, since `main` has no branch protection rule requiring it.
 
 ## License & Contact
 
