@@ -357,4 +357,65 @@ sizes this icon is actually displayed that is very likely invisible, but it is n
 identical, and identical is what this issue was scoped to. Say the word and it is a
 one-line change.
 
+Merged as PR #33, merge commit `f997df2`.
+
+## Batch 5: repo hygiene
+
+### #12 Leftover HTML5 Boilerplate, and #14 repo hygiene
+
+Done together: both are scaffold residue, and separating them would have split a
+four-line `package.json` edit across two reviews.
+
+**#12.** `LICENSE.txt` said `Copyright (c) HTML5 Boilerplate`. It now names the
+holder `package.json` already declares, with the year the site footer already
+declares. MIT is unchanged; only the attribution line was wrong. The `robots.txt`
+scaffold comment is gone, with crawl behaviour untouched, since that is #18's call
+to make rather than a cleanup decision.
+
+`404.html` was the stock boilerplate error page: grey sans on white, no branding, no
+way back to the site. Rebuilt to match the site, and kept standalone with inline
+styles for the reason the issue gives, that an error page has to render when the
+stylesheet is the thing that failed. That decision has a consequence worth writing
+down: it cannot use the self-hosted webfonts, because their `@font-face` rules live
+in the hashed stylesheet and hashed filenames must never be hardcoded. So it renders
+in Georgia and the system sans, which are the same fallbacks `css/style.css` already
+declares behind DM Serif Display and DM Sans. The colour tokens are copied from
+`:root`, which is a duplication the file comments call out.
+
+**#14.** `.idea/` untracked and ignored, along with `.vscode` and the usual editor
+noise. Node pinned two ways: `.nvmrc` at 24 to match CI, and an `engines` field.
+
+The issue suggests `">=20"` for `engines`, which would be wrong. Vite 8 declares
+`^20.19.0 || >=22.12.0`, so `>=20` would let Node 20.0 through and it would fail at
+install. The pin matches Vite's actual floor.
+
+`package.json` metadata: `version` dropped rather than given a convention, since the
+package is `private` and never published. `npm ci` was tested against the regenerated
+lockfile to confirm the field is genuinely optional before removing it. The
+description said "St. Louis premier pickleball club website", which contradicts the
+site copy positioning Gateway Smash as a grassroots alternative to corporate leagues,
+explicitly not a premier club; it now matches the manifest description.
+
+Both `.gitkeep` files are gone: `js/vendor/` was webpack-era residue with nothing
+referencing it, and `public/img/.gitkeep` was shipping to `dist/img/.gitkeep` on
+every deploy. The directory has real files now, so nothing needs holding open.
+
+Also cleaned up the seven merged branches still sitting on the remote. Every
+`gh pr merge --delete-branch` in this run failed its local step, because `main` is
+checked out in another worktree, so the remote branches survived their merges.
+
+Verification: `npm run smoke` is 17 checks, up from 16. The 404 check was upgraded
+from "exists and is non-empty" to asserting it links home, carries inline styles,
+depends on no external stylesheet, pulls in no third-party subresources, and
+actually says Gateway Smash. Screenshots at 1280px and 390px. `npm ci` from a clean
+lockfile. The 19-check keyboard suite still passes.
+
+**One thing you have to do yourself.** The local branch `update-styling` is confirmed
+merged into `main` (tip `6e490cd`) and can be deleted, but it lives in your working
+copy rather than the repo, so no pull request can remove it:
+
+```
+git branch -d update-styling
+```
+
 Merge commit: pending

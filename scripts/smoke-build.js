@@ -92,10 +92,30 @@ check('the emitted stylesheet is minified', function () {
   }
 });
 
-check('dist/404.html was emitted', function () {
+// The 404 page carries its own styles so it still renders when the hashed
+// stylesheet is the thing that failed. That only holds if it stays standalone.
+check('dist/404.html is branded, self-contained, and links home', function () {
   const target = path.join(distDir, '404.html');
   if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
     throw new Error('dist/404.html is missing or empty');
+  }
+  const html = fs.readFileSync(target, 'utf8');
+
+  if (!/<a[^>]*\bhref=["']\/["']/.test(html)) {
+    throw new Error('no link back to the site, which is the whole point of the page');
+  }
+  if (!/<style/.test(html)) {
+    throw new Error('no inline styles, so a failed stylesheet leaves it unstyled');
+  }
+  if (/<link[^>]*\brel=["']stylesheet["']/.test(html)) {
+    throw new Error('depends on an external stylesheet, so it is no longer self-contained');
+  }
+  const external = [...html.matchAll(/<(?:link|script)[^>]*\b(?:href|src)=["'](https?:\/\/[^"']+)["']/g)];
+  if (external.length > 0) {
+    throw new Error('third-party subresources: ' + external.map((m) => m[1]).join(', '));
+  }
+  if (!/Gateway Smash/.test(html)) {
+    throw new Error('does not mention Gateway Smash, so it reads as a stranger\'s error page');
   }
 });
 
