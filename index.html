@@ -145,13 +145,19 @@
         <h3>Tentative League Dates</h3>
         <div class="table-wrapper">
           <table class="league-table">
+            <!-- Under the mobile breakpoint each row restacks into a card and the
+                 thead is hidden, which breaks the layout-inferred link between a
+                 cell and its header. scope states it outright instead. -->
+            <caption class="visually-hidden">
+              Tentative season dates, with registration opening dates, scheduled byes, and Drinks with Dinks nights.
+            </caption>
             <thead>
               <tr>
-                <th>Season</th>
-                <th>Season Dates</th>
-                <th>Registration Opens</th>
-                <th>Bye (reason)</th>
-                <th>Drinks with Dinks</th>
+                <th scope="col">Season</th>
+                <th scope="col">Season Dates</th>
+                <th scope="col">Registration Opens</th>
+                <th scope="col">Bye (reason)</th>
+                <th scope="col">Drinks with Dinks</th>
               </tr>
             </thead>
             <tbody>

@@ -822,7 +822,10 @@ footer p {
 
   .league-table td:empty::after {
     content: '—';
-    color: var(--ink-faint);
+    /* --ink-faint on cream is about 2.6:1 and fails WCAG AA. This dash is the
+       only thing standing in for a missing value, so it has to be readable.
+       --ink-muted is about 5:1 on the same background. */
+    color: var(--ink-muted);
   }
 
   /* First td (Season) gets highlighted as card header */
