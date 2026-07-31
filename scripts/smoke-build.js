@@ -511,7 +511,10 @@ function createElementStub(children) {
   const element = {
     attributes: {},
     listeners: {},
+    appended: [],
+    classes: classes,
     focused: 0,
+    textContent: '',
     classList: {
       add: function (name) {
         classes.add(name);
@@ -532,8 +535,20 @@ function createElementStub(children) {
     hasAttribute: function (name) {
       return Object.prototype.hasOwnProperty.call(element.attributes, name);
     },
+    getAttribute: function (name) {
+      return Object.prototype.hasOwnProperty.call(element.attributes, name)
+        ? element.attributes[name]
+        : null;
+    },
     querySelectorAll: function () {
       return children || [];
+    },
+    querySelector: function () {
+      return (children && children[0]) || null;
+    },
+    appendChild: function (child) {
+      element.appended.push(child);
+      return child;
     },
     addEventListener: function (type, handler) {
       element.listeners[type] = handler;
@@ -551,7 +566,8 @@ function createElementStub(children) {
 // elementsById maps an id to a stub, or is null to model a page that has
 // none of the header elements at all. isMobile drives matchMedia, which is
 // how the bundle decides whether the nav is the off-canvas drawer.
-function runBundle(elementsById, isMobile) {
+function runBundle(elementsById, isMobile, options) {
+  const opts = options || {};
   const bundle = fs.readFileSync(path.join(distDir, scriptRef), 'utf8');
   const sandbox = {
     document: {
@@ -559,13 +575,21 @@ function runBundle(elementsById, isMobile) {
         return elementsById ? elementsById[id] || null : null;
       },
       addEventListener: noop,
+      querySelector: function (selector) {
+        return selector === '.league-table' ? opts.table || null : null;
+      },
       querySelectorAll: function () {
         return [];
       },
       // Vite prepends a modulepreload polyfill. Reporting support for it
       // makes that preamble return early instead of reaching MutationObserver.
-      createElement: function () {
-        return { relList: { supports: function () { return true; } } };
+      createElement: function (tag) {
+        const el = createElementStub();
+        el.tagName = String(tag).toUpperCase();
+        // Vite prepends a modulepreload polyfill. Reporting support for it
+        // makes that preamble return early instead of reaching MutationObserver.
+        el.relList = { supports: function () { return true; } };
+        return el;
       },
       body: createElementStub(),
       activeElement: null,
@@ -579,6 +603,20 @@ function runBundle(elementsById, isMobile) {
   sandbox.window.matchMedia = function () {
     return { matches: Boolean(isMobile), addEventListener: noop };
   };
+  // Freezing "today" is the only way to assert what the schedule says. The
+  // real Date is otherwise whatever day the build runs on.
+  if (opts.today) {
+    const frozen = opts.today;
+    function FrozenDate() {
+      return new Date(frozen);
+    }
+    FrozenDate.prototype = Date.prototype;
+    FrozenDate.UTC = Date.UTC;
+    FrozenDate.now = function () { return new Date(frozen).getTime(); };
+    sandbox.Date = FrozenDate;
+  } else {
+    sandbox.Date = Date;
+  }
 
   vm.runInNewContext(bundle, sandbox, { timeout: 5000 });
 }
@@ -664,6 +702,114 @@ check('the desktop nav is never inert', function () {
   const header = mountHeader(false);
   if (header.nav.hasAttribute('inert')) {
     throw new Error('#nav-links is inert above the mobile breakpoint');
+  }
+});
+
+// The schedule statuses are the whole point of #10: the table presented a
+// finished season, a live one and one open for registration identically.
+// They are computed from each row's dates, so they are worth pinning down
+// against a frozen clock rather than trusting to read correctly today.
+function buildScheduleTable() {
+  const SEASONS = [
+    ['Spring 2026', '2026-04-12', '2026-06-07', '2026-03-12'],
+    ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
+    ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-13'],
+    ['Winter 2027', '2027-01-10', '2027-03-07', '2026-12-11'],
+  ];
+  const rows = SEASONS.map(function (season) {
+    const nameCell = createElementStub();
+    nameCell.textContent = season[0];
+    const row = createElementStub();
+    row.cells = [nameCell];
+    row.setAttribute('data-start', season[1]);
+    row.setAttribute('data-end', season[2]);
+    row.setAttribute('data-registration', season[3]);
+    return row;
+  });
+  const headRow = createElementStub();
+  const table = createElementStub(rows);
+  // querySelector on the table is only ever asked for 'thead tr'.
+  table.querySelector = function () {
+    return headRow;
+  };
+  return { table: table, rows: rows, headRow: headRow };
+}
+
+function statusesOn(isoDate) {
+  const schedule = buildScheduleTable();
+  const callout = createElementStub();
+  callout.hidden = true;
+
+  runBundle(
+    { 'season-callout': callout },
+    false,
+    { table: schedule.table, today: isoDate + 'T12:00:00Z' }
+  );
+
+  return {
+    labels: schedule.rows.map(function (row) {
+      const cell = row.appended[row.appended.length - 1];
+      return cell ? cell.textContent : null;
+    }),
+    callout: callout.hidden ? null : callout.textContent,
+  };
+}
+
+check('the status column it builds is a real table header', function () {
+  const schedule = buildScheduleTable();
+  runBundle({}, false, { table: schedule.table, today: '2026-07-31T12:00:00Z' });
+
+  const th = schedule.headRow.appended[0];
+  if (!th || th.tagName !== 'TH') {
+    throw new Error('no th appended to thead, so the column has no header at all');
+  }
+  // Under the mobile breakpoint the thead is hidden and rows restack, so the
+  // cell-to-header link is carried by scope and data-label, not by layout.
+  if (th.attributes.scope !== 'col') {
+    throw new Error('the generated header has no scope="col"');
+  }
+  const cell = schedule.rows[0].appended[0];
+  if (!cell || cell.attributes['data-label'] !== 'Status') {
+    throw new Error('generated cells lack data-label, so they lose their label on mobile');
+  }
+});
+
+check('the schedule marks the season that is actually running', function () {
+  const result = statusesOn('2026-07-31');
+  const expected = ['Completed', 'In progress', 'Upcoming', 'Upcoming'];
+  if (JSON.stringify(result.labels) !== JSON.stringify(expected)) {
+    throw new Error('got ' + JSON.stringify(result.labels) + ', expected ' + JSON.stringify(expected));
+  }
+  if (!/Summer 2026 is in progress/.test(result.callout || '')) {
+    throw new Error('callout does not name the running season: ' + JSON.stringify(result.callout));
+  }
+  if (!/Fall 2026 registration opens August 13, 2026/.test(result.callout)) {
+    throw new Error('callout does not give the next registration date: ' + JSON.stringify(result.callout));
+  }
+});
+
+check('the schedule flips to registration open on the right day', function () {
+  const before = statusesOn('2026-08-12');
+  if (before.labels[2] !== 'Upcoming') {
+    throw new Error('Fall 2026 was ' + before.labels[2] + ' the day before registration opens');
+  }
+  const on = statusesOn('2026-08-13');
+  if (on.labels[2] !== 'Registration open') {
+    throw new Error('Fall 2026 was ' + on.labels[2] + ' on the day registration opens');
+  }
+  if (!/Fall 2026 registration is open now/.test(on.callout || '')) {
+    throw new Error('callout did not switch to open: ' + JSON.stringify(on.callout));
+  }
+});
+
+check('a season is complete the day after it ends, not before', function () {
+  const lastDay = statusesOn('2026-08-23');
+  if (lastDay.labels[1] !== 'In progress') {
+    throw new Error('Summer 2026 read as ' + lastDay.labels[1] + ' on its final day');
+  }
+  const dayAfter = statusesOn('2026-08-24');
+  if (dayAfter.labels[1] !== 'Completed') {
+    throw new Error('Summer 2026 read as ' + dayAfter.labels[1] + ' the day after it ended');
   }
 });
 

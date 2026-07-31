@@ -713,4 +713,50 @@ prose, roughly ten em dashes and the same rule-of-three constructions, but its o
 instruction is to do that inside #20 rather than as a second edit later, so it travels
 with the FAQ migration.
 
+Merged as PR #42, merge commit `b5f54a7`.
+
+## Batch 7 continued: #10 schedule status
+
+Confirmed: Summer 2026 is running, Fall 2026 is next.
+
+The table presented a finished season, a live one, and one nearing registration
+identically, all under the heading "Tentative league dates". A visitor could not tell
+what to do next.
+
+Every status label is now **computed from the dates on each row** rather than written
+by hand. Writing "Summer 2026, in progress" into the markup would be wrong the moment
+the season ends, which is exactly the state #10 found this table in. Each row carries
+`data-start`, `data-end` and `data-registration`, and `js/app.js` derives Completed,
+In progress, Registration open or Upcoming from them, adds a Status column, tints the
+running season, mutes finished ones, and writes a callout above the table.
+
+Progressive enhancement on purpose: without JS the table renders as it always did with
+real dates in it. The status column and callout are absent rather than empty or stale.
+Crawlers see the dates, which are the content; status is ephemeral.
+
+Also: every season label gained its year, the heading is "Season dates" since a
+completed season is not tentative, and the footer year is no longer a January chore,
+though the markup still ships the current year so a no-JS visitor sees a correct one.
+
+Four new smoke checks, run against a frozen clock, because the real `Date` is whatever
+day the build happens on:
+
+- On 2026-07-31: Completed, In progress, Upcoming, Upcoming, with the callout naming
+  Summer 2026 and giving Fall's registration date.
+- Fall 2026 reads Upcoming on 2026-08-12 and Registration open on 2026-08-13, and the
+  callout switches wording with it.
+- Summer 2026 is still In progress on its final day and Completed the day after, not
+  before.
+- The generated column is a real `th` with `scope="col"`, and its cells carry
+  `data-label`, without which they lose their label in the mobile card layout.
+
+That last check exists because the keyboard suite caught the generated header: it went
+to 18/19 with `["col","col","col","col","col","col"]`, which was a stale assertion of
+exactly five headers rather than a real defect. The generated header does declare
+scope.
+
+Not done: the hero CTA still says "Join the League" without naming a season, item 6 of
+the issue. It links to the GPN network page rather than a season-specific ladder event,
+and which of those it should point at is still an open question.
+
 Merge commit: pending

@@ -569,6 +569,47 @@ nav {
   background: var(--court-green-light);
 }
 
+/* Season status, applied by js/app.js from the dates on each row */
+.season-callout {
+  margin: 0 0 1.25rem;
+  padding: 12px 18px;
+  background: var(--court-green-light);
+  border-left: 3px solid var(--court-green);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.season-status {
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.season-status--current {
+  color: var(--court-green);
+}
+
+.season-status--open {
+  color: var(--amber-dark);
+}
+
+.season-status--past,
+.season-status--upcoming {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* A finished season stays readable but stops competing with the live one. */
+.league-table tbody tr.season-row--past td {
+  color: var(--ink-muted);
+}
+
+.league-table tbody tr.season-row--current td {
+  background: var(--court-green-light);
+}
+
 /* League Info */
 .league-info {
   display: grid;
@@ -907,6 +948,11 @@ footer p {
 
   .league-table tbody tr:hover {
     background: var(--cream);
+  }
+
+  .league-table tbody tr.season-row--current,
+  .league-table tbody tr.season-row--current td {
+    background: var(--court-green-light);
   }
 
   /* League Details */

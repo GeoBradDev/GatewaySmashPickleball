@@ -147,3 +147,124 @@ import '../css/style.css';
     }
   }, { passive: true });
 })();
+(function () {
+  'use strict';
+
+  // League schedule status.
+  //
+  // Every label here is derived from the dates on each row rather than written
+  // by hand, because a hand-written "current season" is wrong the moment the
+  // season ends, which is exactly the state issue #10 found the table in.
+  //
+  // Progressive enhancement on purpose. Without JS the table renders as it
+  // always did, with real dates in it; the status column and the callout are
+  // simply absent rather than empty or stale.
+
+  var table = document.querySelector('.league-table');
+  var callout = document.getElementById('season-callout');
+  if (!table) {
+    return;
+  }
+
+  var rows = table.querySelectorAll('tbody tr[data-start]');
+  if (rows.length === 0) {
+    return;
+  }
+
+  // Parsed as UTC midnight so a visitor's timezone cannot shift a season by a
+  // day either side of a boundary.
+  function parseDate(value) {
+    var parts = value.split('-');
+    return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+
+  var now = new Date();
+  var today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+  function longDate(value) {
+    var parts = value.split('-');
+    return MONTHS[Number(parts[1]) - 1] + ' ' + Number(parts[2]) + ', ' + parts[0];
+  }
+
+  function statusOf(row) {
+    var start = parseDate(row.getAttribute('data-start'));
+    var end = parseDate(row.getAttribute('data-end'));
+    var registration = parseDate(row.getAttribute('data-registration'));
+
+    if (today > end) {
+      return { label: 'Completed', modifier: 'past' };
+    }
+    if (today >= start) {
+      return { label: 'In progress', modifier: 'current' };
+    }
+    if (today >= registration) {
+      return { label: 'Registration open', modifier: 'open' };
+    }
+    return { label: 'Upcoming', modifier: 'upcoming' };
+  }
+
+  // Build the column rather than shipping empty cells in the markup.
+  var headRow = table.querySelector('thead tr');
+  if (headRow) {
+    var th = document.createElement('th');
+    th.setAttribute('scope', 'col');
+    th.textContent = 'Status';
+    headRow.appendChild(th);
+  }
+
+  var current = null;
+  var nextRegistration = null;
+
+  Array.prototype.forEach.call(rows, function (row) {
+    var status = statusOf(row);
+    var cell = document.createElement('td');
+    cell.setAttribute('data-label', 'Status');
+    cell.className = 'season-status season-status--' + status.modifier;
+    cell.textContent = status.label;
+    row.appendChild(cell);
+    row.classList.add('season-row--' + status.modifier);
+
+    var name = row.cells[0].textContent.trim();
+    if (status.modifier === 'current') {
+      current = name;
+    }
+    // The soonest season that has not started yet, whether or not its
+    // registration window has opened.
+    if ((status.modifier === 'open' || status.modifier === 'upcoming') && !nextRegistration) {
+      nextRegistration = { name: name, opens: row.getAttribute('data-registration'), isOpen: status.modifier === 'open' };
+    }
+  });
+
+  if (callout) {
+    var parts = [];
+    if (current) {
+      parts.push(current + ' is in progress.');
+    }
+    if (nextRegistration) {
+      parts.push(
+        nextRegistration.isOpen
+          ? nextRegistration.name + ' registration is open now.'
+          : nextRegistration.name + ' registration opens ' + longDate(nextRegistration.opens) + '.'
+      );
+    }
+    if (parts.length > 0) {
+      callout.textContent = parts.join(' ');
+      callout.hidden = false;
+    }
+  }
+})();
+
+(function () {
+  'use strict';
+
+  // The footer year was hardcoded and needed an edit every January. The markup
+  // still ships the current year, so a visitor without JS sees a correct year
+  // rather than an empty gap; this just stops it going stale on its own.
+  var year = document.getElementById('footer-year');
+  if (year) {
+    year.textContent = String(new Date().getFullYear());
+  }
+})();
