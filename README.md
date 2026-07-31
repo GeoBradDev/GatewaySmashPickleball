@@ -6,7 +6,7 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 
 ## Prerequisites
 
-- Node.js 22.15 or newer. `webpack-dev-server` 6 sets that floor, so `npm start` needs it. CI builds on Node 24.
+- Node.js 20.19 or newer, or 22.12 or newer. Vite 8 sets that floor. CI builds on Node 24.
 - npm
 
 ## Getting Started
@@ -27,20 +27,36 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
    ```bash
    npm run smoke
    ```
+5. Serve the production build locally to check it before pushing:
+   ```bash
+   npm run preview
+   ```
 
 ## Project Layout
 
 - `index.html` - The main homepage and schedule
 - `404.html` - Error page
-- `css/` - Stylesheets
+- `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)
-- `img/` - Image assets
+- `public/` - Static files copied to `dist/` unchanged: `img/`, site icons, `robots.txt`, `site.webmanifest`
+- `vite.config.js` - Build configuration
+
+## Build
+
+The site is built with [Vite](https://vite.dev). CSS and JS are minified and
+content-hashed, so `dist/` contains names like `assets/main-tEWbBYpj.css`. The hash
+changes when the file does, which is what stops browsers serving a stale stylesheet
+after a deploy. Vite injects the hashed names into `index.html` at build time, so
+neither the stylesheet link nor the script `src` should be hardcoded to a built path.
+
+Files in `public/` bypass all of that and are copied to `dist/` byte for byte at the
+same relative path.
 
 ## 🗓️ How to Update the League Schedule
 
 Updating the schedule is the most common recurring maintenance task.
 1. Open `index.html`.
-2. Locate the league schedule section (starts around line 136 `<h2>League Schedule</h2>`).
+2. Locate the league schedule section (starts around line 135 `<h2>League Schedule</h2>`).
 3. Update the `<tr>` rows within the `<tbody>` table with the new dates, times, and matchup details for the current season.
 
 ## Deployment
@@ -54,9 +70,9 @@ The production site is [https://www.gatewaysmash.com](https://www.gatewaysmash.c
 | Release trigger | Push to `main` |
 
 Pushing to `main` is the release. Render rebuilds from the branch and publishes the
-webpack production output, typically within seconds of the merge. There is no manual
-deploy step and no deploy workflow in this repository. The apex domain and plain HTTP
-both redirect to the canonical `https://www.gatewaysmash.com`.
+production build output from `dist/`, typically within seconds of the merge. There is no
+manual deploy step and no deploy workflow in this repository. The apex domain and plain
+HTTP both redirect to the canonical `https://www.gatewaysmash.com`.
 
 The Render service settings and the Cloudflare DNS records live in those dashboards,
 not in this repo. Moving the site to a different host means changing them there and
