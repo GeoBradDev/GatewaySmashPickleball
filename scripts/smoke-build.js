@@ -124,6 +124,74 @@ check('every file in public/ reaches dist/ at the same path and size', function 
   }
 });
 
+// Resolves a URL as written in the HTML against dist/, and reports the ones
+// that do not exist. Root-relative and relative both land in the same place
+// here, since dist/ is the document root.
+function missingFromDist(urls) {
+  return urls.filter(function (url) {
+    return !fs.existsSync(path.join(distDir, url.replace(/^\//, '')));
+  });
+}
+
+// The orphaned manifest carried icon paths that were root-relative to files
+// that lived one directory down, so every one of them would have 404'd. That
+// is silent: nothing fails a build, the install prompt just shows no icon.
+check('every icon and manifest URL in dist/index.html resolves', function () {
+  const urls = [
+    ...[...indexHtml.matchAll(/<link[^>]*\brel=["'](?:icon|apple-touch-icon|manifest)["'][^>]*\bhref=["']([^"']+)["']/g)],
+    ...[...indexHtml.matchAll(/<meta[^>]*\bproperty=["']og:image["'][^>]*\bcontent=["']([^"']+)["']/g)],
+  ].map((m) => m[1]);
+
+  if (urls.length < 5) {
+    throw new Error('expected at least 5 icon/manifest URLs, found ' + urls.length);
+  }
+  const missing = missingFromDist(urls);
+  if (missing.length > 0) {
+    throw new Error('referenced but not in dist/: ' + missing.join(', '));
+  }
+});
+
+check('the web manifest is installable and its icons exist', function () {
+  const manifest = JSON.parse(fs.readFileSync(path.join(distDir, 'site.webmanifest'), 'utf8'));
+
+  ['name', 'short_name'].forEach(function (field) {
+    if (!manifest[field]) {
+      throw new Error(field + ' is empty, so the home screen label would be blank');
+    }
+  });
+  if (manifest.display !== 'standalone') {
+    throw new Error('display is ' + JSON.stringify(manifest.display) + ', so it installs as a shortcut');
+  }
+
+  const sizes = (manifest.icons || []).map((icon) => icon.sizes);
+  ['192x192', '512x512'].forEach(function (size) {
+    if (!sizes.includes(size)) {
+      throw new Error('no ' + size + ' icon; installability wants both');
+    }
+  });
+  if (!(manifest.icons || []).some((icon) => icon.purpose === 'maskable')) {
+    throw new Error('no maskable icon, so Android letterboxes the icon in a white circle');
+  }
+
+  const missing = missingFromDist(manifest.icons.map((icon) => icon.src));
+  if (missing.length > 0) {
+    throw new Error('manifest icons missing from dist/: ' + missing.join(', '));
+  }
+});
+
+// One theme colour, declared in two places that used to disagree.
+check('manifest and meta theme colours agree', function () {
+  const manifest = JSON.parse(fs.readFileSync(path.join(distDir, 'site.webmanifest'), 'utf8'));
+  const meta = indexHtml.match(/<meta[^>]*\bname=["']theme-color["'][^>]*\bcontent=["']([^"']+)["']/);
+  if (!meta) {
+    throw new Error('no theme-color meta tag in dist/index.html');
+  }
+  const values = new Set([meta[1], manifest.theme_color, manifest.background_color]);
+  if (values.size !== 1) {
+    throw new Error('theme colours disagree: ' + [...values].join(', '));
+  }
+});
+
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
 // children, when given, is what querySelectorAll returns.
 function createElementStub(children) {

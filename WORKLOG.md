@@ -220,4 +220,59 @@ on mobile instead of the card restacking. `scope` plus the caption fixes the sta
 defect, and swapping the mobile presentation is a visual redesign rather than an
 accessibility fix.
 
+Merged as PR #31, merge commit `2b02c98`.
+
+### #8 Two web manifests, both with empty names, plus broken favicons
+
+Everything the issue lists, plus one finding it did not anticipate.
+
+Consolidated to a single `public/site.webmanifest` with real `name`, `short_name`
+and `description`, `display: standalone` (it had no `display`, so it defaulted to
+`browser` and installed as a plain shortcut), `start_url: "/"` without the
+boilerplate `utm_source`, and `#faf7f2` for both colours so the manifest, the
+`theme-color` meta tag and `--cream` finally agree. Deleted the orphaned
+`public/img/site.webmanifest`, whose icon paths were root-relative to files that
+live one directory down and would all have 404'd.
+
+Generated `public/img/maskable-512x512.png`, which the issue correctly said would
+be needed. It is the existing 512 artwork scaled into the central 72% of the canvas
+on the source's own background colour, so no mask shape can clip it: the furthest
+artwork pixel sits 184.3px from centre against a 204.8px safe radius, a 20.5px
+margin. Quantising to a 64-colour palette takes it to 68,754 bytes rather than the
+411,246 the unmodified 512 costs, which matters because this is now the third
+512px icon shipped. Produced with a one-off Pillow script rather than a committed
+generator, to keep the toolchain at one devDependency.
+
+Favicon declarations: `index.html:17` declared a PNG with `type="image/svg+xml"`,
+now corrected, and `favicon-32x32.png` is declared alongside the 16 rather than
+sitting unreferenced. All icon URLs moved to root-relative. Deduplicated the two
+different `favicon.ico` files by keeping the referenced one at the conventional
+root path; before this, a browser probing `/favicon.ico` got a different image
+from the one the page declared.
+
+Verification:
+
+- `npm run smoke`: 14 checks, up from 11. Three new ones cover every icon and
+  manifest URL in the built HTML resolving inside `dist/`, the manifest being
+  installable with 192, 512 and maskable icons that exist, and the three theme
+  colour declarations agreeing.
+- Negative tests on all three: pointing a manifest icon at a missing file,
+  dropping the maskable entry, and setting `theme_color` back to `#fafafa` each
+  fail the intended check and only that check.
+- Chrome parses the manifest itself, via `Page.getAppManifest`, with zero errors.
+  Every declared icon fetches and decodes at its declared pixel size. No failed
+  subresources and no console errors on load.
+- The 19-check keyboard suite from #6 and #7 still passes unchanged, since this
+  touched the same `<head>`.
+
+**Open question, needs a decision.** None of the icon artwork is the league's logo.
+`icon.png`, `icon.svg` and the root `favicon.ico` were the HTML5 Boilerplate orange
+star, and `og:image` pointed at it, so every link preview showed a boilerplate star.
+Everything under `img/` is a teal globe with a green map pin, which appears to be
+another project's mark. Neither is the pickleball paddle the header draws inline in
+`index.html`. This change deletes the three star files and repoints `og:image` at
+the globe, so the site is at least self-consistent, but the globe is still wrong.
+Replacing the whole icon set with a mark derived from the header logo is a brand
+decision and is not done here.
+
 Merge commit: pending

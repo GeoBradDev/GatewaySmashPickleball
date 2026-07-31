@@ -7,8 +7,8 @@ This file provides architectural context for AI assistants working on this codeb
 - `index.html` - The main homepage containing the copy, schedule, and layout.
 - `404.html` - Error page for broken links.
 - `css/style.css` - Custom styles and layout rules.
-- `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
-- `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, the site icons (`icon.svg`, `icon.png`, `favicon.ico`), `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
+- `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
+- `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
 - `vite.config.js` - Build configuration. Declares `index.html` and `404.html` as the two entry points.
 - `scripts/smoke-build.js` - Dependency-free assertions against `dist/` after a build. Run via `npm run smoke`.
@@ -34,6 +34,17 @@ How each kind of asset reaches `dist/`:
 
 `index.html` deliberately has **no** hardcoded stylesheet link. Adding one back would
 ship the unhashed, unminified copy alongside the hashed one.
+
+## Icons and the web manifest
+
+One manifest, `public/site.webmanifest`, referenced from `index.html`. Its
+`theme_color` and `background_color` must stay equal to the `theme-color` meta tag
+and to `--cream`; `npm run smoke` fails if the three drift apart. Icon `src` values
+are root-relative and are checked to exist in `dist/`, because a manifest icon that
+404s fails silently: nothing breaks, the install prompt just shows no icon.
+
+The icon artwork is inherited and is **not** the paddle mark the header uses. See
+the open question logged in [WORKLOG.md](WORKLOG.md).
 
 ## Deployment
 
