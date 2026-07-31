@@ -6,7 +6,7 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 
 ## Prerequisites
 
-- Node.js (version 20 or higher recommended; CI builds on Node 24)
+- Node.js 22.15 or newer. `webpack-dev-server` 6 sets that floor, so `npm start` needs it. CI builds on Node 24.
 - npm
 
 ## Getting Started
