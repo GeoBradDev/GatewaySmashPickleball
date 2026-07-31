@@ -40,8 +40,8 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 | Command | What it does |
 | --- | --- |
 | `npm test` | Lint, then build, then assert against `dist/` |
-| `npm run lint` | ESLint over `js/` and `scripts/`, html-validate over both pages |
-| `npm run smoke` | Production build, then `scripts/smoke-build.js` |
+| `npm run lint` | ESLint over `js/` and `scripts/` |
+| `npm run smoke` | Production build, then html-validate and `scripts/smoke-build.js` against `dist/` |
 | `npm run check-links` | Fetches every outbound link on the site |
 
 `scripts/smoke-build.js` uses no dependencies and asserts against the built output
@@ -63,6 +63,7 @@ red for that reason teaches people to ignore red. It runs weekly instead, via
 - `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2 plus their OFL licences, referenced by `@font-face` in `css/style.css`
+- `partials/` - Shared header and footer, included with `{{> header}}`. Edit the nav here, not in each page
 - `public/` - Static files copied to `dist/` unchanged: `img/`, site icons, `robots.txt`, `site.webmanifest`
 - `vite.config.js` - Build configuration
 

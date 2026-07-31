@@ -604,4 +604,35 @@ never had. One new smoke check reads width and height straight out of the PNG's 
 chunk and fails if the declared dimensions disagree with the file, or if the share
 image is too small for a large card. Both negative-tested.
 
+Merged as PR #38, merge commit `5ccbff3`.
+
+## Follow-up: shared partials
+
+The decision was to add templating rather than hand-copy the header across the pages
+#18, #19 and #20 propose. `vite-plugin-handlebars` 2.0.3, published April 2026, one
+devDependency, zero advisories.
+
+`partials/header.html` and `partials/footer.html` are now the single source for the
+nav and footer, pulled in with `{{> header}}`. `404.html` deliberately does not use
+them: it carries its own inline styles and a cut-down header so it renders when the
+hashed stylesheet is the thing that failed, and pulling in the site nav would undo
+that. No new pages yet, since those are blocked on content.
+
+Two things had to move as a consequence, and the second was a real bug the refactor
+would otherwise have introduced silently:
+
+1. **html-validate now runs against `dist/`, not source.** The source contains
+   `{{> header}}`, which is not HTML. Validating the built output is more meaningful
+   anyway, since that is what visitors receive.
+2. **`check-links` now scans `dist/` too, and it was already broken.** After the
+   extraction, the source `index.html` no longer contained the nav, so the Notion FAQ
+   link stopped being checked. The failure was invisible: the total still read "3
+   links" because the newly added canonical URL took its place in the count. It now
+   scans built output and fails outright if it finds fewer links than expected, so a
+   future refactor that moves links out of view cannot quietly reduce coverage again.
+
+Verified by editing the partial and confirming the change appears in `dist/index.html`
+and disappears when reverted, plus negative tests for a missing `dist/` and for
+coverage dropping below the floor.
+
 Merge commit: pending

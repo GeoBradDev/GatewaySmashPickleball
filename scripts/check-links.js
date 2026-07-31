@@ -13,7 +13,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Scans dist/, not the source. The header lives in a Handlebars partial now,
+// so the source index.html contains {{> header}} and none of the nav links.
+// Checking source silently stopped covering the FAQ link, and the total still
+// read as three because the new canonical URL took its place.
 const rootDir = path.resolve(import.meta.dirname, '..');
+const distDir = path.join(rootDir, 'dist');
 const PAGES = ['index.html', '404.html'];
 const TIMEOUT_MS = 20000;
 
@@ -24,9 +29,14 @@ const HEADERS = {
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 };
 
+if (!fs.existsSync(distDir)) {
+  console.error('dist/ does not exist. Run `npm run build` first.');
+  process.exit(1);
+}
+
 const links = new Map();
 for (const page of PAGES) {
-  const html = fs.readFileSync(path.join(rootDir, page), 'utf8');
+  const html = fs.readFileSync(path.join(distDir, page), 'utf8');
   for (const match of html.matchAll(/\bhref=["'](https?:\/\/[^"']+)["']/g)) {
     if (!links.has(match[1])) {
       links.set(match[1], page);
@@ -34,9 +44,15 @@ for (const page of PAGES) {
   }
 }
 
-if (links.size === 0) {
-  console.log('No outbound links found.');
-  process.exit(0);
+// A refactor that moves links out of the scanned files should fail loudly
+// rather than quietly check fewer of them.
+const MINIMUM_EXPECTED = 4;
+if (links.size < MINIMUM_EXPECTED) {
+  console.error(
+    'Only found ' + links.size + ' outbound links, expected at least ' +
+      MINIMUM_EXPECTED + '. Did some move out of dist/?'
+  );
+  process.exit(1);
 }
 
 async function attempt(url, method) {
