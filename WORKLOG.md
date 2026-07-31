@@ -690,4 +690,27 @@ property of Elo, so it stays out until someone confirms it.
 One claim from the #21 list is still open: the skill range. "All skill levels play" and
 "chasing a 4.0" carry no range, and the FAQ self-rating guide runs 2.0 to 5.0+.
 
+Merged as PR #41, merge commit `bdf7f67`.
+
+### #21 skill range, and the issue closed
+
+Confirmed range is **2.0 to 4.0+**, which is narrower at the top than the FAQ's
+self-rating guide suggests (it runs to 5.0+). The site now states the confirmed range,
+not the one in the stale document.
+
+It appears in the first feature card, where it replaces the implied range, and in the
+League info list beside cost and roster, which is where a prospective player scans for
+exactly this.
+
+The meta description deliberately keeps "open to all skill levels" rather than the
+number, which is a departure from the style guide's "prefer a number to an adjective".
+A description is read by strangers in a search result, where "2.0 to 4.0+" means
+nothing unless you already know the rating scale. The number belongs on the page, where
+there is context around it.
+
+That closes #21 for the site copy. The issue also asks for the same pass over the FAQ
+prose, roughly ten em dashes and the same rule-of-three constructions, but its own
+instruction is to do that inside #20 rather than as a second edit later, so it travels
+with the FAQ migration.
+
 Merge commit: pending
