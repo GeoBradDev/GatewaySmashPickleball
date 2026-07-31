@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Read-only. This workflow verifies the build; Render owns deployment.
+permissions:
+  contents: read
+
+# A newer push makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and smoke check
+    runs-on: ubuntu-latest
+    # The build takes seconds. Anything near this is a stall, not slow work,
+    # and should not sit on a runner for the six-hour default.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # npm ci, not npm install: the lockfile is the contract, and a build
+      # that only passes against drifted local dependencies proves nothing.
+      - run: npm ci
+
+      # npm run smoke is the production build plus scripts/smoke-build.js.
+      # The build alone would not have caught issue #1, which compiled green
+      # and shipped a page that loaded app.js twice.
+      - run: npm run smoke
