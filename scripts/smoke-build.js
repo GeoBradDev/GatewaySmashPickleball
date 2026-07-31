@@ -1,13 +1,18 @@
-'use strict';
-
 // Build-output smoke checks. Runs against dist/ after `npm run build`.
 // Deliberately dependency-free; wiring up a real test runner is issue #13.
+//
+// Asset filenames are content-hashed, so nothing here may hardcode them.
+// Every check resolves the real name out of dist/index.html first. A check
+// that assumed `js/app.js` would pass against a build that had silently
+// stopped hashing, which is the exact regression #5 was about.
 
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
 
-const distDir = path.resolve(__dirname, '..', 'dist');
+const rootDir = path.resolve(import.meta.dirname, '..');
+const distDir = path.join(rootDir, 'dist');
+const publicDir = path.join(rootDir, 'public');
 const failures = [];
 
 function check(name, fn) {
@@ -21,6 +26,103 @@ function check(name, fn) {
 }
 
 function noop() {}
+
+const indexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+
+// A content hash, as Vite emits it: name-HASH.ext with a base64url-ish hash.
+const HASHED = /-[A-Za-z0-9_-]{8,}\.(js|css)$/;
+
+// Pulls the single asset URL matching a pattern out of the built HTML, and
+// fails loudly on zero or many. Returns the dist-relative path.
+function soleAssetRef(label, pattern) {
+  const matches = [...indexHtml.matchAll(pattern)].map((m) => m[1]);
+  if (matches.length !== 1) {
+    throw new Error(
+      'expected exactly 1 ' + label + ' in dist/index.html, found ' +
+        matches.length + ': ' + JSON.stringify(matches)
+    );
+  }
+  return matches[0].replace(/^\//, '');
+}
+
+let scriptRef = null;
+let styleRef = null;
+
+check('dist/index.html references exactly one hashed module script', function () {
+  scriptRef = soleAssetRef(
+    'module script',
+    /<script[^>]*\btype=["']module["'][^>]*\bsrc=["']([^"']+)["']/g
+  );
+  if (!HASHED.test(scriptRef)) {
+    throw new Error('script is not content-hashed: ' + scriptRef);
+  }
+  if (!fs.existsSync(path.join(distDir, scriptRef))) {
+    throw new Error('referenced script is missing from dist/: ' + scriptRef);
+  }
+});
+
+check('dist/index.html references exactly one hashed stylesheet', function () {
+  styleRef = soleAssetRef(
+    'stylesheet link',
+    /<link[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["']/g
+  );
+  if (!HASHED.test(styleRef)) {
+    throw new Error('stylesheet is not content-hashed: ' + styleRef);
+  }
+  const target = path.join(distDir, styleRef);
+  if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
+    throw new Error('referenced stylesheet is missing or empty: ' + styleRef);
+  }
+});
+
+// The stylesheet bypassed the build entirely under webpack, shipping at full
+// source size. Minification is the observable proof it is in the pipeline now.
+check('the emitted stylesheet is minified', function () {
+  const source = fs.readFileSync(path.join(rootDir, 'css', 'style.css'), 'utf8');
+  const emitted = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  if (emitted.length >= source.length) {
+    throw new Error(
+      'emitted css is not smaller than source: ' + emitted.length +
+        ' vs ' + source.length + ' bytes'
+    );
+  }
+  const sourceLines = source.split('\n').length;
+  if (emitted.split('\n').length > sourceLines / 2) {
+    throw new Error('emitted css still carries source formatting');
+  }
+});
+
+check('dist/404.html was emitted', function () {
+  const target = path.join(distDir, '404.html');
+  if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
+    throw new Error('dist/404.html is missing or empty');
+  }
+});
+
+// Walks a directory to a flat list of paths relative to it.
+function walk(dir, prefix = '') {
+  return fs.readdirSync(dir).flatMap(function (entry) {
+    const full = path.join(dir, entry);
+    const rel = prefix ? prefix + '/' + entry : entry;
+    return fs.statSync(full).isDirectory() ? walk(full, rel) : [rel];
+  });
+}
+
+// public/ is Vite's verbatim passthrough. Deriving the expectation from the
+// directory rather than a hardcoded list means adding a file to public/ cannot
+// silently stop shipping, which is how the old nine-entry list could drift.
+check('every file in public/ reaches dist/ at the same path and size', function () {
+  const problems = walk(publicDir).filter(function (rel) {
+    const target = path.join(distDir, rel);
+    if (!fs.existsSync(target)) {
+      return true;
+    }
+    return fs.statSync(target).size !== fs.statSync(path.join(publicDir, rel)).size;
+  });
+  if (problems.length > 0) {
+    throw new Error('missing or altered in dist/: ' + problems.join(', '));
+  }
+});
 
 // Minimal stand-in for a DOM element, tracking only what js/app.js touches.
 function createElementStub() {
@@ -56,13 +158,21 @@ function createElementStub() {
 // elementsById maps an id to a stub, or is null to model a page that has
 // none of the header elements at all.
 function runBundle(elementsById) {
-  const bundle = fs.readFileSync(path.join(distDir, 'js', 'app.js'), 'utf8');
+  const bundle = fs.readFileSync(path.join(distDir, scriptRef), 'utf8');
   const sandbox = {
     document: {
       getElementById: function (id) {
         return elementsById ? elementsById[id] || null : null;
       },
       addEventListener: noop,
+      querySelectorAll: function () {
+        return [];
+      },
+      // Vite prepends a modulepreload polyfill. Reporting support for it
+      // makes that preamble return early instead of reaching MutationObserver.
+      createElement: function () {
+        return { relList: { supports: function () { return true; } } };
+      },
       body: createElementStub(),
     },
     requestAnimationFrame: noop,
@@ -75,21 +185,11 @@ function runBundle(elementsById) {
   vm.runInNewContext(bundle, sandbox, { timeout: 5000 });
 }
 
-check('dist/index.html references app.js exactly once', function () {
-  const html = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
-  const matches = html.match(/<script[^>]*\bsrc=["'][^"']*app\.js["'][^>]*>/g) || [];
-  if (matches.length !== 1) {
-    throw new Error(
-      'expected 1 app.js script tag, found ' + matches.length + ': ' + JSON.stringify(matches)
-    );
-  }
-});
-
-check('dist/js/app.js survives a page with no menu elements', function () {
+check('the bundle survives a page with no menu elements', function () {
   runBundle(null);
 });
 
-check('dist/js/app.js opens the menu on the first toggle click', function () {
+check('the bundle opens the menu on the first toggle click', function () {
   const toggle = createElementStub();
   const nav = createElementStub();
 
@@ -112,54 +212,6 @@ check('dist/js/app.js opens the menu on the first toggle click', function () {
     throw new Error(
       'one click left aria-expanded as ' + JSON.stringify(toggle.attributes['aria-expanded'])
     );
-  }
-});
-
-// Every path copy-webpack-plugin is configured to emit, per
-// webpack.config.prod.js. Listed literally rather than imported so the check
-// fails loudly if the two drift, instead of silently agreeing with a config
-// that dropped an entry.
-const copiedAssets = [
-  'img',
-  'css',
-  'js/vendor',
-  'icon.svg',
-  'favicon.ico',
-  'robots.txt',
-  'icon.png',
-  '404.html',
-  'site.webmanifest',
-];
-
-// Counts files beneath a path, treating a plain file as one. Existence alone
-// is too weak a test: a directory that was created but never populated is
-// exactly how a glob-engine change drops assets without failing the build.
-function countFiles(target) {
-  if (!fs.statSync(target).isDirectory()) {
-    return 1;
-  }
-  return fs.readdirSync(target).reduce(function (total, entry) {
-    return total + countFiles(path.join(target, entry));
-  }, 0);
-}
-
-check('dist/ contains every copied asset', function () {
-  const problems = copiedAssets.filter(function (asset) {
-    const target = path.join(distDir, asset);
-    return !fs.existsSync(target) || countFiles(target) === 0;
-  });
-  if (problems.length > 0) {
-    throw new Error('missing or empty in dist/: ' + problems.join(', '));
-  }
-});
-
-check('dist/css/style.css is non-empty', function () {
-  const stylesheet = path.join(distDir, 'css', 'style.css');
-  if (!fs.existsSync(stylesheet)) {
-    throw new Error('dist/css/style.css was not emitted');
-  }
-  if (fs.statSync(stylesheet).size === 0) {
-    throw new Error('dist/css/style.css is empty');
   }
 });
 
