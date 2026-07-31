@@ -87,6 +87,22 @@
           Learn More
         </a>
       </div>
+      <!-- Outside .hero-actions, unlike the note: the note has to land under
+           the Join button when the group stacks, and this line is simply last
+           in both layouts.
+
+           It ships hidden and js/app.js only ever clears that, never writes to
+           it. Two reasons. The copy makes no season claim, so unlike the note
+           there is nothing to derive from the dates. And a textContent write
+           would take the link inside it with it. A visitor without JS keeps a
+           hero of exactly two buttons and reaches /subs/ from the nav, the way
+           every other page does.
+
+           It asks about the roster rather than about the season because the
+           note directly above it already states which season is being played,
+           and a question the previous line just answered reads as filler. -->
+      <p class="hero-sub-cta" id="hero-sub" hidden>Not on a roster?
+        <a href="/subs/">Play as a sub</a>.</p>
     </div>
   </section>
 

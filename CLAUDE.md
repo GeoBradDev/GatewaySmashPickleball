@@ -211,16 +211,25 @@ Season status is **derived from the dates**, never written into the markup. A
 hand-written "Summer 2026 is in progress" is wrong the moment the season ends,
 which is the state issue #10 found the site in. `js/app.js` reads `data-start`,
 `data-end` and `data-registration` off each schedule row and from them writes the
-Status column, the callout above the table, and the hero CTA label and note.
+Status column, the callout above the table, the hero CTA label and note, and
+whether the hero's "Play as a sub" offer is shown.
 
 This is **progressive enhancement**, and it has to stay that way. `index.html`
-ships the CTA as "Join the League" and the note as an empty `hidden` paragraph, so
-a visitor without JavaScript gets a correct, season-neutral page rather than an
-empty gap. Baking a season name into the markup would reintroduce the original
-defect. A smoke check reads `dist/index.html` and fails if the season-neutral
-label or the `hidden` attribute goes missing.
+ships the CTA as "Join the League", the note as an empty `hidden` paragraph, and
+the subs offer as a `hidden` one carrying its own static copy, so a visitor
+without JavaScript gets a correct, season-neutral page rather than an empty gap.
+Baking a season name into the markup would reintroduce the original defect. A
+smoke check reads `dist/index.html` and fails if the season-neutral label or
+either `hidden` attribute goes missing.
 
-Two rules that are easy to break by accident:
+The subs offer is the one piece of the hero JS **reveals rather than writes**.
+Its copy names no season, so there is nothing to derive, and a `textContent`
+write would take the `/subs/` link inside it with it. The same trap is why the
+14 `target="_blank"` links still have no visually-hidden new-tab warning: adding
+one inside `#hero-join` would be wiped by the label rewrite, so it has to hang
+off a second `aria-describedby` id instead.
+
+Four rules that are easy to break by accident:
 
 - **Compare local calendar days, not UTC ones.** `today` is built from
   `getFullYear/getMonth/getDate`, not the `getUTC*` variants. Reading UTC parts
@@ -230,6 +239,23 @@ Two rules that are easy to break by accident:
   pins both boundaries at 19:30 Central by setting `process.env.TZ`.
 - **The next season is the soonest one**, chosen by comparing start dates, not
   the first matching row. The rows are hand-maintained and nothing orders them.
+- **The hero and the callout say the running season in one shared string.**
+  `inProgressSentence` and `registrationSentence` are written once and used by
+  both. #51 was filed because the two had drifted: the callout said what was
+  being played and the hero, three screens above it, did not, so for 310 of the
+  342 days a scheduled season is on court the button named a season nobody could
+  join for weeks. Two copies kept level by hand is what let that happen.
+- **The hero names the next season only when it also names a running one.**
+  `registrationSentence(next, Boolean(current))`. With nothing running the button
+  beside the note already says "Join Fall 2026", so "Registration opens August
+  13, 2026." is unambiguous and stays as it is; once a running season puts a
+  second name in the sentence, the next one gets named too. A smoke check pins
+  both halves, because a version that always names the season also passes every
+  in-season check.
+
+Renaming the CTA still requires the note to be on the page, which is why that
+branch is nested. The subs offer is not: it makes no season claim, so it carries
+none of the obligation the rename does and survives the note going missing.
 
 ## Colour contrast
 
@@ -245,6 +271,12 @@ The footer link added in #46 is checked the same way. It is 0.85rem on `--ink`, 
 it also needs 4.5:1, and the check resolves whichever custom property
 `.footer-links a` names rather than hardcoding a colour, so recolouring the link is
 enough to re-run the sum. `--cream` gives 15.95:1.
+
+The hero subs line added in #51 is checked the same way again, both halves of it:
+`.hero-sub-cta` at `--ink-soft` and `.hero-sub-cta a` at `--court-green`, on
+`--cream`, at 0.9rem. `--court-green` clears it at **4.94:1**, which is not much
+room, so that rule restates its colour rather than inheriting from the base `a`
+rule purely so the check can resolve it.
 
 ## Copy style
 
@@ -289,9 +321,10 @@ The most frequently edited part of the site is the **League Schedule**.
 - **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
 
 Each row's `data-start`, `data-end` and `data-registration` attributes are the
-**single source of truth for three separate things**: the row's own status label,
-the callout above the table, and the hero CTA at the top of the page, which names
-the next joinable season and states whether registration is open. A row edited
+**single source of truth for four separate things**: the row's own status label,
+the callout above the table, the hero at the top of the page, which names the next
+joinable season and states both which season is being played and whether
+registration is open, and whether the hero offers a sub spot at all. A row edited
 here changes the button a visitor sees before they have scrolled at all. Keep the
 `data-*` dates and the human-readable dates in the same row in step; only the
 `data-*` ones are read by code.

@@ -196,6 +196,27 @@ import '../css/style.css';
     return MONTHS[Number(parts[1]) - 1] + ' ' + Number(parts[2]) + ', ' + parts[0];
   }
 
+  // One sentence, two consumers. The callout under the schedule table and the
+  // hero note both have to name the running season in the same words, and #51
+  // was filed because they had drifted: the callout said what was being played
+  // and the hero, three screens above it, did not. Building both from one
+  // string is what stops that recurring; a comment asking the next maintainer
+  // to keep two copies level is what let it happen the first time.
+  function inProgressSentence(name) {
+    return name + ' is in progress.';
+  }
+
+  // nameSeason names the season the registration belongs to. The hero leaves it
+  // off when nothing else in the sentence names a season, because the button
+  // beside it already does, and turns it on the moment a running season has put
+  // a second name in play and "Registration opens" would be ambiguous.
+  function registrationSentence(next, nameSeason) {
+    var subject = nameSeason ? next.name + ' registration' : 'Registration';
+    return next.isOpen
+      ? subject + ' is open now.'
+      : subject + ' opens ' + longDate(next.opens) + '.';
+  }
+
   function statusOf(row) {
     var start = parseDate(row.getAttribute('data-start'));
     var end = parseDate(row.getAttribute('data-end'));
@@ -261,14 +282,12 @@ import '../css/style.css';
   if (callout) {
     var parts = [];
     if (current) {
-      parts.push(current + ' is in progress.');
+      parts.push(inProgressSentence(current));
     }
+    // Always named here. This line sits under a table of seasons, where a bare
+    // "Registration opens" would not say which row it meant.
     if (nextRegistration) {
-      parts.push(
-        nextRegistration.isOpen
-          ? nextRegistration.name + ' registration is open now.'
-          : nextRegistration.name + ' registration opens ' + longDate(nextRegistration.opens) + '.'
-      );
+      parts.push(registrationSentence(nextRegistration, true));
     }
     if (parts.length > 0) {
       callout.textContent = parts.join(' ');
@@ -280,33 +299,57 @@ import '../css/style.css';
   // season and giving no hint that registration might not be open yet, which
   // is item 6 of issue #10. It reads the state the callout already computed
   // rather than carrying a second copy of the season name.
+  //
+  // #51: it read only nextRegistration, so on 310 of the 342 days on which one
+  // of the scheduled seasons was actually being played it named a season the
+  // visitor could not join for weeks and said nothing at all about the one on
+  // court. Both sentences now, from the same helpers the callout uses.
   var join = document.getElementById('hero-join');
   var note = document.getElementById('hero-note');
 
-  // Both conditions are required, for different reasons.
-  //
-  // nextRegistration: once the last row in the table has finished, a state
-  // the schedule reaches on its own if nobody adds a season, there is nothing
-  // to name and reading .name off null would throw. "Join the League" is
-  // already true in every season, so leaving the markup alone is correct.
-  //
-  // note: renaming the button is what creates the obligation to say whether
-  // that season can actually be joined, and the note is what discharges it.
-  // Naming a season while staying silent about a registration window that may
-  // not be open yet is worse than the label it replaced.
-  if (nextRegistration && note) {
-    note.textContent = nextRegistration.isOpen
-      ? 'Registration is open now.'
-      : 'Registration opens ' + longDate(nextRegistration.opens) + '.';
-    note.className = 'hero-note' + (nextRegistration.isOpen ? ' hero-note--open' : '');
+  var heroParts = [];
+  if (current) {
+    heroParts.push(inProgressSentence(current));
+  }
+  if (nextRegistration) {
+    heroParts.push(registrationSentence(nextRegistration, Boolean(current)));
+  }
+
+  // note is required, for the same reason the rename below is nested inside
+  // it: renaming the button is what creates the obligation to say whether that
+  // season can actually be joined, and the note is what discharges it. Naming
+  // a season while staying silent about a registration window that may not be
+  // open yet is worse than the label it replaced.
+  if (note && heroParts.length > 0) {
+    note.textContent = heroParts.join(' ');
+    note.className = 'hero-note' +
+      (nextRegistration && nextRegistration.isOpen ? ' hero-note--open' : '');
     note.hidden = false;
-    if (join) {
+    // nextRegistration, separately: once the last row in the table has
+    // finished, a state the schedule reaches on its own if nobody adds a
+    // season, there is nothing to name and reading .name off null would throw.
+    // "Join the League" is already true in every season, so leaving the label
+    // alone is correct, and the note above still reports what is being played.
+    if (join && nextRegistration) {
       join.textContent = 'Join ' + nextRegistration.name;
       // The button now names a season but not its availability. Tying the two
       // together means a screen reader reads the date with the button instead
       // of only on the way past it.
       join.setAttribute('aria-describedby', 'hero-note');
     }
+  }
+
+  // Shown only when the visitor cannot register today: a season is on court
+  // and the next one's window has not opened. That, and not "a season is
+  // running", is the rule. With registration open the join button is the
+  // stronger action and a second offer beside it only competes with it.
+  //
+  // Deliberately outside the note branch above. This offer names no season, so
+  // it carries none of the obligation the rename does, and a page that had
+  // lost only the note should still make it.
+  var subCta = document.getElementById('hero-sub');
+  if (subCta && current && !(nextRegistration && nextRegistration.isOpen)) {
+    subCta.hidden = false;
   }
 })();
 
