@@ -423,20 +423,90 @@ check('canonical, og:url and the sitemap all name the same origin', function () 
   }
 });
 
+// Reads a meta tag's content attribute. The delimiter is captured and matched
+// against itself rather than excluded with [^"']*, because a content attribute
+// can legitimately contain an apostrophe and since #54 these ones do: the pitch
+// says "St. Louis'". The naive class stops dead at that apostrophe, which turned
+// the check below into a comparison of the first 33 characters of each tag; three
+// tags saying three different things after that point would have passed. Nothing
+// would have looked wrong, which is the failure mode this file exists to catch.
+function metaContent(attrPattern) {
+  const match = indexHtml.match(
+    new RegExp('<meta[^>]*\\b' + attrPattern + '[^>]*\\bcontent=(["\'])([\\s\\S]*?)\\1')
+  );
+  return match ? match[2] : null;
+}
+
+const DESCRIPTION_TAGS = [
+  'name=["\']description["\']',
+  'property=["\']og:description["\']',
+  'name=["\']twitter:description["\']',
+];
+
 // The same sentence is declared three times. Search results, link previews and
 // X cards each read a different one, so they drift apart silently.
 check('the three description tags agree', function () {
-  const found = [
-    indexHtml.match(/<meta[^>]*\bname=["']description["'][^>]*\bcontent=["']([^"']*)["']/),
-    indexHtml.match(/<meta[^>]*\bproperty=["']og:description["'][^>]*\bcontent=["']([^"']*)["']/),
-    indexHtml.match(/<meta[^>]*\bname=["']twitter:description["'][^>]*\bcontent=["']([^"']*)["']/),
-  ];
-  if (found.some((m) => !m)) {
+  const found = DESCRIPTION_TAGS.map(metaContent);
+  if (found.some((value) => value === null)) {
     throw new Error('one of description, og:description or twitter:description is missing');
   }
-  const values = new Set(found.map((m) => m[1]));
+  const values = new Set(found);
   if (values.size !== 1) {
     throw new Error('descriptions disagree: ' + [...values].map((v) => JSON.stringify(v)).join(' vs '));
+  }
+});
+
+// #54. The league's pitch is stated in five places in three phrasings: the hero,
+// the three description tags, and the JSON-LD. The check above only proves the
+// three tags agree with each other, so the hero and the structured data could
+// each drift off on their own, and the JSON-LD had in fact already done it.
+//
+// That half is the one that fails silently. CLAUDE.md's rule is that the block
+// may only state what the visible page also states, and description was the one
+// property in it taken from <head>, which no reader sees, so the rule was not
+// checkable here at all. The hero carrying the line is what makes it checkable.
+//
+// Hardcoded rather than sliced out of data.description: the sentence contains
+// "St. Louis'", so splitting on the first ". " yields "One of St". Stored lower
+// case and without the closing full stop so the one constant matches both
+// "One of ..." in the hero and the JSON-LD, and "... is one of ..." in the tags.
+// Editing this line by hand when the league changes its pitch is the point, the
+// same way MINIMUM_EXPECTED in check-links.js is.
+const PITCH =
+  "one of St. Louis' largest and most affordable indoor pickleball ladder leagues";
+
+check('the pitch reaches the page, the description tags and the structured data', function () {
+  const block = indexHtml.match(JSON_LD_BLOCK);
+  if (!block) {
+    throw new Error('no JSON-LD block in dist/index.html');
+  }
+  const data = JSON.parse(block[1]);
+  const needle = PITCH.toLowerCase();
+
+  // Tags stripped and whitespace collapsed: the sentence is long enough to wrap
+  // across source lines, and it shares a <p> with the rest of the hero copy.
+  // visiblePage, not the raw file, or the JSON-LD block and the comment above it
+  // would both satisfy this and it could never fail. See #48.
+  const visible = visiblePage(indexHtml, block[0])
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  if (!visible.includes(needle)) {
+    throw new Error('no visible text on the page states the pitch: ' + PITCH);
+  }
+
+  // The three tags are proven identical directly above, so reading one reads all
+  // three.
+  const description = metaContent(DESCRIPTION_TAGS[0]);
+  if (description === null) {
+    throw new Error('dist/index.html has no meta description');
+  }
+  if (!description.toLowerCase().includes(needle)) {
+    throw new Error('the description tags do not state the pitch: ' + description);
+  }
+
+  if (!String(data.description).toLowerCase().includes(needle)) {
+    throw new Error('the JSON-LD description does not state the pitch: ' + data.description);
   }
 });
 
@@ -445,26 +515,47 @@ check('the three description tags agree', function () {
 // is a silent loss: nothing breaks, the page just competes for the wrong
 // string. The heading half guards the other regression #18 named, headings
 // written in brand voice carrying no topical signal at all.
-const CITY = 'St. Louis';
+//
+// #54 added the format. "pickleball ladder league st louis" is the phrase people
+// type, and "ladder" used to appear once on the entire site, in an h3, which is a
+// slot neither half of this check can see.
+//
+// The city is matched case-sensitively and the format is not, and the difference
+// is deliberate. "St. Louis" is a proper noun with exactly one correct spelling,
+// so folding case there would quietly stop this check rejecting "st. louis",
+// which is the sort of relaxation that reads as coverage. "ladder" is an
+// ordinary word whose casing follows the slot it sits in: the title is title
+// case, headings are sentence case, so one entry has to match both "Ladder
+// League" and "ladder leagues".
+const SEARCH_TERMS = [
+  { term: 'St. Louis', matchCase: true },
+  { term: 'ladder', matchCase: false },
+];
 
-check('the homepage names its city in the title and in a heading', function () {
+check('the homepage names its city and its format in the title and in a heading', function () {
   const title = indexHtml.match(/<title>([\s\S]*?)<\/title>/);
   if (!title) {
     throw new Error('dist/index.html has no title');
   }
-  if (!title[1].includes(CITY)) {
-    throw new Error('the title does not name ' + CITY + ': ' + title[1].trim());
-  }
 
   // The h1 is a wordmark and is deliberately exempt. At least one h2 has to
-  // carry the city, or the page has no keyword-bearing heading at all.
+  // carry each term, or the page has no keyword-bearing heading at all.
   const headings = [...indexHtml.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
     .map((m) => m[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
-  if (!headings.some((text) => text.includes(CITY))) {
-    throw new Error(
-      'no h2 names ' + CITY + '; the page headings are: ' + headings.join(' | ')
-    );
-  }
+
+  SEARCH_TERMS.forEach(function (entry) {
+    const fold = (text) => (entry.matchCase ? text : text.toLowerCase());
+    const needle = fold(entry.term);
+
+    if (!fold(title[1]).includes(needle)) {
+      throw new Error('the title does not name ' + entry.term + ': ' + title[1].trim());
+    }
+    if (!headings.some((text) => fold(text).includes(needle))) {
+      throw new Error(
+        'no h2 names ' + entry.term + '; the page headings are: ' + headings.join(' | ')
+      );
+    }
+  });
 });
 
 // The page states a location twice: once in the League Info list and once in

@@ -1262,3 +1262,94 @@ fix is a second id on `aria-describedby`, and it belongs in its own issue. Noted
 CLAUDE.md next to the reveal-rather-than-write rule so the next person meets it there.
 
 Merge commit: pending
+
+## Batch 8 continued: #54 the ladder league pitch
+
+The league picked a line to lead with, "One of St. Louis' largest and most affordable
+indoor pickleball ladder leagues", and almost none of it was on the site. "ladder"
+appeared exactly once across every page, in the `h3` "How the ladder works", and in no
+`<title>`, no description tag and no `h2`. "pickleball ladder league st louis" is a
+phrase people type, and the site did not contain it in any slot a search engine
+weights. Nothing stated the league's size at all.
+
+Six locations, five distinct strings, all moved together: the `<title>`, the three
+description tags, the hero paragraph, the About `h2`, and the JSON-LD `description`.
+The copy is the issue's, verbatim. Two details in it are deliberate and were left
+alone: it uses `St. Louis'` where the site's other possessives used `St. Louis's`,
+which turned out to be moot, since replacing the three description tags removed every
+other possessive form of the city from the site; and "largest" and "most affordable"
+are exactly the adjectives CLAUDE.md's "prefer a number to an adjective" rule argues
+against. The numbers exist, 56 players on 2026-07-31 and a $70 fee, and the line still
+stays as written, because it is the league's own claim about itself. That exception is
+now written into CLAUDE.md next to the rule it breaks, with the numbers, so the next
+reader meets the reasoning rather than a contradiction.
+
+The `<title>` takes "Ladder League" singular. The full line is 79 characters and would
+be truncated in results, so the title carries the phrase and not the sentence.
+
+Checks: 49 to 50. One new, "the pitch reaches the page, the description tags and the
+structured data", which requires the line in all three at once. `PITCH` is hardcoded
+rather than sliced out of `data.description`, because the sentence contains
+"St. Louis'" and splitting on the first ". " yields "One of St"; it is stored lower
+case and without the closing full stop so one constant matches both "One of ..." in
+the hero and "... is one of ..." in the tags. Its visible-page half goes through
+`visiblePage()`, so the JSON-LD block cannot satisfy itself: with the sentence deleted
+from the hero and still present in the block, the check fails, which was verified
+rather than assumed.
+
+One check extended. "the homepage names its city in the title and in a heading"
+became "... its city and its format ...", driven by a `SEARCH_TERMS` list. The city
+is matched case-sensitively and the format is not. That asymmetry was a review
+finding on the first attempt, which folded case for both: "St. Louis" is a proper
+noun with one correct spelling, so lowering it would have quietly stopped the check
+rejecting "st. louis", a relaxation of an existing guard smuggled in under a feature.
+"ladder" has to match "Ladder League" in a title-case title and "ladder leagues" in a
+sentence-case heading, so it genuinely needs folding.
+
+**The apostrophe broke an existing check, silently, and the new check is what caught
+it.** Every attribute in `smoke-build.js` was read with `content=["']([^"']*)["']`.
+That class excludes both quote characters, so it stops at the first apostrophe inside
+a double-quoted value. The moment "St. Louis'" entered the description tags, "the
+three description tags agree" began comparing `"Gateway Smash is one of St. Louis"`
+against itself: 33 characters of a 152-character sentence, with all three tags
+truncated to the same prefix. Three tags saying three different things would have
+passed. Demonstrated directly against `dist/index.html`, old pattern against new, and
+then negative-tested by rewriting `og:description` to a contradictory sentence, which
+the repaired check reports in full and the old one would have called identical. Reads
+now through `metaContent()`, which captures the opening delimiter and matches to its
+next occurrence. Noted in CLAUDE.md under Checks.
+
+Every new and changed check was negative-tested by breaking what it guards, each
+failing with the expected message: dropping "ladder" from the About `h2` reported
+`no h2 names ladder`; lowercasing the city in the title reported `the title does not
+name St. Louis`; deleting the pitch sentence from the hero reported `no visible text
+on the page states the pitch` while the JSON-LD still carried it; reverting the
+JSON-LD `description` to its old wording reported `the JSON-LD description does not
+state the pitch`, which is the exact state this issue was filed about.
+
+Verified: `npm ci` then `npm test` exits 0 from a cleared `node_modules` and `dist`,
+50 ok and 0 not ok. `npm run build` and `npm run lint` each exit 0. `npm run check-links`
+resolves all 7 outbound links, `MINIMUM_EXPECTED` unchanged, since no link moved. The
+pitch appears 5 times in `dist/index.html`, the three description tags parse to one
+distinct 152-character value, and the JSON-LD parses with the new `description`
+intact. No em dashes and no curly quotes in either the source or the built page.
+Driven under `vite preview` at 1440 and 390: the hero paragraph grows from three
+rendered lines to four on desktop and the CTA, the note and the subs line all stay
+above the fold, the date-derived hero still reads "Join Fall 2026" over "Summer 2026
+is in progress. Fall 2026 registration opens August 13, 2026.", the About heading
+wraps as "Indoor pickleball ladder leagues / in St. Louis", and the console is clean.
+
+Left undone, deliberately. `public/site.webmanifest` still describes the league as
+"Grassroots indoor pickleball leagues in St. Louis." and `package.json` as
+"Grassroots, volunteer-run indoor pickleball leagues in St. Louis." Neither is among
+the six locations the issue names, the manifest string is an install-prompt label
+where a 140-character pitch would be wrong, and the manifest `description` is not
+checked by anything today. The manifest one is user-visible, so it is worth its own
+issue rather than a silent edit here. `og:title`, `twitter:title` and the two image
+`alt` strings also still say "leagues" without "ladder", for the same reason.
+
+Also left: no smoke check enforces the "no em dashes, straight quotes" copy rule,
+which is now verified by hand each time. The rule is real and the scan is one grep,
+but it is site-wide and unrelated to this issue, so it belongs on its own.
+
+Merge commit: pending
