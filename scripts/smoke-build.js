@@ -813,23 +813,51 @@ check('a season is complete the day after it ends, not before', function () {
   }
 });
 
-// ---- /faq/ -------------------------------------------------------------
-const faqHtml = fs.readFileSync(path.join(distDir, 'faq', 'index.html'), 'utf8');
+// ---- content pages ------------------------------------------------------
+// Derived from the built output rather than hardcoded, so a page added to
+// vite.config.js is covered here the moment it builds, and cannot quietly
+// ship without a canonical or a sitemap entry.
+const CONTENT_PAGES = walk(distDir)
+  .filter((rel) => rel.endsWith('index.html'))
+  .map((rel) => ({
+    file: rel,
+    url: CANONICAL + rel.replace(/index\.html$/, ''),
+  }));
 
-check('the FAQ page is a real page with its own canonical', function () {
-  const canonical = faqHtml.match(/<link[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']*)["']/);
-  if (!canonical || canonical[1] !== CANONICAL + 'faq/') {
-    throw new Error('canonical is ' + (canonical && canonical[1]) + ', expected ' + CANONICAL + 'faq/');
-  }
-  const h1s = [...faqHtml.matchAll(/<h1[\s>]/g)].length;
-  if (h1s !== 1) {
-    throw new Error('expected exactly 1 h1, found ' + h1s);
+check('every content page has its own canonical, one h1, and a sitemap entry', function () {
+  if (CONTENT_PAGES.length < 3) {
+    throw new Error('expected at least 3 pages, found ' + CONTENT_PAGES.length);
   }
   const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
-  if (!sitemap.includes(CANONICAL + 'faq/')) {
-    throw new Error('the FAQ page is not in sitemap.xml, so nothing points a crawler at it');
+  const problems = [];
+
+  CONTENT_PAGES.forEach(function (page) {
+    const html = fs.readFileSync(path.join(distDir, page.file), 'utf8');
+
+    const canonical = html.match(/<link[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']*)["']/);
+    if (!canonical || canonical[1] !== page.url) {
+      problems.push(page.file + ' canonical is ' + (canonical && canonical[1]) + ', expected ' + page.url);
+    }
+    const h1s = [...html.matchAll(/<h1[\s>]/g)].length;
+    if (h1s !== 1) {
+      problems.push(page.file + ' has ' + h1s + ' h1 elements');
+    }
+    if (!sitemap.includes('<loc>' + page.url + '</loc>')) {
+      problems.push(page.file + ' is missing from sitemap.xml');
+    }
+    // Every page shares the header partial, so a page that skipped it would
+    // have no navigation at all.
+    if (!html.includes('id="site-header"')) {
+      problems.push(page.file + ' does not include the shared header');
+    }
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
+
+const faqHtml = fs.readFileSync(path.join(distDir, 'faq', 'index.html'), 'utf8');
 
 // FAQ rich results need every answer to exist on the page. Structured data
 // that promises text the visitor cannot find is worse than none.

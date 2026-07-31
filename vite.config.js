@@ -37,6 +37,7 @@ export default defineConfig({
         // faq/index.html rather than faq.html, so the URL is /faq/ on any
         // static host without needing a clean-URL rewrite rule.
         faq: resolve(import.meta.dirname, 'faq/index.html'),
+        subs: resolve(import.meta.dirname, 'subs/index.html'),
         404: resolve(import.meta.dirname, '404.html'),
       },
     },
