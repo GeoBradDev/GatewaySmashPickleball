@@ -115,6 +115,54 @@ check('dist/js/app.js opens the menu on the first toggle click', function () {
   }
 });
 
+// Every path copy-webpack-plugin is configured to emit, per
+// webpack.config.prod.js. Listed literally rather than imported so the check
+// fails loudly if the two drift, instead of silently agreeing with a config
+// that dropped an entry.
+const copiedAssets = [
+  'img',
+  'css',
+  'js/vendor',
+  'icon.svg',
+  'favicon.ico',
+  'robots.txt',
+  'icon.png',
+  '404.html',
+  'site.webmanifest',
+];
+
+// Counts files beneath a path, treating a plain file as one. Existence alone
+// is too weak a test: a directory that was created but never populated is
+// exactly how a glob-engine change drops assets without failing the build.
+function countFiles(target) {
+  if (!fs.statSync(target).isDirectory()) {
+    return 1;
+  }
+  return fs.readdirSync(target).reduce(function (total, entry) {
+    return total + countFiles(path.join(target, entry));
+  }, 0);
+}
+
+check('dist/ contains every copied asset', function () {
+  const problems = copiedAssets.filter(function (asset) {
+    const target = path.join(distDir, asset);
+    return !fs.existsSync(target) || countFiles(target) === 0;
+  });
+  if (problems.length > 0) {
+    throw new Error('missing or empty in dist/: ' + problems.join(', '));
+  }
+});
+
+check('dist/css/style.css is non-empty', function () {
+  const stylesheet = path.join(distDir, 'css', 'style.css');
+  if (!fs.existsSync(stylesheet)) {
+    throw new Error('dist/css/style.css was not emitted');
+  }
+  if (fs.statSync(stylesheet).size === 0) {
+    throw new Error('dist/css/style.css is empty');
+  }
+});
+
 if (failures.length > 0) {
   console.error('\n' + failures.length + ' smoke check(s) failed:');
   failures.forEach(function (failure) {
