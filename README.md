@@ -89,8 +89,15 @@ with everything else. `npm run smoke` fails if a third-party subresource reappea
 
 Updating the schedule is the most common recurring maintenance task.
 1. Open `index.html`.
-2. Locate the league schedule section (starts around line 135 `<h2>League schedule</h2>`).
+2. Locate the league schedule section (starts around line 136 `<h2>League schedule</h2>`).
 3. Update the `<tr>` rows within the `<tbody>` table with the new dates, times, and matchup details for the current season.
+
+Each row carries `data-start`, `data-end` and `data-registration`. Those dates are
+read by `js/app.js` and decide the row's status label, the callout above the table,
+and the "Join" button at the top of the page, which names the next joinable season
+and says whether registration is open. Editing a row changes the button a visitor
+sees before scrolling, so keep the `data-*` dates and the dates written in the cells
+in step. The rows do not need to be in date order.
 
 ## Deployment
 

@@ -77,7 +77,12 @@
   --court-green-dark: #0f5e44;
   --amber: #e8860c;
   --amber-light: #fef3e2;
-  --amber-dark: #c26f06;
+  /* Darkened from #c26f06, which was 3.5:1 on cream and 3.8:1 on white, both
+     under the 4.5:1 AA needs for the 14px text this colour is used on. It
+     marks the season a visitor can register for right now, in the hero note
+     and in the schedule, so it is the worst text on the page to have to
+     squint at. */
+  --amber-dark: #96550a;
   --ink: #1c1c1c;
   --ink-soft: #3d3d3d;
   --ink-muted: #6b6b6b;
@@ -439,6 +444,28 @@ nav {
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* The CTA above names a season; this line says whether you can act on it yet.
+   Both are written by js/app.js from the schedule dates, so the markup ships
+   this element empty and hidden.
+
+   It is a flex child of .hero-actions, sitting next to the Join link in the
+   markup. Here the buttons are side by side, so flex-basis pushes it onto its
+   own line and order sends it below both of them. */
+.hero-note {
+  flex-basis: 100%;
+  order: 3;
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+/* Matches .season-status--open, so "open now" reads the same colour in the
+   hero as it does in the schedule table. */
+.hero-note--open {
+  color: var(--amber-dark);
 }
 
 /* ============================================================
@@ -956,6 +983,15 @@ footer p {
   .hero-actions .btn {
     width: 100%;
     max-width: 300px;
+  }
+
+  /* Stacked, so the note takes its markup position directly under the Join
+     button. flex-basis has to go back to auto: the main axis is vertical
+     here, and 100% of it would stretch the note to the height of the group. */
+  .hero-note {
+    order: 0;
+    flex-basis: auto;
+    margin: 0 0 0.5rem;
   }
 
   /* About */

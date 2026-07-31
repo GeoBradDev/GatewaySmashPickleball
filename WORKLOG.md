@@ -755,9 +755,8 @@ to 18/19 with `["col","col","col","col","col","col"]`, which was a stale asserti
 exactly five headers rather than a real defect. The generated header does declare
 scope.
 
-Not done: the hero CTA still says "Join the League" without naming a season, item 6 of
-the issue. It links to the GPN network page rather than a season-specific ladder event,
-and which of those it should point at is still an open question.
+Not done in this pass: the hero CTA still says "Join the League" without naming a
+season, item 6 of the issue. Finished in the next entry.
 
 Merged as PR #43, merge commit `fdd1b3f`.
 
@@ -933,5 +932,103 @@ under finding 3, but the substance of that finding, one indexable URL, was alrea
 answered by going to three. Carving three more pages out of a 499-word homepage produces
 thin pages competing with each other, which ranks worse than one page that covers the
 topic. Worth revisiting if the content grows.
+
+Merge commit: pending
+
+## Batch 8 continued: #10 item 6, the hero CTA
+
+The one part of #10 left open by #43. The button said "Join the League" while the
+callout two sections below it said "Fall 2026 registration opens August 13, 2026",
+so the page named a season everywhere except on the control a visitor was being
+asked to click.
+
+Decided before writing anything, because the issue left both questions open: the
+`href` stays on the generic GPN page, which is the one URL correct in every season
+and the same one the FAQ and subs pages use, and the label names the season in both
+states rather than only once registration opens.
+
+The button now reads "Join Fall 2026" with a line beneath it that says either
+"Registration is open now." or "Registration opens August 13, 2026." Both strings
+come from the same `nextRegistration` the callout already computed, so no season
+name or date is written by hand. `aria-describedby` ties the note to the button, so
+a screen reader reads the date with the control instead of only on the way past it.
+
+Progressive enhancement, same as #43: the markup ships "Join the League" and an
+empty `hidden` paragraph, so a no-JS visitor gets a correct season-neutral hero
+rather than a gap. A season name in the markup would go stale the day that season
+ends, which is the defect this issue is about.
+
+**Three defects the review found, none of them in the new code, all of them made
+worse by it.** The first two are in the status logic #43 added, which this change
+promotes from a table two screens down to the primary control above the fold.
+
+*The date was computed in the wrong timezone.* `today` read `getUTCFullYear`,
+`getUTCMonth` and `getUTCDate` off a local `Date`, which yields the UTC calendar
+day, not the visitor's. Every visitor west of UTC rolled over to the next day's
+schedule during their evening. Reproduced against the built bundle at 19:30 Central
+on August 12: the hero said "Registration is open now." for a registration that
+opened the next morning. The same bug retired a season at 19:30 on its own closing
+night, which for a Sunday-night league is during play. Now built from
+`getFullYear/getMonth/getDate`, and pinned by a check that sets `process.env.TZ`,
+which Node applies to `Date` immediately, so it needs no dependency.
+
+*The next season was whichever row came first, not the soonest.* The `!nextRegistration`
+latch took the first matching row in document order and nothing ordered the rows.
+With the table listed newest-first, an ordinary edit to the most frequently edited
+part of the site, the hero advertised Winter 2027 while the table beside it showed
+Fall 2026 open. Now chosen by comparing start dates.
+
+*`--amber-dark` failed WCAG AA.* It was 3.53:1 on cream and 3.77:1 on white against
+the 4.5:1 that 14px text needs, so "Registration is open now.", the one sentence
+telling a visitor they can act today, was the least readable text on the page.
+Darkened to `#96550a`, 5.46:1 and 5.83:1. This also repairs the Registration open
+row in the schedule, the colour's other use. A new check computes the ratios from
+the built stylesheet, because nothing else in the build can see a contrast
+regression: the markup stays valid and the text stays present.
+
+Two smaller review fixes: the note is now inside `.hero-actions` next to the link it
+describes, because when the group stacks on mobile it was rendering under the wrong
+button, and the rename is gated on the note existing, since naming a season while
+staying silent about whether it can be joined is worse than the label it replaced.
+
+31 checks to 39, each negative-tested by breaking the thing it guards:
+
+- The CTA names the season, the note gives the date, and `aria-describedby` links
+  them. Proven to fail from each of the three assertions separately.
+- The note switches to "open now" on the day registration opens and not the day
+  before, and carries the modifier class that colours it. The class had no check at
+  all until the review pointed out that renaming it ships the wrong colour silently.
+- An evening visitor west of UTC is not told registration opened early, and a season
+  is not retired on its closing night. Both fail if the `getUTC*` accessors return.
+- The next season is the soonest one, tested with the rows listed newest first.
+- `--amber-dark` clears 4.5:1 on cream and on white.
+- With no season left to join, and separately with only a running season left, the
+  shipped markup stands and no `aria-describedby` points at a hidden note.
+- With the note absent, the button is not renamed.
+- `dist/index.html` ships both ids, the `hidden` attribute, and the season-neutral
+  label. The four stub-based checks above all pass without them, which is why this
+  one reads the real built markup. Matched in two steps so attribute order does not
+  matter, since a check that reddens on correct markup teaches people to edit it.
+
+Verified in a real browser as well as in the vm: headless Chrome against
+`vite preview` renders "Join Fall 2026" with the note and `aria-describedby` in the
+post-JS DOM, switches to "Registration is open now." with the modifier class when the
+registration date is pulled into the past, and reports no console errors. Desktop is
+pixel-identical to before; mobile now binds the note to the Join button.
+
+`npm test` exits 0 with 39 ok and 0 not ok, on a clean `npm ci`.
+
+**Not done, and deliberately.** When a season is running and the next one has not
+opened, the hero names the next season and says when it opens rather than mentioning
+the season in progress. That is what the approved design asks for, but computing it
+from the dates already in the table puts it at 310 of the 342 days on which one of
+the six listed seasons is played, or 91%, and for Fall 2026, Winter 2027 and Spring
+2027 it is the entire season, because the next registration opens after the current
+season ends. So the CTA reads as a dead end for most of every season while "Subs play
+free" sits in the paragraph above it. Filed as #51. Also unchanged:
+14 `target="_blank"` links across the site carry no new-tab warning, which is
+pre-existing and site-wide. Whoever fixes that should know the hero link sets its
+label with `textContent`, which would silently wipe a visually-hidden span inside it;
+append a second id to `aria-describedby` instead.
 
 Merge commit: pending

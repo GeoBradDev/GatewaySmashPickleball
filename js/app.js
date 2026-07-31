@@ -178,8 +178,15 @@ import '../css/style.css';
     return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   }
 
+  // Local accessors, not UTC ones. Both sides of every comparison have to be
+  // UTC midnight of the same calendar day, and the calendar day that matters
+  // is the visitor's. Reading getUTCDate() off a local Date gives the UTC day
+  // instead, which rolls over during the evening for everyone west of UTC: a
+  // St. Louis visitor at 19:30 on the 12th was being shown the 13th, so the
+  // page announced an open registration hours before it opened, and retired a
+  // season on its own closing night.
   var now = new Date();
-  var today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  var today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -232,9 +239,22 @@ import '../css/style.css';
       current = name;
     }
     // The soonest season that has not started yet, whether or not its
-    // registration window has opened.
-    if ((status.modifier === 'open' || status.modifier === 'upcoming') && !nextRegistration) {
-      nextRegistration = { name: name, opens: row.getAttribute('data-registration'), isOpen: status.modifier === 'open' };
+    // registration window has opened. Chosen by comparing start dates rather
+    // than by taking the first matching row: nothing forces the tbody to be
+    // chronological, and this table is the most frequently edited part of the
+    // site, so a maintainer adding the newest season at the top would
+    // otherwise point the hero at a season a year out while the table beside
+    // it showed one open now.
+    if (status.modifier === 'open' || status.modifier === 'upcoming') {
+      var start = parseDate(row.getAttribute('data-start'));
+      if (!nextRegistration || start < nextRegistration.start) {
+        nextRegistration = {
+          name: name,
+          start: start,
+          opens: row.getAttribute('data-registration'),
+          isOpen: status.modifier === 'open',
+        };
+      }
     }
   });
 
@@ -253,6 +273,39 @@ import '../css/style.css';
     if (parts.length > 0) {
       callout.textContent = parts.join(' ');
       callout.hidden = false;
+    }
+  }
+
+  // The hero CTA sat above all of this reading "Join the League", naming no
+  // season and giving no hint that registration might not be open yet, which
+  // is item 6 of issue #10. It reads the state the callout already computed
+  // rather than carrying a second copy of the season name.
+  var join = document.getElementById('hero-join');
+  var note = document.getElementById('hero-note');
+
+  // Both conditions are required, for different reasons.
+  //
+  // nextRegistration: once the last row in the table has finished, a state
+  // the schedule reaches on its own if nobody adds a season, there is nothing
+  // to name and reading .name off null would throw. "Join the League" is
+  // already true in every season, so leaving the markup alone is correct.
+  //
+  // note: renaming the button is what creates the obligation to say whether
+  // that season can actually be joined, and the note is what discharges it.
+  // Naming a season while staying silent about a registration window that may
+  // not be open yet is worse than the label it replaced.
+  if (nextRegistration && note) {
+    note.textContent = nextRegistration.isOpen
+      ? 'Registration is open now.'
+      : 'Registration opens ' + longDate(nextRegistration.opens) + '.';
+    note.className = 'hero-note' + (nextRegistration.isOpen ? ' hero-note--open' : '');
+    note.hidden = false;
+    if (join) {
+      join.textContent = 'Join ' + nextRegistration.name;
+      // The button now names a season but not its availability. Tying the two
+      // together means a screen reader reads the date with the button instead
+      // of only on the way past it.
+      join.setAttribute('aria-describedby', 'hero-note');
     }
   }
 })();
