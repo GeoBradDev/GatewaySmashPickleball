@@ -31,6 +31,8 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # No npm ci: scripts/check-links.js uses only built-in Node APIs, so
-      # installing dependencies would just be a slower way to run one file.
+      # check-links itself uses only built-in Node APIs, but it now scans
+      # dist/, so the build has to run first and that needs dependencies.
+      - run: npm ci
+
       - run: npm run check-links

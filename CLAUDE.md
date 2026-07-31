@@ -9,6 +9,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `css/style.css` - Custom styles and layout rules.
 - `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2, plus the OFL 1.1 licence text each family requires when redistributed. Not in `public/`, deliberately: the `@font-face` rules in `css/style.css` reference them with relative `url()` paths so Vite content-hashes them.
+- `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
 - `vite.config.js` - Build configuration. Declares `index.html` and `404.html` as the two entry points.
@@ -35,6 +36,7 @@ How each kind of asset reaches `dist/`:
 | `css/style.css` | imported by `js/app.js` | hashed, minified, `<link>` injected by Vite |
 | `js/app.js` | `<script type="module">` in `index.html` | hashed, minified, `src` rewritten in place |
 | `fonts/*.woff2` | relative `url()` in `css/style.css` | hashed into `assets/`, `url()` rewritten |
+| `partials/*.html` | `{{> name}}` in a page | inlined at build time |
 | `public/**` | verbatim copy | same path, unchanged bytes |
 
 The page makes **no third-party requests**. Fonts were on `fonts.googleapis.com`,
@@ -58,6 +60,12 @@ Prefer `scripts/smoke-build.js` over reaching for a new linter. html-validate is
 there for structural HTML errors, but it does not know that a `type="image/svg+xml"`
 on a `.png` is wrong, because that markup is structurally valid. Semantic checks like
 that belong in the smoke script.
+
+**Lint and link checking run against `dist/`, not source.** The source now contains
+`{{> header}}`, which is not HTML, and `dist/` is what visitors actually receive.
+Checking source silently stopped covering the FAQ link when the nav moved into a
+partial, and the total still read as three because the canonical URL took its place,
+so `check-links` now fails if it finds fewer links than expected.
 
 `npm run check-links` is deliberately outside `npm test`. Third-party hosts can
 rate-limit a CI runner, and a pull request that goes red for that reason teaches
