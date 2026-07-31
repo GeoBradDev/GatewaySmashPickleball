@@ -635,4 +635,41 @@ Verified by editing the partial and confirming the change appears in `dist/index
 and disappears when reverted, plus negative tests for a missing `dist/` and for
 coverage dropping below the floor.
 
+Merged as PR #39, merge commit `c0d4c51`.
+
+## Batch 7 continued: confirmed pricing
+
+Two figures came back corrected: **$70 for eight weeks** (the Notion FAQ says $50) and
+a **56-player cap** (the FAQ says 32). Both are now on the site.
+
+The price is the answer to the first question a prospective player has, and the site
+had never stated it. It now appears in the hero, in the League info list alongside the
+day, time, venue and courts, and in all three description tags, replacing the word
+"affordable" that #21 flagged. The roster cap sits next to it.
+
+Two new smoke checks, both negative-tested, guard drift this change introduces:
+
+- The three description tags must agree. The same sentence is declared three times,
+  and search results, link previews and X cards each read a different one.
+- Every dollar amount on the page must be the same. A wrong price is the worst bug
+  this site can ship, and the fee is now stated in more than one place. If a second,
+  genuinely different amount is ever added, that check is the thing to update
+  deliberately.
+
+**This breaks the Notion FAQ's cost breakdown, which cannot be ported as-is.** That
+section derives $50 from `$24/hour x 2 hours x 4 courts x 8 weeks = $1,536`, divided by
+32 players, plus a PayPal fee. None of that arithmetic survives $70 and 56 players, and
+it already disagreed with this site, which lists **five** courts (#5, #6, #7, #10, #12)
+against the breakdown's four. I am not recomputing it: the court count, hourly rate and
+hours are all facts I would be inventing. #20 needs either a current breakdown or a
+decision to drop that section.
+
+The refund policy has the same problem. It reads "if we don't reach 32 players, your
+$50 will be refunded in full". Substituting 56 and $70 assumes the refund threshold is
+still the roster cap, which happened to be true when both were 32. That is a policy,
+not arithmetic, so it needs confirming rather than deriving.
+
+Still unanswered from the #21 list: the ladder explanation (pods of four, three
+rotating doubles matches), the skill range, and whether Elo still updates weekly.
+
 Merge commit: pending
