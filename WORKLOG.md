@@ -1087,3 +1087,78 @@ links navigate, no console messages on any page, and `npm run check-links` resol
 all 6 outbound links. Rendered at 1280 and at 390 wide.
 
 Merge commit: pending
+
+## Batch 8 continued: #48 local SEO signals
+
+The issue was blocked on three facts nobody had supplied. All three were settled
+before any code was written, and two of them turned out to be decisions rather than
+lookups:
+
+| Blocked on | Settled as |
+| --- | --- |
+| Street address | `11333 Blake Drive, Bridgeton, MO 63044`, from Arch Pickleball's own site and corroborated against Yelp and Special Olympics Missouri |
+| Phone | The league does not have one. Closed, not deferred |
+| `sameAs` | The Global Pickleball Network club page only. Eventbrite was rejected |
+
+Arch's front desk number, `636-364-8668`, was found and deliberately not used. It is
+already attached to Arch Pickleball & Badminton across their site, Yelp and Facebook,
+so publishing it here would put two businesses on one number at one address, which is
+what makes aggregators merge or suppress listings. It also sends players to staff who
+do not run the league. The reasoning is in the comment above the JSON-LD so nobody
+adds it later thinking it was an oversight.
+
+Eventbrite was rejected on the issue's own bar. The organizer page exists but lists no
+events, and the issue says a dormant profile is a weak entity signal. A `sameAs` that
+hands a visitor a dead end is worse than one fewer `sameAs`.
+
+**The first pass satisfied every check and did not do what the issue asked.** The
+address went into the venue `Place` and nowhere else. `SportsClub` descends from
+`LocalBusiness`, whose only required properties are `name` and `address`, so the
+league's own node still had no address and a local search consumer still read a
+business with none. Only human readers of the Contact card gained anything. The
+address is now stated on both nodes, and a check requires them to agree field for
+field. This is the second time on this site that a green build has meant less than it
+appeared to.
+
+**A check this branch added could be satisfied by a comment.** `withoutJsonLd` was
+built by removing the `<script>` from the raw file, which leaves `<head>` and every
+HTML comment in place, and nothing in this build strips comments so they reach `dist/`
+intact. The comment above the JSON-LD explains where each value comes from, so it
+names the venue and the street. Confirmed by deleting the address from the Contact
+card and leaving the comment: all checks passed. The new `visiblePage()` drops
+`<head>`, the block, and comments, and the same manipulation now fails correctly. The
+FAQ check was routed through it too, since it had the same shape.
+
+Two pre-existing schema errors were fixed while the block was open, both the same
+failure mode: a property on a type that does not define it is not an error, it is
+silently dropped. `sport` was set on `SportsClub`, which schema.org defines only on
+`SportsEvent` and `SportsOrganization`; `addressRegion` and `addressCountry` sat
+directly on the `areaServed` `City` rather than in a `PostalAddress`, so the
+qualification vanished and consumers read a bare "St. Louis", a city name shared by
+nine states. `sport` was removed, the City qualifiers were nested.
+
+`MINIMUM_EXPECTED` in `check-links.js` read 4 against 6 real links, having drifted at
+#19, so both DUPR links could have disappeared with the check still green. It is 7 and
+exact. Verified by removing one link and watching it report 6 against 7.
+
+Copy: the new link's text was byte-identical to the FAQ's while pointing at a
+different URL, which is the ambiguity descriptive link text exists to prevent. It is
+now "Gateway Smash **club** page", and the sentence lost a doubled preposition.
+
+Checks: one new (`sameAs` URLs must be real hrefs), one new (`areaServed` must be
+qualified by state), one extended (street address and postal code, on both nodes and
+on the page). 43 to 45. Every one negative-tested by breaking what it guards, and the
+`sameAs` matcher was separately proved to handle a bare-string `sameAs` and a URL
+whose `href` escapes `&` as `&amp;`, both of which the first version got wrong.
+
+Verified: `npm ci` then `npm test` exits 0 with 45 ok and 0 not ok, from a clean
+`node_modules` and `dist`. All five routes serve 200 under `vite preview`. The served
+JSON-LD parses, both addresses agree, `sport` and `telephone` are absent. `npm run
+check-links` resolves all 7.
+
+Still open, both outside this repo and both named in the issue: a Google Business
+Profile, which must be a service-area listing rather than a storefront or it collides
+with Arch's listing at the same address, and Cloudflare's email obfuscation, which
+hides the contact address from crawlers.
+
+Merge commit: pending

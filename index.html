@@ -123,7 +123,9 @@
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M23 22c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2v12zM18 4l-4 4-4-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M9 15h10M9 19h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <h3>Off the court</h3>
-          <p>The WhatsApp group is where subs get found and where the after-match conversation happens. Scores live in Global Pickleball Network.</p>
+          <p>The WhatsApp group is where subs get found and where the after-match conversation happens. Team captains
+            post scores to the <a href="https://www.globalpickleball.network/network/home/5110-gateway-smash"
+               target="_blank" rel="noopener noreferrer">Gateway Smash club page on Global Pickleball Network</a>.</p>
         </div>
       </div>
     </div>
@@ -240,7 +242,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="currentColor"/></svg>
           </div>
           <h3>Location</h3>
-          <p>Arch Pickleball, Bridgeton, MO</p>
+          <p>Arch Pickleball<br>11333 Blake Drive<br>Bridgeton, MO 63044</p>
         </div>
         <div class="contact-item">
           <div class="contact-icon" aria-hidden="true">
@@ -265,16 +267,47 @@
 
 <!--
   Structured data. Every value here is already stated somewhere on this page:
-  the name and description from the head, the email from the Contact section,
-  the venue and municipality from the League Info list. Nothing is invented,
+  the name and description from the head, the email and the full street address
+  from the Contact section, the venue and municipality from the League Info list,
+  the sameAs profile from the Off the court paragraph. Nothing is invented,
   because structured data that disagrees with the visible page is worse than
   none at all.
 
-  Deliberately absent: streetAddress and telephone, which appear nowhere on the
-  site; sameAs, since there are no social profiles to point at; and SportsEvent
-  entries per season, which would make the schedule eligible for event rich
-  results but should wait until the dates in #10 are confirmed current. Marking
-  up stale dates as events is worse than not marking them up.
+  The address appears twice, and neither copy is redundant. SportsClub descends
+  from LocalBusiness, whose only required properties are name and address, so a
+  club with an address on the venue Place alone reads to a local search consumer
+  as a business with no address at all. That is the state #48 was first built in.
+  The Place keeps its own copy so that node still describes a building on its own
+  terms. A smoke check requires the two to agree field for field.
+
+  Note that this means the league's own listing claims Arch Pickleball's address,
+  which is true of where it plays but is a building it does not own. If a Google
+  Business Profile is ever filed, it has to be a service-area listing rather than
+  a storefront here, or it collides with Arch's own listing at the same address.
+
+  Deliberately absent. #48 settled each of these:
+
+  telephone, because the league does not have a phone number. Arch Pickleball's
+  front desk has one, but Arch does not run the league and cannot answer for it,
+  so publishing that number here would send players to people who cannot help
+  them, and would put a second business's number into the name, address and
+  phone record that local search matches this league on.
+
+  A second sameAs entry. The Eventbrite organizer page exists but lists no
+  events, and pointing at a near-empty profile is a weak entity signal that
+  also hands a visitor a dead end.
+
+  SportsEvent entries per season, which would make the schedule eligible for
+  event rich results but should wait until the dates in #10 are confirmed
+  current. Marking up stale dates as events is worse than not marking them up.
+
+  sport, removed in #48. schema.org defines it on SportsEvent and
+  SportsOrganization only, and SportsClub is neither: it descends from
+  LocalBusiness. Consumers dropped it, so it read as coverage while doing
+  nothing, and the description above already says pickleball. The same reason
+  moved areaServed's addressRegion and addressCountry into a PostalAddress,
+  where they are actually defined. A property on a type that does not declare
+  it does not error, it just quietly stops existing.
 -->
 <script type="application/ld+json">
 {
@@ -284,23 +317,38 @@
   "description": "Grassroots, volunteer-run indoor pickleball leagues in St. Louis for all skill levels.",
   "url": "https://www.gatewaysmash.com/",
   "email": "info@gatewaysmash.com",
-  "sport": "Pickleball",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "11333 Blake Drive",
+    "addressLocality": "Bridgeton",
+    "addressRegion": "MO",
+    "postalCode": "63044",
+    "addressCountry": "US"
+  },
   "areaServed": {
     "@type": "City",
     "name": "St. Louis",
-    "addressRegion": "MO",
-    "addressCountry": "US"
+    "address": {
+      "@type": "PostalAddress",
+      "addressRegion": "MO",
+      "addressCountry": "US"
+    }
   },
   "location": {
     "@type": "Place",
     "name": "Arch Pickleball",
     "address": {
       "@type": "PostalAddress",
+      "streetAddress": "11333 Blake Drive",
       "addressLocality": "Bridgeton",
       "addressRegion": "MO",
+      "postalCode": "63044",
       "addressCountry": "US"
     }
-  }
+  },
+  "sameAs": [
+    "https://www.globalpickleball.network/network/home/5110-gateway-smash"
+  ]
 }
 </script>
 
