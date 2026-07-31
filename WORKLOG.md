@@ -471,4 +471,59 @@ Notion FAQ, and the WhatsApp invite.
 CI now takes its Node version from `.nvmrc` rather than a hardcoded `'24'`, so the
 pin added in #14 cannot drift from what CI actually runs.
 
+Merged as PR #35, merge commit `0f63157`.
+
+## Batch 6: SEO and metadata
+
+### #9 SEO gaps, and the parts of #18 that are not mine to decide
+
+**#9 is done.** The canonical origin is `https://www.gatewaysmash.com/`, which was
+already settled by #2 and confirmed by #18's live check of the non-www to www
+redirect, so nothing here was blocked on it.
+
+Added `rel=canonical`, a real `og:url`, `og:description`, `og:site_name`,
+`og:locale`, the four Twitter Card tags, and `og:image:width`/`height`. `og:image`
+and `twitter:image` are now absolute, because scrapers do not resolve relative URLs.
+
+`SportsClub` JSON-LD, containing only claims the page already makes: name and
+description from the head, email from the Contact section, venue and municipality
+from the League Info list. Deliberately absent are `streetAddress` and `telephone`,
+which appear nowhere on the site, and `sameAs`, since there are no social profiles to
+point at. Also absent are per-season `SportsEvent` entries, which is what would make
+the schedule eligible for event rich results: marking up dates that #10 says are
+stale would be worse than not marking them up at all.
+
+`sitemap.xml` with the single URL, and a `Sitemap:` line in `robots.txt`, which is
+how search consoles discover it.
+
+Four new smoke checks, five negative tests. One of those negative tests earned its
+keep: the check that JSON-LD claims match the page was **vacuous on the first
+attempt**. It searched the whole document for the email, and the document contains
+the JSON-LD block, so substituting a fake address still passed. It now searches the
+page with the block removed, and covers the venue name too. That is exactly the
+failure mode `CLAUDE.md` warns about, and it only surfaced because the check was
+deliberately broken to see if it would notice.
+
+Two existing checks also had to be taught the difference between a URL and a
+subresource, because making `og:image` absolute broke both: `rel=canonical` names a
+URL without fetching it, and a same-origin absolute URL still resolves inside
+`dist/`. Both were tightened rather than loosened.
+
+**#18 is left open, and most of it is not a code change.** Its own priority list
+starts with two items I should not and cannot do:
+
+1. *The Cloudflare AI-crawler block.* `Google-Extended`, `GPTBot` and `ClaudeBot` are
+   disallowed by a Cloudflare managed rule that is prepended to the served
+   `robots.txt`. The repo's file is appended underneath it, so **editing anything
+   here cannot lift it**. It is a dashboard setting, and hosting configuration is
+   explicitly out of scope for this pass. Verified: the repo `robots.txt` disallows
+   nothing.
+2. *Bringing the FAQ on-site.* That is #20, which needs the Notion content.
+
+The rest divides between other issues and decisions that need facts I do not have:
+photographs of actual play, a street address, a phone number, social profiles, and a
+1200x630 share image. `og:image` is still the square icon, and it is still the wrong
+shape for a link preview, but a purpose-made share card is blocked on the same
+unresolved question as the icon artwork below.
+
 Merge commit: pending

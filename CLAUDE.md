@@ -78,6 +78,25 @@ are root-relative and are checked to exist in `dist/`, because a manifest icon t
 The icon artwork is inherited and is **not** the paddle mark the header uses. See
 the open question logged in [WORKLOG.md](WORKLOG.md).
 
+## SEO and metadata
+
+The canonical origin is `https://www.gatewaysmash.com/`. It is declared in
+`rel=canonical`, `og:url`, `sitemap.xml`, the `Sitemap:` line in `robots.txt`, and the
+JSON-LD `url`. `npm run smoke` fails if they disagree, and `scripts/smoke-build.js`
+holds it in one constant.
+
+`og:image` and `twitter:image` must be **absolute**. Scrapers do not resolve relative
+URLs, and a relative one fails silently.
+
+The JSON-LD may only state things the visible page also states. A smoke check
+enforces this for the email and the venue by searching the page with the JSON-LD
+block stripped out. Structured data that disagrees with the page is worse than none.
+
+Note that the served `robots.txt` is **not** the one in this repo. Cloudflare prepends
+a managed block that disallows AI crawlers, and the repo file is appended underneath.
+Changing crawl rules for those agents is a Cloudflare dashboard setting, not a repo
+change.
+
 ## Deployment
 
 Push to `main` deploys to <https://www.gatewaysmash.com> automatically. Render is the

@@ -7,12 +7,32 @@
   <title>Gateway Smash Pickleball | Indoor STL Pickleball Leagues</title>
   <meta name="description" content="Join Gateway Smash, St. Louis's grassroots indoor pickleball league. Affordable, organized, and open to all skill levels.">
 
+  <!-- The site is reachable at both apex and www, and www is where the redirect
+       lands, so that is the canonical form. Absolute URLs are required here:
+       scrapers do not resolve relative ones. -->
+  <link rel="canonical" href="https://www.gatewaysmash.com/">
+
   <meta property="og:title" content="Gateway Smash Pickleball - St. Louis Pickleball Club">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="">
-  <meta property="og:image" content="/img/android-chrome-512x512.png">
+  <meta property="og:url" content="https://www.gatewaysmash.com/">
+  <meta property="og:site_name" content="Gateway Smash Pickleball">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:description" content="Join Gateway Smash, St. Louis's grassroots indoor pickleball league. Affordable, organized, and open to all skill levels.">
+  <!-- Square, so previews letterbox it. Open Graph wants roughly 1200x630, which
+       needs artwork that does not exist yet. The dimensions are declared so
+       platforms lay it out correctly rather than guessing. -->
+  <meta property="og:image" content="https://www.gatewaysmash.com/img/android-chrome-512x512.png">
   <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
   <meta property="og:image:alt" content="Gateway Smash Pickleball Logo">
+
+  <!-- Without these, links posted to X render as a bare URL. -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Gateway Smash Pickleball - St. Louis Pickleball Club">
+  <meta name="twitter:description" content="Join Gateway Smash, St. Louis's grassroots indoor pickleball league. Affordable, organized, and open to all skill levels.">
+  <meta name="twitter:image" content="https://www.gatewaysmash.com/img/android-chrome-512x512.png">
+  <meta name="twitter:image:alt" content="Gateway Smash Pickleball Logo">
 
   <!-- Root-relative throughout, so these keep resolving from any path. -->
   <link rel="icon" href="/favicon.ico" sizes="any">
@@ -266,6 +286,47 @@
     <p>&copy; 2026 Gateway Smash Pickleball. All rights reserved.</p>
   </div>
 </footer>
+
+<!--
+  Structured data. Every value here is already stated somewhere on this page:
+  the name and description from the head, the email from the Contact section,
+  the venue and municipality from the League Info list. Nothing is invented,
+  because structured data that disagrees with the visible page is worse than
+  none at all.
+
+  Deliberately absent: streetAddress and telephone, which appear nowhere on the
+  site; sameAs, since there are no social profiles to point at; and SportsEvent
+  entries per season, which would make the schedule eligible for event rich
+  results but should wait until the dates in #10 are confirmed current. Marking
+  up stale dates as events is worse than not marking them up.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SportsClub",
+  "name": "Gateway Smash Pickleball",
+  "description": "Grassroots, volunteer-run indoor pickleball leagues in St. Louis for all skill levels.",
+  "url": "https://www.gatewaysmash.com/",
+  "email": "info@gatewaysmash.com",
+  "sport": "Pickleball",
+  "areaServed": {
+    "@type": "City",
+    "name": "St. Louis",
+    "addressRegion": "MO",
+    "addressCountry": "US"
+  },
+  "location": {
+    "@type": "Place",
+    "name": "Arch Pickleball",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Bridgeton",
+      "addressRegion": "MO",
+      "addressCountry": "US"
+    }
+  }
+}
+</script>
 
 <script type="module" src="/js/app.js"></script>
 
