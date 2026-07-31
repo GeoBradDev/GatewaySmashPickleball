@@ -67,12 +67,22 @@
       <p class="hero-description">Gateway Smash is a volunteer-run pickleball league in St. Louis. $70 for an
         eight-week season, played indoors, open to any skill level. Subs play free.</p>
       <div class="hero-actions">
+        <!-- The label ships season-neutral on purpose. js/app.js rewrites it to
+             name the season from the schedule dates; baking a season name in
+             here would go stale the day that season ends, which is the defect
+             issue #10 was filed about. -->
         <a href="https://www.globalpickleball.network/network/register/5110-gateway-smash"
            class="btn btn--primary"
+           id="hero-join"
            target="_blank"
            rel="noopener noreferrer">
           Join the League
         </a>
+        <!-- Inside the button group and directly after the link it describes,
+             so that when the group stacks on mobile the note sits under the
+             Join button rather than under Learn More. CSS order puts it last
+             again on desktop, where the buttons sit side by side. -->
+        <p class="hero-note" id="hero-note" hidden></p>
         <a href="#about" class="btn btn--ghost">
           Learn More
         </a>

@@ -9,7 +9,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `subs/index.html` - Substitute player page, served at `/subs/`.
 - `404.html` - Error page for broken links.
 - `css/style.css` - Custom styles and layout rules.
-- `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
+- `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, scroll-driven header shadow, the date-derived league schedule status described under Pages, and the footer year). Also imports the stylesheet, which is how CSS enters the build.
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2, plus the OFL 1.1 licence text each family requires when redistributed. Not in `public/`, deliberately: the `@font-face` rules in `css/style.css` reference them with relative `url()` paths so Vite content-hashes them.
 - `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
@@ -144,6 +144,42 @@ question and the opening clause of each answer against the rendered text with th
 JSON-LD stripped out. Rich results that promise text a visitor cannot find are worse
 than no markup.
 
+## The schedule drives the page, and nothing states a season by hand
+
+Season status is **derived from the dates**, never written into the markup. A
+hand-written "Summer 2026 is in progress" is wrong the moment the season ends,
+which is the state issue #10 found the site in. `js/app.js` reads `data-start`,
+`data-end` and `data-registration` off each schedule row and from them writes the
+Status column, the callout above the table, and the hero CTA label and note.
+
+This is **progressive enhancement**, and it has to stay that way. `index.html`
+ships the CTA as "Join the League" and the note as an empty `hidden` paragraph, so
+a visitor without JavaScript gets a correct, season-neutral page rather than an
+empty gap. Baking a season name into the markup would reintroduce the original
+defect. A smoke check reads `dist/index.html` and fails if the season-neutral
+label or the `hidden` attribute goes missing.
+
+Two rules that are easy to break by accident:
+
+- **Compare local calendar days, not UTC ones.** `today` is built from
+  `getFullYear/getMonth/getDate`, not the `getUTC*` variants. Reading UTC parts
+  off a local `Date` rolls the date over during the evening for every visitor
+  west of UTC, so the page announced open registration hours early and retired a
+  season on its own closing night, in the league's own timezone. A smoke check
+  pins both boundaries at 19:30 Central by setting `process.env.TZ`.
+- **The next season is the soonest one**, chosen by comparing start dates, not
+  the first matching row. The rows are hand-maintained and nothing orders them.
+
+## Colour contrast
+
+`--amber-dark` means "you can act on this now": the hero note and the
+Registration open row. It is text at 14px, so it needs 4.5:1 against both
+`--cream` and `--white`, and `npm run smoke` computes the ratios from the built
+stylesheet and fails below that. It shipped at 3.5:1, which made the single most
+actionable sentence on the page the hardest to read, and no other check could see
+it: the markup stays valid and the text stays present, it just stops being
+legible.
+
 ## Copy style
 
 The league's pitch is that it is the human alternative to disorganized corporate
@@ -174,14 +210,26 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 
 ## Integrations & Contact
 
-- **Community Chat:** WhatsApp (linked in `index.html:247` and about copy at `index.html:116`).
+- **Community Chat:** WhatsApp (linked in `index.html:257` and about copy at `index.html:126`).
 - *Note:* GroupMe was historically used but removed completely.
 
 ## Maintenance Notes
 
 The most frequently edited part of the site is the **League Schedule**.
-- **Location:** `index.html`, around line 135 under `<h2>League schedule</h2>`.
+- **Location:** `index.html`, around line 136 under `<h2>League schedule</h2>`.
 - **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
+
+Each row's `data-start`, `data-end` and `data-registration` attributes are the
+**single source of truth for three separate things**: the row's own status label,
+the callout above the table, and the hero CTA at the top of the page, which names
+the next joinable season and states whether registration is open. A row edited
+here changes the button a visitor sees before they have scrolled at all. Keep the
+`data-*` dates and the human-readable dates in the same row in step; only the
+`data-*` ones are read by code.
+
+The rows do not have to be in chronological order, and `js/app.js` picks the next
+season by comparing start dates rather than by taking the first row. Adding a
+season at the top is safe.
 
 > **CRITICAL RULE FOR AI ASSISTANTS:**
 > Whenever a change alters the tech stack, an integration (e.g., WhatsApp), or the project layout, this `CLAUDE.md` file MUST be updated in the same commit to prevent it from drifting from reality.

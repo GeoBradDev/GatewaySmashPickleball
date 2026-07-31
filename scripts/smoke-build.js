@@ -801,13 +801,15 @@ check('the desktop nav is never inert', function () {
 // finished season, a live one and one open for registration identically.
 // They are computed from each row's dates, so they are worth pinning down
 // against a frozen clock rather than trusting to read correctly today.
-function buildScheduleTable() {
-  const SEASONS = [
-    ['Spring 2026', '2026-04-12', '2026-06-07', '2026-03-12'],
-    ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
-    ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-13'],
-    ['Winter 2027', '2027-01-10', '2027-03-07', '2026-12-11'],
-  ];
+const CHRONOLOGICAL_SEASONS = [
+  ['Spring 2026', '2026-04-12', '2026-06-07', '2026-03-12'],
+  ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
+  ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-13'],
+  ['Winter 2027', '2027-01-10', '2027-03-07', '2026-12-11'],
+];
+
+function buildScheduleTable(seasons) {
+  const SEASONS = seasons || CHRONOLOGICAL_SEASONS;
   const rows = SEASONS.map(function (season) {
     const nameCell = createElementStub();
     nameCell.textContent = season[0];
@@ -827,15 +829,48 @@ function buildScheduleTable() {
   return { table: table, rows: rows, headRow: headRow };
 }
 
-function statusesOn(isoDate) {
-  const schedule = buildScheduleTable();
+// Node applies a change to process.env.TZ to Date immediately, which is what
+// makes the visitor's timezone checkable here without adding a dependency.
+function withTimeZone(tz, fn) {
+  const previous = process.env.TZ;
+  process.env.TZ = tz;
+  try {
+    return fn();
+  } finally {
+    if (previous === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = previous;
+    }
+  }
+}
+
+// `when` is a bare yyyy-mm-dd, which freezes the clock at UTC noon, or a full
+// instant when the time of day is the thing under test. opts.omit drops an id
+// from the page, modelling markup that has lost that element.
+function statusesOn(when, opts) {
+  const omit = (opts && opts.omit) || [];
+  const schedule = buildScheduleTable(opts && opts.seasons);
   const callout = createElementStub();
   callout.hidden = true;
+  // Seeded with a trimmed copy of the label index.html ships. The real DOM
+  // node also carries the newlines the markup wraps it across, which is what
+  // the .trim() below absorbs; what matters is that reading back the shipped
+  // label proves the bundle left it alone rather than merely never wrote.
+  const join = createElementStub();
+  join.textContent = 'Join the League';
+  const note = createElementStub();
+  note.hidden = true;
+
+  const page = { 'season-callout': callout, 'hero-join': join, 'hero-note': note };
+  omit.forEach(function (id) {
+    delete page[id];
+  });
 
   runBundle(
-    { 'season-callout': callout },
+    page,
     false,
-    { table: schedule.table, today: isoDate + 'T12:00:00Z' }
+    { table: schedule.table, today: /T/.test(when) ? when : when + 'T12:00:00Z' }
   );
 
   return {
@@ -844,6 +879,10 @@ function statusesOn(isoDate) {
       return cell ? cell.textContent : null;
     }),
     callout: callout.hidden ? null : callout.textContent,
+    join: join.textContent.trim(),
+    joinDescribedBy: join.getAttribute('aria-describedby'),
+    note: note.hidden ? null : note.textContent,
+    noteClass: note.className,
   };
 }
 
@@ -902,6 +941,217 @@ check('a season is complete the day after it ends, not before', function () {
   const dayAfter = statusesOn('2026-08-24');
   if (dayAfter.labels[1] !== 'Completed') {
     throw new Error('Summer 2026 read as ' + dayAfter.labels[1] + ' the day after it ended');
+  }
+});
+
+// Item 6 of #10: the button sat directly above a callout reading "Fall 2026
+// registration opens August 13, 2026" while itself saying only "Join the
+// League", so the page named a season everywhere except on the one control a
+// visitor was being asked to click.
+check('the hero CTA names the season a visitor would be joining', function () {
+  const result = statusesOn('2026-07-31');
+  if (result.join !== 'Join Fall 2026') {
+    throw new Error('hero CTA reads ' + JSON.stringify(result.join) + ', which names no season');
+  }
+  if (result.note !== 'Registration opens August 13, 2026.') {
+    throw new Error('hero note does not say when registration opens: ' + JSON.stringify(result.note));
+  }
+  // The class carries the colour, and a wrong one is invisible to every other
+  // check here: the sentence is still correct, it just stops being styled.
+  if (result.noteClass !== 'hero-note') {
+    throw new Error('pending note carries ' + JSON.stringify(result.noteClass) + ', which is not the muted style');
+  }
+  // The button names a season but not whether it is joinable yet. Without
+  // this the date is only reachable by tabbing past the button.
+  if (result.joinDescribedBy !== 'hero-note') {
+    throw new Error('hero CTA is not described by the note, so the date is orphaned for a screen reader');
+  }
+});
+
+// The boundary is the whole risk here. An off-by-one would have the button
+// promise an open registration a day early, which is the same class of error
+// as the hand-written copy this issue was filed about.
+check('the hero CTA says registration is open on the day it opens', function () {
+  const before = statusesOn('2026-08-12');
+  if (before.note !== 'Registration opens August 13, 2026.') {
+    throw new Error('hero note the day before registration opens: ' + JSON.stringify(before.note));
+  }
+  const on = statusesOn('2026-08-13');
+  if (on.note !== 'Registration is open now.') {
+    throw new Error('hero note on the opening day: ' + JSON.stringify(on.note));
+  }
+  // The modifier is what makes the open state visually distinct from the
+  // pending one. Without it both states render identically muted.
+  if (on.noteClass !== 'hero-note hero-note--open') {
+    throw new Error('open note carries ' + JSON.stringify(on.noteClass) + ', so it is not styled as open');
+  }
+  if (on.join !== 'Join Fall 2026') {
+    throw new Error('hero CTA stopped naming the season once registration opened: ' + JSON.stringify(on.join));
+  }
+});
+
+// Every check above freezes the clock at UTC noon, which is the one time of
+// day when the UTC calendar date and a Western visitor's local date agree, so
+// none of them can see this. Half past midnight UTC is the previous evening
+// in the league's own city, and a Sunday-night league's traffic peaks there.
+check('an evening visitor west of UTC is not told registration opened a day early', function () {
+  const result = withTimeZone('America/Chicago', function () {
+    // Wed Aug 12 2026, 19:30 CDT. Fall registration opens tomorrow.
+    return statusesOn('2026-08-13T00:30:00Z');
+  });
+  if (result.note !== 'Registration opens August 13, 2026.') {
+    throw new Error('hero note on the evening before registration opens: ' + JSON.stringify(result.note));
+  }
+  if (result.labels[2] !== 'Upcoming') {
+    throw new Error('Fall 2026 read as ' + result.labels[2] + ' the evening before registration opens');
+  }
+  // The other end of the same bug: the final Sunday night of a season is
+  // league night, and the table must not have retired it yet.
+  const lastNight = withTimeZone('America/Chicago', function () {
+    // Sun Aug 23 2026, 19:30 CDT, the closing night of Summer 2026.
+    return statusesOn('2026-08-24T00:30:00Z');
+  });
+  if (lastNight.labels[1] !== 'In progress') {
+    throw new Error('Summer 2026 read as ' + lastNight.labels[1] + ' on its own closing night');
+  }
+});
+
+// CLAUDE.md calls this table the most frequently edited part of the site, and
+// nothing makes the rows chronological. Listing the newest season first is an
+// ordinary edit; it must not leave the hero advertising a season four months
+// out while the table two sections below says Fall is open now.
+check('the next season is the soonest one, not whichever row comes first', function () {
+  const newestFirst = [
+    ['Winter 2027', '2027-01-10', '2027-03-07', '2026-12-11'],
+    ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-13'],
+    ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
+    ['Spring 2026', '2026-04-12', '2026-06-07', '2026-03-12'],
+  ];
+  const result = statusesOn('2026-08-13', { seasons: newestFirst });
+  if (result.join !== 'Join Fall 2026') {
+    throw new Error('hero named ' + JSON.stringify(result.join) + ' with the rows listed newest first');
+  }
+  if (result.note !== 'Registration is open now.') {
+    throw new Error('hero note with the rows listed newest first: ' + JSON.stringify(result.note));
+  }
+  if (!/Fall 2026 registration is open now/.test(result.callout || '')) {
+    throw new Error('callout with the rows listed newest first: ' + JSON.stringify(result.callout));
+  }
+});
+
+// Relative luminance and contrast ratio, WCAG 2.1 definitions, on #rrggbb.
+function relativeLuminance(hex) {
+  const channels = [1, 3, 5]
+    .map((i) => parseInt(hex.substr(i, 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(a, b) {
+  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// The minifier shortens #ffffff to #fff, so both forms have to be read here.
+function cssVariable(css, name) {
+  const match = css.match(new RegExp('--' + name + ':\\s*#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\\b'));
+  if (!match) {
+    throw new Error('no --' + name + ' in the emitted css');
+  }
+  const digits = match[1].toLowerCase();
+  return '#' + (digits.length === 3 ? digits.replace(/./g, (d) => d + d) : digits);
+}
+
+// --amber-dark is the "you can act on this now" colour, used for the hero note
+// and for the Registration open row in the schedule. It shipped at 3.5:1 on
+// cream, under the 4.5:1 AA needs for text this size, which made the single
+// most actionable sentence on the page the hardest one to read. Nothing else
+// in the build can see a contrast regression: the markup stays valid and the
+// text stays present, it just stops being legible.
+check('the registration-open colour meets AA on the surfaces it is used on', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const amber = cssVariable(css, 'amber-dark');
+  const cream = cssVariable(css, 'cream');
+  const white = cssVariable(css, 'white');
+
+  [['cream', cream], ['white', white]].forEach(function ([label, background]) {
+    const ratio = contrastRatio(amber, background);
+    if (ratio < 4.5) {
+      throw new Error(
+        '--amber-dark ' + amber + ' on --' + label + ' ' + background + ' is ' +
+          ratio.toFixed(2) + ':1, under the 4.5:1 AA needs for 14px text'
+      );
+    }
+  });
+});
+
+// Nothing upstream guarantees the table always carries a future row. The last
+// row here closes in March 2027, so a clock past that leaves no season to
+// join, and the enhancement has to leave the page exactly as it shipped
+// rather than write "Join undefined" or reveal an empty note.
+check('the hero CTA falls back to the shipped markup with no season left to join', function () {
+  const result = statusesOn('2027-06-01');
+  if (result.join !== 'Join the League') {
+    throw new Error('hero CTA was rewritten with no upcoming season: ' + JSON.stringify(result.join));
+  }
+  if (result.note !== null) {
+    throw new Error('hero note was revealed with nothing to say: ' + JSON.stringify(result.note));
+  }
+  if (result.joinDescribedBy !== null) {
+    throw new Error('hero CTA points aria-describedby at a note that is still hidden');
+  }
+
+  // The state a maintainer actually reaches by letting the table run out:
+  // Winter 2027 running, nothing after it. Distinct from the date above,
+  // where every row is finished, and the one #10 was filed about.
+  const running = statusesOn('2027-02-01');
+  if (running.join !== 'Join the League') {
+    throw new Error('hero named a season with only a running one left: ' + JSON.stringify(running.join));
+  }
+  if (running.note !== null) {
+    throw new Error('hero note appeared with only a running season left: ' + JSON.stringify(running.note));
+  }
+});
+
+// Renaming the button is what creates the obligation to say whether the season
+// can be joined; the note is what discharges it. If the note is missing, the
+// page would otherwise name a season and stay silent about a registration
+// window that may not be open, which is worse than the label it replaced.
+check('the hero CTA is not renamed when there is no note to qualify it', function () {
+  const result = statusesOn('2026-07-31', { omit: ['hero-note'] });
+  if (result.join !== 'Join the League') {
+    throw new Error('CTA named a season with no note on the page: ' + JSON.stringify(result.join));
+  }
+  if (result.joinDescribedBy !== null) {
+    throw new Error('CTA points aria-describedby at an element that is not on the page');
+  }
+  // The schedule itself must be unaffected by the hero markup being absent.
+  if (result.labels[1] !== 'In progress') {
+    throw new Error('losing the hero note broke the schedule: ' + JSON.stringify(result.labels));
+  }
+});
+
+// The three checks above mount their own stubs, so every one of them still
+// passes against a page that has lost these ids and silently stopped
+// enhancing anything. This is the half that reads the real built markup.
+check('the built hero ships the ids the bundle enhances', function () {
+  if (!/<a\b[^>]*\bid=["']hero-join["']/.test(indexHtml)) {
+    throw new Error('dist/index.html has no a#hero-join, so the CTA is never renamed');
+  }
+  // Matched in two steps rather than one pattern, so that the attributes may
+  // appear in any order. A check that goes red on correct markup teaches
+  // people to edit the check.
+  const noteTag = indexHtml.match(/<p\b[^>]*\bid=["']hero-note["'][^>]*>/);
+  if (!noteTag) {
+    throw new Error('dist/index.html has no p#hero-note, so the note is never written');
+  }
+  if (!/\bhidden\b/.test(noteTag[0])) {
+    throw new Error('p#hero-note ships without hidden, so a no-JS visitor gets an empty visible paragraph');
+  }
+  // The no-JS fallback. A season name baked into the markup goes stale the
+  // day that season ends, which is what this whole issue was about.
+  if (!/>\s*Join the League\s*</.test(indexHtml)) {
+    throw new Error('the shipped CTA label is not the season-neutral fallback');
   }
 });
 
