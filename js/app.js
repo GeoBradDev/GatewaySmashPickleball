@@ -5,6 +5,12 @@
   var nav = document.getElementById('nav-links');
   var header = document.getElementById('site-header');
 
+  // Nothing below applies on a page without the site header, and an
+  // unguarded addEventListener on null would break the whole bundle.
+  if (!toggle || !nav || !header) {
+    return;
+  }
+
   function openMenu() {
     toggle.classList.add('active');
     toggle.setAttribute('aria-expanded', 'true');
