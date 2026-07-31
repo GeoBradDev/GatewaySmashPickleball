@@ -410,6 +410,89 @@ check('the three description tags agree', function () {
   }
 });
 
+// The title once said "STL" while every other tag said "St. Louis". Searchers
+// type the full name, so an abbreviation in the highest-value field on the page
+// is a silent loss: nothing breaks, the page just competes for the wrong
+// string. The heading half guards the other regression #18 named, headings
+// written in brand voice carrying no topical signal at all.
+const CITY = 'St. Louis';
+
+check('the homepage names its city in the title and in a heading', function () {
+  const title = indexHtml.match(/<title>([\s\S]*?)<\/title>/);
+  if (!title) {
+    throw new Error('dist/index.html has no title');
+  }
+  if (!title[1].includes(CITY)) {
+    throw new Error('the title does not name ' + CITY + ': ' + title[1].trim());
+  }
+
+  // The h1 is a wordmark and is deliberately exempt. At least one h2 has to
+  // carry the city, or the page has no keyword-bearing heading at all.
+  const headings = [...indexHtml.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
+    .map((m) => m[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
+  if (!headings.some((text) => text.includes(CITY))) {
+    throw new Error(
+      'no h2 names ' + CITY + '; the page headings are: ' + headings.join(' | ')
+    );
+  }
+});
+
+// The page states a location twice: once in the League Info list and once in
+// the Contact section. They used to name different municipalities, Bridgeton
+// against St. Louis, which is the kind of disagreement no build step can see.
+// Both are compared against the venue the JSON-LD claims, so all three move
+// together or this fails.
+check('every Location on the homepage names the same venue', function () {
+  const body = indexHtml.slice(indexHtml.indexOf('<body'));
+
+  // League Info renders as <li><strong>Location:</strong> value</li>.
+  const listed = body.match(/<strong>Location:<\/strong>([\s\S]*?)<\/li>/);
+  // Contact renders as <h3>Location</h3> followed by a <p>.
+  const contact = body.match(/<h3>Location<\/h3>\s*<p>([\s\S]*?)<\/p>/);
+
+  if (!listed || !contact) {
+    throw new Error(
+      'expected a Location in both the League Info list and the Contact section, found ' +
+        (listed ? 'only the list' : contact ? 'only Contact' : 'neither')
+    );
+  }
+
+  function text(match) {
+    return match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // The venue name is the anchor, taken from the structured data rather than
+  // hardcoded here, so a venue change has one place to edit and not three.
+  // The block's own existence and syntax are the previous check's job; this
+  // one only needs to not crash with a stack trace if it is ever missing.
+  const ldBlock = indexHtml.match(
+    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
+  );
+  if (!ldBlock) {
+    throw new Error('no JSON-LD block to check the Location values against');
+  }
+  const jsonLd = JSON.parse(ldBlock[1]);
+  const venue = jsonLd.location.name;
+  const locality = jsonLd.location.address.addressLocality;
+
+  const problems = [];
+  [
+    { label: 'League Info', value: text(listed) },
+    { label: 'Contact', value: text(contact) },
+  ].forEach(function (entry) {
+    if (!entry.value.includes(venue)) {
+      problems.push(entry.label + ' does not name the venue ' + venue + ': ' + entry.value);
+    }
+    if (!entry.value.includes(locality)) {
+      problems.push(entry.label + ' does not name ' + locality + ': ' + entry.value);
+    }
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // A wrong price is the worst bug this site can ship, and the fee is now stated
 // in more than one place. If a second, genuinely different amount is ever
 // added, this check is the thing that should be updated deliberately.
@@ -500,6 +583,15 @@ check('the structured data parses and matches the page', function () {
   if (!withoutJsonLd.includes(data.location.name)) {
     throw new Error(
       'JSON-LD venue ' + data.location.name + ' appears nowhere in the visible page'
+    );
+  }
+  // The municipality was checkable in neither direction until #18: the venue
+  // name was required on the page but the locality was not, so Bridgeton could
+  // have been swapped for any suburb and every check would still have passed.
+  if (!withoutJsonLd.includes(data.location.address.addressLocality)) {
+    throw new Error(
+      'JSON-LD locality ' + data.location.address.addressLocality +
+        ' appears nowhere in the visible page'
     );
   }
 });
