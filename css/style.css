@@ -468,6 +468,39 @@ nav {
   color: var(--amber-dark);
 }
 
+/* The mid-season offer, shown only when the named season cannot be joined yet.
+   Sits below .hero-actions rather than inside it, so it is last in both the
+   stacked and the side-by-side layout without needing an order.
+
+   Deliberately the quietest thing in the hero. This is the sixth element in a
+   block that already carries an eyebrow pill, a wordmark, a lead paragraph,
+   two buttons and the note, so it gets no rule, no panel and no icon. The link
+   treatment is lifted from .league-sub-cta, which makes the same offer further
+   down the page, because two different-looking versions of one offer read as
+   two different offers. That rule's border-top is left behind: it divides the
+   line from the league-info list above it, and there is no list here. */
+.hero-sub-cta {
+  margin: 1.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+/* The colour is restated rather than inherited from the base `a` rule so the
+   contrast check can resolve it from this rule, the way it does for
+   .footer-links a. Recolouring the link is then enough to re-run the sum. */
+.hero-sub-cta a {
+  color: var(--court-green);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 122, 92, 0.3);
+  text-underline-offset: 3px;
+}
+
+.hero-sub-cta a:hover {
+  color: var(--court-green-dark);
+  text-decoration-color: var(--court-green);
+}
+
 /* ============================================================
    About
    ============================================================ */
@@ -1006,6 +1039,12 @@ footer p {
     order: 0;
     flex-basis: auto;
     margin: 0 0 0.5rem;
+  }
+
+  /* The stacked buttons already carry their own gap, so the offer needs less
+     air above it here than it does beside a single row of them. */
+  .hero-sub-cta {
+    margin-top: 1rem;
   }
 
   /* About */

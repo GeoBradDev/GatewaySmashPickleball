@@ -1011,8 +1011,18 @@ function statusesOn(when, opts) {
   join.textContent = 'Join the League';
   const note = createElementStub();
   note.hidden = true;
+  // Its copy is static in the markup and the bundle only ever clears `hidden`,
+  // so there is no text to read back. Whether it is showing is the whole
+  // behavior, which is also why it survives a page that has lost the note.
+  const sub = createElementStub();
+  sub.hidden = true;
 
-  const page = { 'season-callout': callout, 'hero-join': join, 'hero-note': note };
+  const page = {
+    'season-callout': callout,
+    'hero-join': join,
+    'hero-note': note,
+    'hero-sub': sub,
+  };
   omit.forEach(function (id) {
     delete page[id];
   });
@@ -1033,6 +1043,7 @@ function statusesOn(when, opts) {
     joinDescribedBy: join.getAttribute('aria-describedby'),
     note: note.hidden ? null : note.textContent,
     noteClass: note.className,
+    subShown: !sub.hidden,
   };
 }
 
@@ -1103,8 +1114,11 @@ check('the hero CTA names the season a visitor would be joining', function () {
   if (result.join !== 'Join Fall 2026') {
     throw new Error('hero CTA reads ' + JSON.stringify(result.join) + ', which names no season');
   }
-  if (result.note !== 'Registration opens August 13, 2026.') {
-    throw new Error('hero note does not say when registration opens: ' + JSON.stringify(result.note));
+  // #51: this read only the second sentence, so on a day a season was being
+  // played the hero named one three months out and said nothing about the one
+  // on court. Both sentences, in the order the callout writes them.
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+    throw new Error('hero note does not say what is running and when the next opens: ' + JSON.stringify(result.note));
   }
   // The class carries the colour, and a wrong one is invisible to every other
   // check here: the sentence is still correct, it just stops being styled.
@@ -1123,11 +1137,11 @@ check('the hero CTA names the season a visitor would be joining', function () {
 // as the hand-written copy this issue was filed about.
 check('the hero CTA says registration is open on the day it opens', function () {
   const before = statusesOn('2026-08-12');
-  if (before.note !== 'Registration opens August 13, 2026.') {
+  if (before.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
     throw new Error('hero note the day before registration opens: ' + JSON.stringify(before.note));
   }
   const on = statusesOn('2026-08-13');
-  if (on.note !== 'Registration is open now.') {
+  if (on.note !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
     throw new Error('hero note on the opening day: ' + JSON.stringify(on.note));
   }
   // The modifier is what makes the open state visually distinct from the
@@ -1149,7 +1163,7 @@ check('an evening visitor west of UTC is not told registration opened a day earl
     // Wed Aug 12 2026, 19:30 CDT. Fall registration opens tomorrow.
     return statusesOn('2026-08-13T00:30:00Z');
   });
-  if (result.note !== 'Registration opens August 13, 2026.') {
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
     throw new Error('hero note on the evening before registration opens: ' + JSON.stringify(result.note));
   }
   if (result.labels[2] !== 'Upcoming') {
@@ -1181,7 +1195,7 @@ check('the next season is the soonest one, not whichever row comes first', funct
   if (result.join !== 'Join Fall 2026') {
     throw new Error('hero named ' + JSON.stringify(result.join) + ' with the rows listed newest first');
   }
-  if (result.note !== 'Registration is open now.') {
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
     throw new Error('hero note with the rows listed newest first: ' + JSON.stringify(result.note));
   }
   if (!/Fall 2026 registration is open now/.test(result.callout || '')) {
@@ -1235,6 +1249,39 @@ check('the registration-open colour meets AA on the surfaces it is used on', fun
   });
 });
 
+// The mid-season subs offer is 0.9rem on the hero's cream, so both the
+// sentence and the link inside it need 4.5:1. Same shape as the footer link
+// check: each colour is resolved from whichever custom property its own rule
+// names, so recolouring either one re-runs the sum instead of quietly dropping
+// below AA. --court-green clears it at 4.94:1, which is not much room.
+check('the hero subs line meets AA on the hero background', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const background = cssVariable(css, 'cream');
+
+  [['.hero-sub-cta', 'the sentence'], ['.hero-sub-cta a', 'the link']].forEach(
+    function ([selector, label]) {
+      const rule = css.match(
+        new RegExp('[^{}]*' + selector.replace('.', '\\.') + '\\s*\\{([^}]*)\\}')
+      );
+      if (!rule) {
+        throw new Error('no ' + selector + ' rule in the emitted css');
+      }
+      const colour = rule[1].match(/color:\s*var\(\s*--([a-z-]+)\s*\)/);
+      if (!colour) {
+        throw new Error(selector + ' does not take its colour from a custom property');
+      }
+      const foreground = cssVariable(css, colour[1]);
+      const ratio = contrastRatio(foreground, background);
+      if (ratio < 4.5) {
+        throw new Error(
+          label + ': --' + colour[1] + ' ' + foreground + ' on --cream ' + background +
+            ' is ' + ratio.toFixed(2) + ':1, under the 4.5:1 AA needs for 0.9rem text'
+        );
+      }
+    }
+  );
+});
+
 // Nothing upstream guarantees the table always carries a future row. The last
 // row here closes in March 2027, so a clock past that leaves no season to
 // join, and the enhancement has to leave the page exactly as it shipped
@@ -1250,17 +1297,92 @@ check('the hero CTA falls back to the shipped markup with no season left to join
   if (result.joinDescribedBy !== null) {
     throw new Error('hero CTA points aria-describedby at a note that is still hidden');
   }
+});
 
-  // The state a maintainer actually reaches by letting the table run out:
-  // Winter 2027 running, nothing after it. Distinct from the date above,
-  // where every row is finished, and the one #10 was filed about.
-  const running = statusesOn('2027-02-01');
-  if (running.join !== 'Join the League') {
-    throw new Error('hero named a season with only a running one left: ' + JSON.stringify(running.join));
+// The other state a maintainer reaches by letting the table run out, and the
+// one that used to share the check above: Winter 2027 being played, nothing
+// after it. It is not a fallback, which is why it is no longer filed as one.
+// #51: the hero said nothing here at all, so the one page state where the
+// league is visibly active read as the same silence as a league that had
+// stopped. It gets the running sentence but not the rename: with no next
+// season there is nothing to name on the button, and "Join the League" is
+// already true.
+check('a running season with nothing after it is announced without renaming the CTA', function () {
+  const result = statusesOn('2027-02-01');
+  if (result.join !== 'Join the League') {
+    throw new Error('hero named a season with only a running one left: ' + JSON.stringify(result.join));
   }
-  if (running.note !== null) {
-    throw new Error('hero note appeared with only a running season left: ' + JSON.stringify(running.note));
+  if (result.note !== 'Winter 2027 is in progress.') {
+    throw new Error('hero note with only a running season left: ' + JSON.stringify(result.note));
   }
+  // Muted, not amber: amber means "you can act on this now", and with no next
+  // row there is nothing to act on.
+  if (result.noteClass !== 'hero-note') {
+    throw new Error('a running season with nothing to join is styled as actionable: ' + JSON.stringify(result.noteClass));
+  }
+  if (result.joinDescribedBy !== null) {
+    throw new Error('CTA describes itself by the note without having been renamed');
+  }
+});
+
+// The inverse of this whole issue, and nothing covered it before: every other
+// frozen clock in this suite lands inside a season, so a hero that announced a
+// running season unconditionally would have gone green everywhere.
+check('the hero claims no season is running during the gap between seasons', function () {
+  // Sep 1 2026. Summer closed Aug 23, Fall starts Sep 13, and Fall
+  // registration has been open since Aug 13.
+  const open = statusesOn('2026-09-01');
+  if (open.note !== 'Registration is open now.') {
+    throw new Error('hero note between seasons with registration open: ' + JSON.stringify(open.note));
+  }
+  // The note stays as it shipped rather than gaining "Fall 2026 registration":
+  // the button beside it already names the season, and the second name only
+  // earns its place once a running season has put another one in the sentence.
+  if (open.join !== 'Join Fall 2026') {
+    throw new Error('hero CTA between seasons: ' + JSON.stringify(open.join));
+  }
+  // Nov 15 2026. Fall closed Nov 8 and Winter registration does not open until
+  // Dec 11: the one window in this table with nothing running and nothing open.
+  const pending = statusesOn('2026-11-15');
+  if (pending.note !== 'Registration opens December 11, 2026.') {
+    throw new Error('hero note in the gap before registration opens: ' + JSON.stringify(pending.note));
+  }
+});
+
+// The dead end #51 was filed about: a season is being played, the next one
+// cannot be registered for yet, and for 46 to 57 days at a stretch the hero
+// offered nothing a visitor could act on. Subs are the one thing they can do
+// and /subs/ already existed, so the hero just never connected the two.
+//
+// The rule is "cannot register today", not "a season is running". With
+// registration open the join button is the stronger action and a second offer
+// beside it only competes with it.
+check('the subs link appears exactly when a season is running and cannot be joined yet', function () {
+  const expectations = [
+    // Summer 2026 being played, Fall 2026 registration a fortnight out.
+    ['2026-07-31', true],
+    // Same season still being played, but Fall registration opened today.
+    ['2026-08-13', false],
+    // Between seasons, Fall registration open. Nothing to sub in.
+    ['2026-09-01', false],
+    // Between seasons and before Winter registration opens. Still nothing to
+    // sub in, which is why "cannot register today" is not the whole rule.
+    ['2026-11-15', false],
+    // Winter 2027 being played with no row after it: the state that used to
+    // leave the hero completely silent.
+    ['2027-02-01', true],
+    // Every season finished.
+    ['2027-06-01', false],
+  ];
+  expectations.forEach(function ([day, expected]) {
+    const result = statusesOn(day);
+    if (result.subShown !== expected) {
+      throw new Error(
+        'on ' + day + ' the subs link was ' + (result.subShown ? 'shown' : 'hidden') +
+          ', expected ' + (expected ? 'shown' : 'hidden')
+      );
+    }
+  });
 });
 
 // Renaming the button is what creates the obligation to say whether the season
@@ -1278,6 +1400,13 @@ check('the hero CTA is not renamed when there is no note to qualify it', functio
   // The schedule itself must be unaffected by the hero markup being absent.
   if (result.labels[1] !== 'In progress') {
     throw new Error('losing the hero note broke the schedule: ' + JSON.stringify(result.labels));
+  }
+  // The subs offer makes no season claim, so unlike the rename it carries no
+  // obligation for the note to discharge and must survive the note going
+  // missing. Nesting it in the same branch would silently drop the one thing a
+  // mid-season visitor can act on from a page that had lost a paragraph.
+  if (!result.subShown) {
+    throw new Error('the subs link was suppressed by the note being missing');
   }
 });
 
@@ -1302,6 +1431,25 @@ check('the built hero ships the ids the bundle enhances', function () {
   // day that season ends, which is what this whole issue was about.
   if (!/>\s*Join the League\s*</.test(indexHtml)) {
     throw new Error('the shipped CTA label is not the season-neutral fallback');
+  }
+  // The subs offer, read out of the real built page for the same reason as the
+  // note above it: every stub-mounted check would pass against markup that had
+  // stopped shipping it. It has to arrive hidden, or the offer also stands in
+  // the gaps between seasons, when there is nothing to sub in, and on a page
+  // without JS, which cannot know either way.
+  // Matched to the closing tag, not by a character window, so rewrapping the
+  // copy cannot move the link out of range. Both assertions below read this
+  // one match rather than running the pattern twice.
+  const subPara = indexHtml.match(/<p\b[^>]*\bid=["']hero-sub["'][^>]*>[^]*?<\/p>/);
+  if (!subPara) {
+    throw new Error('dist/index.html has no p#hero-sub, so the mid-season offer never appears');
+  }
+  if (!/\bhidden\b/.test(subPara[0].match(/^<p\b[^>]*>/)[0])) {
+    throw new Error('p#hero-sub ships without hidden, so it shows out of season and without JS');
+  }
+  // The offer is only worth making if it goes somewhere.
+  if (!/href=["']\/subs\/["']/.test(subPara[0])) {
+    throw new Error('p#hero-sub does not link to /subs/');
   }
 });
 

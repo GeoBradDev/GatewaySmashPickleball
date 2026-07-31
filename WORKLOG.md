@@ -1162,3 +1162,103 @@ with Arch's listing at the same address, and Cloudflare's email obfuscation, whi
 hides the contact address from crawlers.
 
 Merge commit: pending
+
+## Batch 8 continued: #51 the mid-season hero
+
+#10 item 6 made the CTA name the season a visitor would be joining. It named the
+soonest season that had not started yet, which is right when nothing is running and
+leaves a hole while a season is in play: the button offered a season weeks out, the
+note gave a date, and neither said that a season was on court right now or that the
+visitor could do anything before that date. Counted off the `data-*` attributes
+already in `index.html`, that is **310 of the 342 days on which one of the six
+scheduled seasons is being played, or 91%**, and for Fall 2026, Winter 2027 and
+Spring 2027 it is the entire season, because the next registration opens after the
+current one has finished. A second, quieter state was worse: a season running with
+no row after it left the hero completely silent, so the one page state where the
+league is visibly active read the same as a league that had stopped.
+
+Not a regression. It is what the design approved on #10 asked for, and the issue was
+filed because the numbers turned out much worse than they looked at the time.
+
+The cause was an asymmetry nobody chose. `js/app.js` computes `current` and
+`nextRegistration`; the callout under the schedule used both and the hero used only
+the second.
+
+**Decided before writing anything**, since the issue offered three options and said
+some combination was probably right. Options 1 and 3: say what is running, and offer
+a sub spot. Not option 2, which swaps the primary button to `/subs/` mid-season, as
+that demotes the registration date, which is the thing repeat visitors come back for.
+
+The note now carries up to two sentences and the hero and the callout are built from
+the same two helpers, `inProgressSentence` and `registrationSentence`, rather than
+two copies kept level by hand. That is the actual fix for the drift; the wording is
+"is in progress" rather than anything warmer precisely so the string is shared
+literally with the callout and the two cannot disagree again. Verified live: at the
+real clock on 2026-07-31 the hero note and the callout are byte-identical.
+
+**The next season is named in the note only when a running one is named too**, via
+`registrationSentence(next, Boolean(current))`. With nothing running the button
+beside the note already reads "Join Fall 2026", so "Registration opens August 13,
+2026." is unambiguous and keeps the wording it shipped with; once a running season
+puts a second name in the sentence, "Registration opens" stops being clear and the
+season gets named. The naive version that always names it passes every in-season
+check in this suite, because every frozen clock here except the two added below
+lands inside a season, so a check for the gaps had to be added to hold that half.
+
+The subs offer is a `hidden` paragraph in the markup that JS only ever **reveals,
+never writes**. Its copy names no season, so there is nothing to derive from the
+dates, and a `textContent` write would take the `/subs/` link inside it with it,
+which is the trap the issue flagged. It shows when the visitor **cannot register
+today**: a season is on court and the next one's window has not opened, including
+the no-next-row case. With registration open it stays hidden, because the join
+button is the stronger action there and a second offer beside it only competes.
+It is also deliberately outside the note branch: it makes no season claim, so unlike
+the CTA rename it carries no obligation for the note to discharge, and a page that
+had lost only the note should still make the offer.
+
+Copy, changed during review: it first read "Season already started?", which asks a
+question the note directly above it had just answered. It is now "Not on a roster?
+Play as a sub.", which addresses the visitor rather than the season, works in both
+states that show it, and does not repeat "Subs play free" from the hero description
+two lines up. The link treatment is lifted from `.league-sub-cta`, which makes the
+same offer further down the page, because two different-looking versions of one offer
+read as two different offers; that rule's `border-top` is left behind, since it
+divides the line from the league-info list and there is no list in the hero.
+
+Checks: 45 to 49. Four new (a running season with nothing after it is announced
+without renaming the CTA; the hero claims no season is running during the gaps; the
+subs link appears exactly when a season is running and cannot be joined yet, across
+all six states; the hero subs line meets AA on cream, both the sentence and the
+link). Two extended (the built markup must ship `p#hero-sub` hidden and linking to
+`/subs/`; the subs offer must survive the note being missing). Five existing hero
+checks took new expected strings, and the running-with-no-next case was split out of
+"falls back to the shipped markup", which no longer describes it. Every new check was
+negative-tested by breaking what it guards, each failing exactly one check with the
+expected message: dropping the `isOpen` clause showed the offer on 2026-08-13,
+restoring the old guard silenced the note at 2027-02-01, naming the season
+unconditionally broke the gap check, removing `hidden` broke the markup check, and
+recolouring the link to `--amber` reported 2.50:1 against the 4.5:1 floor.
+
+`--court-green` on `--cream` is **4.94:1**, which clears AA for 0.9rem text without
+much room. `.hero-sub-cta a` restates its colour rather than inheriting the base `a`
+rule purely so the check can resolve the custom property, the same way
+`.footer-links a` does.
+
+Verified: `npm ci` then `npm test` exits 0 with 49 ok and 0 not ok from a clean
+`node_modules` and `dist`. `npm run check-links` resolves all 7 outbound links and
+`MINIMUM_EXPECTED` is unchanged, `/subs/` being internal. Driven under `vite preview`
+at 1280 and 390: the real clock lands on the dead-end state, and it now reads "Join
+Fall 2026" over "Summer 2026 is in progress. Fall 2026 registration opens August 13,
+2026." over "Not on a roster? Play as a sub." A fixture with the clock frozen to
+2026-08-13 hides the offer with `display: none` and zero height, no gap left behind.
+A fixture with the module script removed gives "Join the League", both paragraphs
+hidden at zero height and no `aria-describedby`, which is the no-JS contract. Console
+clean, and the link lands on `/subs/`.
+
+Left undone, and named in the issue as related and separate: the 14 `target="_blank"`
+links across the site still carry no new-tab warning. `#hero-join` sets its label with
+`textContent`, so a visually-hidden span inside it would be wiped on every render; the
+fix is a second id on `aria-describedby`, and it belongs in its own issue. Noted in
+CLAUDE.md next to the reveal-rather-than-write rule so the next person meets it there.
+
+Merge commit: pending
