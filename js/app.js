@@ -1,3 +1,8 @@
+// The stylesheet enters the build through this import. Without it Vite has no
+// reason to process css/style.css, and it would ship unhashed and unminified
+// the way the old CopyPlugin pattern shipped it.
+import '../css/style.css';
+
 (function () {
   'use strict';
 
