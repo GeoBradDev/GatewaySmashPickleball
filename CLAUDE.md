@@ -1,6 +1,6 @@
 # Gateway Smash Pickleball
 
-This is the codebase for the Gateway Smash Pickleball club website.
+This file provides architectural context for AI assistants working on this codebase. For human contributor setup, build commands, and general site overview, see the authoritative [README.md](README.md).
 
 ## Project Structure
 

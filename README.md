@@ -1,6 +1,8 @@
 # Gateway Smash Pickleball
 
-Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volunteer-run alternative to corporate pickleball leagues.
+Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volunteer-run alternative to corporate pickleball leagues in St. Louis.
+
+- **Live Site:** [https://geobraddev.github.io/GatewaySmashPickleball/](https://geobraddev.github.io/GatewaySmashPickleball/)
 
 ## Prerequisites
 
