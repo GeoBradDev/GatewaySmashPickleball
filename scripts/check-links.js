@@ -19,7 +19,16 @@ import path from 'node:path';
 // read as three because the new canonical URL took its place.
 const rootDir = path.resolve(import.meta.dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const PAGES = ['index.html', 'faq/index.html', 'subs/index.html', '404.html'];
+// code-of-conduct/index.html carries no third-party links today, so it does not
+// move the count below. It is listed so that one added later is checked without
+// anyone having to remember this file exists.
+const PAGES = [
+  'index.html',
+  'faq/index.html',
+  'subs/index.html',
+  'code-of-conduct/index.html',
+  '404.html',
+];
 const TIMEOUT_MS = 20000;
 
 // Some hosts serve a bot wall to anything that does not look like a browser.

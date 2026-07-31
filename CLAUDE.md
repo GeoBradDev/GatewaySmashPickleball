@@ -7,14 +7,15 @@ This file provides architectural context for AI assistants working on this codeb
 - `index.html` - The main homepage containing the copy, schedule, and layout.
 - `faq/index.html` - The FAQ, served at `/faq/`. A directory rather than `faq.html` so the clean URL works on any static host without a rewrite rule.
 - `subs/index.html` - Substitute player page, served at `/subs/`.
+- `code-of-conduct/index.html` - Conduct policy, served at `/code-of-conduct/`. Linked from the footer rather than the nav.
 - `404.html` - Error page for broken links.
 - `css/style.css` - Custom styles and layout rules.
 - `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, scroll-driven header shadow, the date-derived league schedule status described under Pages, and the footer year). Also imports the stylesheet, which is how CSS enters the build.
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2, plus the OFL 1.1 licence text each family requires when redistributed. Not in `public/`, deliberately: the `@font-face` rules in `css/style.css` reference them with relative `url()` paths so Vite content-hashes them.
-- `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them.
+- `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them, which is why it carries no code of conduct link.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
-- `vite.config.js` - Build configuration. Declares `index.html`, `faq/index.html`, `subs/index.html` and `404.html` as entry points. A new page needs an entry here, a line in `public/sitemap.xml`, and a nav link in `partials/header.html`.
+- `vite.config.js` - Build configuration. Declares `index.html`, `faq/index.html`, `subs/index.html`, `code-of-conduct/index.html` and `404.html` as entry points. A new page needs an entry here, a line in `public/sitemap.xml`, an entry in the `PAGES` array in `scripts/check-links.js`, and a link from somewhere: the nav in `partials/header.html` for a page people navigate to, the footer for one they do not. It does **not** need adding to the html-validate command or to the per-page smoke checks; both walk `dist/`.
 - `scripts/smoke-build.js` - Dependency-free assertions against `dist/` after a build. Run via `npm run smoke`.
 - `scripts/check-links.js` - Dependency-free outbound link check. Not part of `npm test`; see below.
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
@@ -62,6 +63,12 @@ Prefer `scripts/smoke-build.js` over reaching for a new linter. html-validate is
 there for structural HTML errors, but it does not know that a `type="image/svg+xml"`
 on a `.png` is wrong, because that markup is structurally valid. Semantic checks like
 that belong in the smoke script.
+
+html-validate is pointed at `"dist/**/*.html"`, a glob, and the quotes matter: they
+stop the shell expanding it so html-validate does its own recursion. It used to name
+the four pages one by one, which meant #46 built and shipped a fifth page that was
+never structurally validated at all, and nothing went red. Any list of pages that has
+to be kept in step by hand is the same trap.
 
 **Lint and link checking run against `dist/`, not source.** The source now contains
 `{{> header}}`, which is not HTML, and `dist/` is what visitors actually receive.
@@ -144,6 +151,24 @@ question and the opening clause of each answer against the rendered text with th
 JSON-LD stripped out. Rich results that promise text a visitor cannot find are worse
 than no markup.
 
+The code of conduct is linked from the **footer**, not the nav, which was already six
+items and is the path to joining rather than to policy. It carries no JSON-LD on
+purpose: no schema.org type fits a conduct policy, and markup that fits nothing is
+dead weight that reads as coverage.
+
+Three smoke checks hold that page to the rest of the site, and the second exists
+because the first cannot see the difference:
+
+- Every content page links to it. One edit to `partials/footer.html` would otherwise
+  drop the link from every page at once.
+- The FAQ and the subs page link to it **from their prose**, checked with the
+  `<footer>` stripped out first. Each states a rule this page completes, and the
+  shared footer link would satisfy a naive check on every page.
+- Its `mailto:` matches the one the homepage publishes, and the page never says
+  "confidential". More than one organizer reads that inbox, so promising
+  confidentiality would be a promise the league cannot keep. Change who reads the
+  inbox and that check is what has to be revisited.
+
 ## The schedule drives the page, and nothing states a season by hand
 
 Season status is **derived from the dates**, never written into the markup. A
@@ -179,6 +204,11 @@ stylesheet and fails below that. It shipped at 3.5:1, which made the single most
 actionable sentence on the page the hardest to read, and no other check could see
 it: the markup stays valid and the text stays present, it just stops being
 legible.
+
+The footer link added in #46 is checked the same way. It is 0.85rem on `--ink`, so
+it also needs 4.5:1, and the check resolves whichever custom property
+`.footer-links a` names rather than hardcoding a colour, so recolouring the link is
+enough to re-run the sum. `--cream` gives 15.95:1.
 
 ## Copy style
 

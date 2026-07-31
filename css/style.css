@@ -839,6 +839,20 @@ footer p {
   margin: 0;
 }
 
+/* The footer carried no links at all until #46. --cream rather than the
+   --ink-faint the copyright is set in: this is 0.85rem text, so it needs 4.5:1
+   on --ink, and a link that reads dimmer than the line above it does not look
+   like a link. npm run smoke computes the ratio from the built stylesheet. */
+.footer-links {
+  margin-top: 0.75rem;
+}
+
+.footer-links a {
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ============================================================
    Responsive — Tablet (max-width: 900px)
    ============================================================ */

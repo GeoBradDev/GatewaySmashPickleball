@@ -1167,8 +1167,8 @@ const CONTENT_PAGES = walk(distDir)
   }));
 
 check('every content page has its own canonical, one h1, and a sitemap entry', function () {
-  if (CONTENT_PAGES.length < 3) {
-    throw new Error('expected at least 3 pages, found ' + CONTENT_PAGES.length);
+  if (CONTENT_PAGES.length < 4) {
+    throw new Error('expected at least 4 pages, found ' + CONTENT_PAGES.length);
   }
   const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
   const problems = [];
@@ -1200,6 +1200,7 @@ check('every content page has its own canonical, one h1, and a sitemap entry', f
 });
 
 const faqHtml = fs.readFileSync(path.join(distDir, 'faq', 'index.html'), 'utf8');
+const subsHtml = fs.readFileSync(path.join(distDir, 'subs', 'index.html'), 'utf8');
 
 // FAQ rich results need every answer to exist on the page. Structured data
 // that promises text the visitor cannot find is worse than none.
@@ -1261,6 +1262,87 @@ check('nothing still points at Notion or GroupMe', function () {
     });
   if (stale.length > 0) {
     throw new Error(stale.join('; '));
+  }
+});
+
+// ---- code of conduct ----------------------------------------------------
+// The conduct page is only useful if a player can find it without already
+// knowing it exists. It is linked from the shared footer rather than the nav,
+// which means one edit to partials/footer.html takes the link off every page
+// at once and no other check would notice.
+check('every content page links to the code of conduct', function () {
+  const missing = CONTENT_PAGES
+    .filter(function (page) {
+      return !fs
+        .readFileSync(path.join(distDir, page.file), 'utf8')
+        .includes('href="/code-of-conduct/"');
+    })
+    .map((page) => page.file);
+  if (missing.length > 0) {
+    throw new Error('no code of conduct link on ' + missing.join(', '));
+  }
+});
+
+// The FAQ and the subs page each state a rule this page completes. The footer
+// link alone would satisfy the check above on every page, so the footer is
+// stripped out first: what is asserted here is a link from the prose, where
+// someone reading the related rule actually meets it.
+check('the pages that state related rules link to the full policy in their prose', function () {
+  const problems = [];
+  [['faq/index.html', faqHtml], ['subs/index.html', subsHtml]].forEach(function ([file, html]) {
+    const body = html.replace(/<footer[\s\S]*?<\/footer>/, '');
+    if (!body.includes('href="/code-of-conduct/"')) {
+      problems.push(file + ' does not link to the code of conduct outside the shared footer');
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// A conduct policy whose reporting address has drifted from the one the
+// homepage publishes sends reports nowhere, and nothing about the page would
+// look broken. Same class of defect as the venue and email agreement checks:
+// two pages stating the same fact separately.
+check('the code of conduct reports to the address the homepage publishes', function () {
+  const conductHtml = fs.readFileSync(path.join(distDir, 'code-of-conduct', 'index.html'), 'utf8');
+  const homepageEmail = indexHtml.match(/mailto:([^"']+)/);
+  if (!homepageEmail) {
+    throw new Error('no mailto: on the homepage to compare against');
+  }
+  if (!conductHtml.includes('mailto:' + homepageEmail[1])) {
+    throw new Error('the code of conduct does not report to ' + homepageEmail[1]);
+  }
+  // Settled when the page was written: more than one organizer reads that
+  // inbox, so the page must not promise a confidentiality it cannot keep.
+  if (/\bconfidential/i.test(conductHtml.replace(/<[^>]+>/g, ' '))) {
+    throw new Error('the code of conduct promises confidentiality on a shared inbox');
+  }
+});
+
+// The footer carried no links at all until this page shipped, so its link
+// colour is new and unproven. Footer text is 0.85rem, under the 18.66px large
+// text threshold, so it needs the full 4.5:1. Same failure mode as
+// --amber-dark: the markup stays valid and the text stays present, it just
+// stops being legible.
+check('the footer link meets AA on the footer background', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const rule = css.match(/[^{}]*\.footer-links a[^{}]*\{([^}]*)\}/);
+  if (!rule) {
+    throw new Error('no .footer-links a rule in the emitted css');
+  }
+  const colour = rule[1].match(/color:\s*var\(\s*--([a-z-]+)\s*\)/);
+  if (!colour) {
+    throw new Error('.footer-links a does not take its colour from a custom property');
+  }
+  const foreground = cssVariable(css, colour[1]);
+  const background = cssVariable(css, 'ink');
+  const ratio = contrastRatio(foreground, background);
+  if (ratio < 4.5) {
+    throw new Error(
+      '--' + colour[1] + ' ' + foreground + ' on --ink ' + background + ' is ' +
+        ratio.toFixed(2) + ':1, under the 4.5:1 AA needs for 0.85rem text'
+    );
   }
 });
 
