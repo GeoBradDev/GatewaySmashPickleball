@@ -5,6 +5,7 @@ This file provides architectural context for AI assistants working on this codeb
 ## Project Structure
 
 - `index.html` - The main homepage containing the copy, schedule, and layout.
+- `faq/index.html` - The FAQ, served at `/faq/`. A directory rather than `faq.html` so the clean URL works on any static host without a rewrite rule.
 - `404.html` - Error page for broken links.
 - `css/style.css` - Custom styles and layout rules.
 - `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
@@ -12,7 +13,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
-- `vite.config.js` - Build configuration. Declares `index.html` and `404.html` as the two entry points.
+- `vite.config.js` - Build configuration. Declares `index.html`, `faq/index.html` and `404.html` as entry points. A new page needs an entry here, a line in `public/sitemap.xml`, and a nav link in `partials/header.html`.
 - `scripts/smoke-build.js` - Dependency-free assertions against `dist/` after a build. Run via `npm run smoke`.
 - `scripts/check-links.js` - Dependency-free outbound link check. Not part of `npm test`; see below.
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
@@ -111,6 +112,19 @@ Note that the served `robots.txt` is **not** the one in this repo. Cloudflare pr
 a managed block that disallows AI crawlers, and the repo file is appended underneath.
 Changing crawl rules for those agents is a Cloudflare dashboard setting, not a repo
 change.
+
+## Pages
+
+Nav links in `partials/header.html` are root-relative (`/#about`, not `#about`), because
+an anchor alone only resolves on the homepage and every page shares this header.
+
+The FAQ lives here, not on Notion. `npm run smoke` fails if any built page links to
+`notion.site` or mentions GroupMe, both of which this site has moved off.
+
+`FAQPage` structured data must match the visible page: a smoke check compares each
+question and the opening clause of each answer against the rendered text with the
+JSON-LD stripped out. Rich results that promise text a visitor cannot find are worse
+than no markup.
 
 ## Copy style
 

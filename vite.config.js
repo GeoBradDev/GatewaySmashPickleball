@@ -34,6 +34,9 @@ export default defineConfig({
         // the pipeline. It imports no assets today, so it emits byte-identical
         // to the source, but restyling it in #12 will not need a config change.
         main: resolve(import.meta.dirname, 'index.html'),
+        // faq/index.html rather than faq.html, so the URL is /faq/ on any
+        // static host without needing a clean-URL rewrite rule.
+        faq: resolve(import.meta.dirname, 'faq/index.html'),
         404: resolve(import.meta.dirname, '404.html'),
       },
     },

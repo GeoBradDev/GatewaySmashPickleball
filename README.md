@@ -59,6 +59,7 @@ red for that reason teaches people to ignore red. It runs weekly instead, via
 ## Project Layout
 
 - `index.html` - The main homepage and schedule
+- `faq/` - The FAQ page, served at `/faq/`
 - `404.html` - Error page
 - `css/` - Stylesheets. Enters the build via an import in `js/app.js`
 - `js/` - JavaScript logic (mobile nav, outside-click, scroll-driven header shadow)

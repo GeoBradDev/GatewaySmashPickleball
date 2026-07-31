@@ -19,7 +19,7 @@ import path from 'node:path';
 // read as three because the new canonical URL took its place.
 const rootDir = path.resolve(import.meta.dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const PAGES = ['index.html', '404.html'];
+const PAGES = ['index.html', 'faq/index.html', '404.html'];
 const TIMEOUT_MS = 20000;
 
 // Some hosts serve a bot wall to anything that does not look like a browser.
@@ -34,10 +34,20 @@ if (!fs.existsSync(distDir)) {
   process.exit(1);
 }
 
+// Our own origin is skipped. Canonical tags and absolute internal links point
+// at pages that may not be deployed yet, so a new page would always fail here
+// until it ships. That those files exist is already asserted by
+// scripts/smoke-build.js against dist/. This checker is for the third parties
+// that rotate and expire underneath us.
+const OWN_ORIGIN = 'https://www.gatewaysmash.com';
+
 const links = new Map();
 for (const page of PAGES) {
   const html = fs.readFileSync(path.join(distDir, page), 'utf8');
   for (const match of html.matchAll(/\bhref=["'](https?:\/\/[^"']+)["']/g)) {
+    if (match[1].startsWith(OWN_ORIGIN)) {
+      continue;
+    }
     if (!links.has(match[1])) {
       links.set(match[1], page);
     }

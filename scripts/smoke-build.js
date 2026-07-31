@@ -813,6 +813,87 @@ check('a season is complete the day after it ends, not before', function () {
   }
 });
 
+// ---- /faq/ -------------------------------------------------------------
+const faqHtml = fs.readFileSync(path.join(distDir, 'faq', 'index.html'), 'utf8');
+
+check('the FAQ page is a real page with its own canonical', function () {
+  const canonical = faqHtml.match(/<link[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']*)["']/);
+  if (!canonical || canonical[1] !== CANONICAL + 'faq/') {
+    throw new Error('canonical is ' + (canonical && canonical[1]) + ', expected ' + CANONICAL + 'faq/');
+  }
+  const h1s = [...faqHtml.matchAll(/<h1[\s>]/g)].length;
+  if (h1s !== 1) {
+    throw new Error('expected exactly 1 h1, found ' + h1s);
+  }
+  const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
+  if (!sitemap.includes(CANONICAL + 'faq/')) {
+    throw new Error('the FAQ page is not in sitemap.xml, so nothing points a crawler at it');
+  }
+});
+
+// FAQ rich results need every answer to exist on the page. Structured data
+// that promises text the visitor cannot find is worse than none.
+check('the FAQ structured data matches the visible page', function () {
+  const block = faqHtml.match(
+    /<script[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/
+  );
+  if (!block) {
+    throw new Error('no JSON-LD on the FAQ page');
+  }
+  let data;
+  try {
+    data = JSON.parse(block[1]);
+  } catch (error) {
+    throw new Error('FAQ JSON-LD does not parse: ' + error.message, { cause: error });
+  }
+  if (data['@type'] !== 'FAQPage') {
+    throw new Error('expected FAQPage, got ' + data['@type']);
+  }
+  if (!Array.isArray(data.mainEntity) || data.mainEntity.length < 4) {
+    throw new Error('too few questions to be worth marking up');
+  }
+
+  // Strip tags and the JSON-LD itself before searching, so the block cannot
+  // satisfy itself the way the homepage check once did.
+  const visible = faqHtml
+    .replace(block[0], '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ');
+
+  data.mainEntity.forEach(function (entry) {
+    const question = entry.name;
+    if (!visible.includes(question)) {
+      throw new Error('question is not on the page: ' + question);
+    }
+    // Match on the answer's opening clause; the page wraps and hyphenates.
+    const opening = entry.acceptedAnswer.text.split('.')[0];
+    if (!visible.includes(opening)) {
+      throw new Error('answer text is not on the page: ' + opening);
+    }
+  });
+});
+
+// The whole point of moving the FAQ on-site was to stop sending people to
+// Notion and to a dead GroupMe. Both should be gone from every built page.
+check('nothing still points at Notion or GroupMe', function () {
+  const stale = [];
+  walk(distDir)
+    .filter((rel) => rel.endsWith('.html'))
+    .forEach(function (rel) {
+      const html = fs.readFileSync(path.join(distDir, rel), 'utf8').toLowerCase();
+      if (html.includes('notion.site') || html.includes('notion.so')) {
+        stale.push(rel + ' links to Notion');
+      }
+      if (html.includes('groupme')) {
+        stale.push(rel + ' mentions GroupMe');
+      }
+    });
+  if (stale.length > 0) {
+    throw new Error(stale.join('; '));
+  }
+});
+
 if (failures.length > 0) {
   console.error('\n' + failures.length + ' smoke check(s) failed:');
   failures.forEach(function (failure) {
