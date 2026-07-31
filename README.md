@@ -23,14 +23,38 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
    ```bash
    npm run build
    ```
-4. Build and check the output, which is what CI runs:
+4. Run everything CI runs, which is lint plus a build plus the output checks:
    ```bash
-   npm run smoke
+   npm test
    ```
 5. Serve the production build locally to check it before pushing:
    ```bash
    npm run preview
    ```
+
+## Checks
+
+`npm test` is the one to run before pushing. It is `npm run lint` followed by
+`npm run smoke`, and it is exactly what CI runs.
+
+| Command | What it does |
+| --- | --- |
+| `npm test` | Lint, then build, then assert against `dist/` |
+| `npm run lint` | ESLint over `js/` and `scripts/`, html-validate over both pages |
+| `npm run smoke` | Production build, then `scripts/smoke-build.js` |
+| `npm run check-links` | Fetches every outbound link on the site |
+
+`scripts/smoke-build.js` uses no dependencies and asserts against the built output
+rather than the source: content hashing, one script tag and one stylesheet, the
+manifest being installable with icons that exist, declared MIME types matching the
+files they point at, no third-party subresources, and the mobile nav actually
+opening. It exists because a green build is not evidence the site works. The bug in
+issue #1 compiled cleanly and shipped a page that loaded `app.js` twice.
+
+`npm run check-links` is **not** part of `npm test`. Every outbound link points at a
+third party that can rate-limit or block a CI runner, and a pull request that goes
+red for that reason teaches people to ignore red. It runs weekly instead, via
+`.github/workflows/links.yml`, and can be triggered by hand from the Actions tab.
 
 ## Project Layout
 
