@@ -526,4 +526,42 @@ photographs of actual play, a street address, a phone number, social profiles, a
 shape for a link preview, but a purpose-made share card is blocked on the same
 unresolved question as the icon artwork below.
 
+Merged as PR #36, merge commit `f38617b`.
+
+## Batch 7: content
+
+### #21 Copy edit, partial
+
+The prose fixes are done. The numbers are not, because I do not have confirmed ones.
+
+Done: sentence case throughout, except the `h1`, which functions as a wordmark and
+stays. "Click here to join" is now "Join the WhatsApp group", which fixes a copy
+problem and an accessibility one at once, since the old text read as nothing in a
+screen reader's link list. Dashes used as general separators became commas or
+parentheses; the en dashes in date and time ranges are correct typography and stay.
+
+The hero, the About paragraph, and all three feature cards were rewritten to strip
+copula avoidance ("offering", "offer", "foster"), adjective pairs on abstract nouns
+("welcoming and supportive environment", "fair and fun competition"), false ranges
+("from substitute coordination to post-match banter"), the "connection"/"connected"
+bookend, and two of the three stacked rule-of-three lists. "Grassroots,
+volunteer-run" appeared three times on one page and now appears once. Card headings
+went from adjective pairs to descriptions: "How the ladder works", "Off the court".
+"Chasing a 4.0" survived, since it is the one genuinely specific detail in the
+original.
+
+A copy style guide is now in `CLAUDE.md`.
+
+**Not done, and this is the important part.** #21's central argument is that every
+vague adjective on the page has a concrete fact behind it in the Notion FAQ. That is
+true, and I have read the FAQ. I did not swap the numbers in, because the FAQ is
+demonstrably stale: it describes a Fall league running Aug 10 to Sept 28, and it
+routes every reader to **GroupMe**, which this project removed in favour of WhatsApp.
+A price taken from that document could be equally out of date, and a wrong price on
+the site is worse than a vague one. The specific claims awaiting numbers are in the
+questions batch.
+
+Everything else in batch 7 is blocked on those answers. #10, #19 and #20 all need
+facts only the organizers have.
+
 Merge commit: pending
