@@ -97,6 +97,24 @@ a managed block that disallows AI crawlers, and the repo file is appended undern
 Changing crawl rules for those agents is a Cloudflare dashboard setting, not a repo
 change.
 
+## Copy style
+
+The league's pitch is that it is the human alternative to disorganized corporate
+leagues, so the copy should not read like a corporate league wrote it.
+
+- Sentence case for headings. The `h1` is the exception: it is a wordmark.
+- No em dashes. En dashes only in numeric ranges (`Apr 12 – Jun 7`, `6:00–8:00 PM`),
+  never as a general separator.
+- Straight quotes and apostrophes.
+- **Prefer a number to an adjective.** "$50 for eight weeks" beats "affordable".
+- Prefer `is` and `has` to `serves as`, `offers`, `features`, `fosters`.
+- Descriptive link text. Never "click here", which reads as nothing at all in a
+  screen reader's link list.
+- Watch for lists of exactly three, and for adjective pairs bolted to abstract
+  nouns ("welcoming and supportive environment").
+- Do not flatten every register. The blunt voice in the substitute rules is a real
+  human voice and should stay.
+
 ## Deployment
 
 Push to `main` deploys to <https://www.gatewaysmash.com> automatically. Render is the
