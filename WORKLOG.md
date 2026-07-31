@@ -275,4 +275,86 @@ the globe, so the site is at least self-consistent, but the globe is still wrong
 Replacing the whole icon set with a mark derived from the header logo is a brand
 decision and is not done here.
 
+Merged as PR #32, merge commit `2aa32a0`.
+
+## Batch 4: performance
+
+### #16 402 KB icon and render-blocking Google Fonts
+
+Measuring first changed what this issue turned out to be.
+
+**The fonts were already efficient, and that is not what was wrong.** The issue
+asks to confirm all five requested DM Sans weights are used, and to consider
+self-hosting. Only four weights are used, 400, 500, 600 and 700; weight 300 appears
+nowhere in the stylesheet. But trimming it saves nothing at runtime, because Google
+was already serving DM Sans as a single **variable** font. A network trace of `main`
+shows two font files totalling 87,531 bytes, not five weights. So the real cost was
+never the font bytes: it was the two extra origins, the DNS lookups and TLS
+handshakes, and a render-blocking stylesheet that had to arrive before the font URLs
+were even known.
+
+Self-hosted both families as the same variable woff2 builds Google serves, with the
+`@font-face` descriptors and `unicode-range` splits copied verbatim so rendering is
+unchanged. They live in `fonts/` rather than `public/` on purpose: relative `url()`
+paths from `css/style.css` are what gets them content-hashed like everything else.
+Both the latin and latin-ext subsets ship, so latin-ext still only downloads when a
+visitor's content needs it.
+
+Static weights were measured as the alternative and rejected: four static DM Sans
+weights plus DM Serif Display come to 256,188 bytes across ten files, against
+129,564 across four for the variable builds.
+
+**The icon was compressed losslessly, not quantised.** The instruction for this
+issue was to keep visual output identical, so every candidate was measured against
+the original pixel by pixel:
+
+| Approach | 512px icon | Max channel delta | Pixels differing by >2/255 |
+|---|---|---|---|
+| lossless re-encode | 309,232 | 0 | 0.00% |
+| libimagequant 256 | 169,270 | 37/255 | 12.87% |
+| libimagequant 128 | 135,112 | 54/255 | 17.64% |
+| median cut + dither 256 | 194,630 | 68/255 | 13.23% |
+
+Quantising is not identical, so it was not taken. These icons carry noise: the
+512px file holds 28,531 distinct colours for what looks like flat artwork, and any
+palette reduction shifts that noise visibly in the numbers. The lossless route drops
+the alpha channel, which every icon carried at a constant 255, and re-encodes at
+maximum compression. Pixel identity is asserted programmatically, not eyeballed.
+
+Byte counts:
+
+| | before | after | change |
+|---|---|---|---|
+| all icons in `dist/` | 611,214 | 486,303 | -124,911 |
+| `android-chrome-512x512.png` | 411,246 | 309,232 | -102,014 |
+| first-visit payload | 158,052 | 146,508 | -11,544 |
+| third-party origins | 2 | 0 | -2 |
+| requests on first visit | 8 | 7 | -1 |
+| `dist/` total | 642,759 | 648,529 | +5,770 |
+
+`dist/` grows because the 129,564 bytes of fonts now live in the repo instead of on
+Google's servers, which the icon savings nearly offset. The first-visit number is
+the one that matters, and it falls. The 512px icon is not part of a page visit at
+all: only the install prompt and link-preview scrapers fetch it.
+
+Verification:
+
+- Layout diff against `main` at 390px, 800px and 1280px: **0 of 168 elements changed**
+  at every width. Self-hosting the fonts did not move a single pixel, which is the
+  strongest available evidence that the swap is invisible.
+- A network trace confirms both families still resolve: `h1` renders in DM Serif
+  Display 400, body in DM Sans 400, nav links 500, `strong` 600. A font that failed
+  to load would silently fall back to Georgia and the system sans and still look
+  plausible in a screenshot.
+- `npm run smoke`: 16 checks, up from 14. Two new ones fail the build if any
+  third-party subresource reappears, or if the four woff2 files stop being hashed,
+  stop existing, or stop being real woff2. Both negative-tested.
+- The 19-check keyboard suite still passes.
+
+Deliberately not done, and worth a decision: dropping the 512px icon to roughly
+169 KB is available for a maximum channel delta of 37/255 on 13% of pixels. At the
+sizes this icon is actually displayed that is very likely invisible, but it is not
+identical, and identical is what this issue was scoped to. Say the word and it is a
+one-line change.
+
 Merge commit: pending

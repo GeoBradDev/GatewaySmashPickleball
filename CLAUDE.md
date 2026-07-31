@@ -8,6 +8,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `404.html` - Error page for broken links.
 - `css/style.css` - Custom styles and layout rules.
 - `js/app.js` - Main JavaScript logic (implements mobile nav toggle, outside-click and Escape dismissal, `inert` sync and focus trap for the mobile drawer, and scroll-driven header shadow). Also imports the stylesheet, which is how CSS enters the build.
+- `fonts/` - Self-hosted DM Sans and DM Serif Display woff2, plus the OFL 1.1 licence text each family requires when redistributed. Not in `public/`, deliberately: the `@font-face` rules in `css/style.css` reference them with relative `url()` paths so Vite content-hashes them.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
 - `vite.config.js` - Build configuration. Declares `index.html` and `404.html` as the two entry points.
@@ -30,7 +31,12 @@ How each kind of asset reaches `dist/`:
 | --- | --- | --- |
 | `css/style.css` | imported by `js/app.js` | hashed, minified, `<link>` injected by Vite |
 | `js/app.js` | `<script type="module">` in `index.html` | hashed, minified, `src` rewritten in place |
+| `fonts/*.woff2` | relative `url()` in `css/style.css` | hashed into `assets/`, `url()` rewritten |
 | `public/**` | verbatim copy | same path, unchanged bytes |
+
+The page makes **no third-party requests**. Fonts were on `fonts.googleapis.com`,
+which meant a render-blocking stylesheet on another origin before the font URLs were
+even known. `npm run smoke` fails if any third-party subresource reappears.
 
 `index.html` deliberately has **no** hardcoded stylesheet link. Adding one back would
 ship the unhashed, unminified copy alongside the hashed one.
