@@ -564,4 +564,44 @@ questions batch.
 Everything else in batch 7 is blocked on those answers. #10, #19 and #20 all need
 facts only the organizers have.
 
+Merged as PR #37, merge commit `f591ec6`.
+
+## Follow-up: brand icons
+
+Answering the open question from #8. The decision was to derive the icon set from the
+paddle mark the header already draws inline, rather than keep the inherited teal globe.
+
+`public/icon.svg` is now the canonical vector, with geometry identical to the header
+logo. Everything else is a raster export of it: the six PNGs, the multi-size
+`favicon.ico`, and a 1200x630 `og-share.png` built with the real DM Serif Display and
+DM Sans. The exports were drawn from the same primitives at 8x and downsampled, not
+traced from a bitmap, which is why the 16px favicon still reads.
+
+This also settles the #16 question that was left open. The choice offered was lossless
+309 KB versus a lossy 169 KB for the 512px icon. Neither was the answer: flat vector
+art compresses far better than the noisy inherited bitmap, so the 512 is now **35,310
+bytes**, losslessly, an order of magnitude under either option.
+
+| Asset | Before | After |
+|---|---|---|
+| `android-chrome-512x512.png` | 309,232 | 35,310 |
+| `android-chrome-192x192.png` | 47,386 | 13,041 |
+| `apple-touch-icon.png` | 42,745 | 12,872 |
+| `maskable-512x512.png` | 68,754 | 28,765 |
+| `favicon.ico` | 15,406 | 6,814 |
+| `favicon-32x32.png` | 2,076 | 1,943 |
+| `favicon-16x16.png` | 704 | 662 |
+| `og-share.png` | did not exist | 42,549 |
+| `icon.svg` | did not exist | 915 |
+| **Total** | **486,303** | **142,871** |
+
+343,432 bytes saved while *adding* a share card and a scalable icon.
+
+Knock-on fixes: `og:image` and `twitter:image` now point at the share card at its real
+1200x630, `twitter:card` is `summary_large_image` rather than `summary`, and
+`icon.svg` is wired up as a scalable favicon, which #8 asked for and the site had
+never had. One new smoke check reads width and height straight out of the PNG's IHDR
+chunk and fails if the declared dimensions disagree with the file, or if the share
+image is too small for a large card. Both negative-tested.
+
 Merge commit: pending

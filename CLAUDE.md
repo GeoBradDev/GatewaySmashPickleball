@@ -75,8 +75,15 @@ and to `--cream`; `npm run smoke` fails if the three drift apart. Icon `src` val
 are root-relative and are checked to exist in `dist/`, because a manifest icon that
 404s fails silently: nothing breaks, the install prompt just shows no icon.
 
-The icon artwork is inherited and is **not** the paddle mark the header uses. See
-the open question logged in [WORKLOG.md](WORKLOG.md).
+`public/icon.svg` is the canonical form of the mark, and its geometry is identical to
+the inline logo in the header of `index.html`. Every PNG in `public/img/` and the
+`favicon.ico` are raster exports of it, as is the 1200x630 `og-share.png`. If the mark
+changes, change `icon.svg` and the header SVG together, then re-export.
+
+The exports were produced by drawing the same primitives (one stroked circle, three
+dots, three lines) at 8x and downsampling, rather than by tracing a bitmap. That is
+why they are crisp at 16px and why the whole set costs a fraction of what the
+inherited artwork did.
 
 ## SEO and metadata
 

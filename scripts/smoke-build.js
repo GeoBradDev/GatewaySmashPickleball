@@ -393,6 +393,43 @@ check('canonical, og:url and the sitemap all name the same origin', function () 
   }
 });
 
+// Reads width and height out of a PNG's IHDR chunk, which is always the first
+// chunk and always at a fixed offset. Cheaper than a dependency.
+function pngSize(file) {
+  const buf = fs.readFileSync(file);
+  if (buf.subarray(1, 4).toString() !== 'PNG') {
+    throw new Error(file + ' is not a PNG');
+  }
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+// Declared dimensions that do not match the file are worse than none: they tell
+// the platform to lay out a box the image does not fill.
+check('og:image dimensions match the actual file', function () {
+  const src = indexHtml.match(
+    /<meta[^>]*\bproperty=["']og:image["'][^>]*\bcontent=["']([^"']+)["']/
+  )[1];
+  const declared = {
+    width: Number(indexHtml.match(/\bproperty=["']og:image:width["'][^>]*\bcontent=["'](\d+)["']/)[1]),
+    height: Number(indexHtml.match(/\bproperty=["']og:image:height["'][^>]*\bcontent=["'](\d+)["']/)[1]),
+  };
+  const actual = pngSize(path.join(distDir, src.replace(ORIGIN, '').replace(/^\//, '')));
+
+  if (actual.width !== declared.width || actual.height !== declared.height) {
+    throw new Error(
+      'declared ' + declared.width + 'x' + declared.height +
+        ' but the file is ' + actual.width + 'x' + actual.height
+    );
+  }
+  // Below roughly 1200x630 the major platforms fall back to a small square
+  // card, which is what this image exists to avoid.
+  if (actual.width < 1200 || actual.height < 600) {
+    throw new Error(
+      'share image is ' + actual.width + 'x' + actual.height + ', too small for a large card'
+    );
+  }
+});
+
 // Structured data that disagrees with the page is worse than none, and a JSON
 // syntax error makes the whole block silently invisible to crawlers.
 check('the structured data parses and matches the page', function () {
