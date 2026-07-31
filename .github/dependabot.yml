@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Monthly, not weekly. The site changes a few times a year, so weekly PRs
+  # would be noise nobody reads. The CI build check gates every one of these.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      # The toolchain moves as a unit. Ungrouped, a webpack major lands as
+      # five separate PRs that each half-upgrade the build.
+      webpack:
+        patterns:
+          - "webpack*"
+          - "*-webpack-plugin"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
