@@ -317,6 +317,52 @@ Renaming the CTA still requires the note to be on the page, which is why that
 branch is nested. The subs offer is not: it makes no season claim, so it carries
 none of the obligation the rename does and survives the note going missing.
 
+### The rows the page ships are now checked, and until #58 they were not
+
+Everything above this line is driven by a synthetic fixture, `CHRONOLOGICAL_SEASONS`
+in `scripts/smoke-build.js`, which mounts made-up rows against a frozen clock. That
+is still the right way to pin the bundle's behaviour, but it meant the table
+`index.html` actually carries, the thing this file calls the most frequently edited
+part of the site, was the one part of it no check could read. Nothing parsed a real
+`data-start`.
+
+#58 is what that bought. The Fall 2026 row spanned nine playing Sundays with no bye
+against the eight-week season sold in six places on the homepage and twice more in
+the FAQ. Valid markup, 53 green checks, and it was the next season players would have
+paid for. Three checks now read the shipped rows:
+
+- **Every season plays the number of weeks the price copy sells.** Counts league
+  nights between `data-start` and `data-end` inclusive, subtracts the byes, and
+  requires the result to equal the week count the League Info `Cost:` line states.
+  Both the play night and the week count are **derived from League Info**, not
+  hardcoded: the night comes from the `Day:` line and the count from the word before
+  "-week" in `Cost:`, so moving the league to Saturdays or selling a six-week season
+  is one copy edit and none in the check.
+- **Each row shows the dates its attributes claim.** The `data-*` dates and the two
+  human-readable cells beside them are one fact written twice, and the paragraph
+  under Maintenance Notes has always told a maintainer to keep them in step by hand.
+  Nothing enforced it, and the check above would have been satisfied by whichever
+  half happened to be right.
+- **Every bye falls on a league night inside its own season.** The first check counts
+  byes by reading month-day tokens out of the bye cell, so a bye typo'd onto a
+  Tuesday, or onto a date outside its season, still counts as one token and still
+  balances the arithmetic. The table would go on telling a player to skip the wrong
+  night with every check green. The bye cell carries no year, so the year is taken
+  from the season the bye sits in, trying both ends because a winter season can
+  straddle December.
+
+**The table is selected by class token, not by one regex reaching from `<table` to
+`league-table`.** Any such pattern has to cross the opening tag's `>`, so it does not
+actually constrain the class to the table it started at, and a second table added
+above this one would silently redirect all three checks at the wrong rows.
+
+Still unchecked, deliberately: **nothing ties the other "eight-week" claims to the
+`Cost:` line.** The hero, the three description tags, the JSON-LD and the FAQ each
+state the season length independently, and the checks above read only League Info.
+The pitch check pins the description tags to each other, but a hero rewritten to
+"nine-week" against a League Info still reading "eight-week" would pass everything.
+That is the same defect class this section exists for, one level up.
+
 ## Colour contrast
 
 `--amber-dark` means "you can act on this now": the hero note and the
@@ -387,7 +433,7 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 ## Maintenance Notes
 
 The most frequently edited part of the site is the **League Schedule**.
-- **Location:** `index.html`, around line 138 under `<h2>League schedule</h2>`.
+- **Location:** `index.html`, around line 155 under `<h2>League schedule</h2>`.
 - **Task:** Update the `<tr>` rows within the `<tbody>` table with the dates, matchups, and times for the current season.
 
 Each row's `data-start`, `data-end` and `data-registration` attributes are the
@@ -399,9 +445,23 @@ here changes the button a visitor sees before they have scrolled at all. Keep th
 `data-*` dates and the human-readable dates in the same row in step; only the
 `data-*` ones are read by code.
 
+Since #58 that last sentence is enforced rather than merely asked for, and a new
+row has to satisfy three things or the build goes red: it plays exactly the number
+of weeks the League Info `Cost:` line sells, its cells show the dates its
+attributes claim, and any bye falls on a league night inside its own season. The
+week count is counted from the dates, so **a season is lengthened or shortened by
+moving `data-end`, not by editing the copy**; changing the sold length means
+editing the `Cost:` line, and then every row has to match the new number. See "The
+rows the page ships are now checked" above for what each one caught.
+
 The rows do not have to be in chronological order, and `js/app.js` picks the next
 season by comparing start dates rather than by taking the first row. Adding a
 season at the top is safe.
+
+Registration has opened one month before the season starts on every row except
+Winter 2027, which is Dec 11, 2026 against a Jan 10, 2027 start. No check asserts
+that rule, precisely because that row would fail it. Adding one means settling
+Winter 2027 first.
 
 > **CRITICAL RULE FOR AI ASSISTANTS:**
 > Whenever a change alters the tech stack, an integration (e.g., WhatsApp), or the project layout, this `CLAUDE.md` file MUST be updated in the same commit to prevent it from drifting from reality.
