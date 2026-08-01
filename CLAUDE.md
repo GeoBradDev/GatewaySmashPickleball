@@ -64,6 +64,15 @@ there for structural HTML errors, but it does not know that a `type="image/svg+x
 on a `.png` is wrong, because that markup is structurally valid. Semantic checks like
 that belong in the smoke script.
 
+**Read attribute values with `metaContent()`, never with a `[^"']*` class.** That
+class excludes both quote characters, so it stops dead at the first apostrophe inside
+a double-quoted value. #54 put "St. Louis'" into the three description tags and the
+"three description tags agree" check silently became a comparison of their first 33
+characters: all three truncated to the same prefix, so the tags could have said three
+different things and it would still have passed. The helper captures the opening
+delimiter and matches to its next occurrence instead. Nothing errored and no output
+changed, which is the shape of every failure this file exists to catch.
+
 html-validate is pointed at `"dist/**/*.html"`, a glob, and the quotes matter: they
 stop the shell expanding it so html-validate does its own recursion. It used to name
 the four pages one by one, which meant #46 built and shipped a fifth page that was
@@ -122,8 +131,15 @@ URLs, and a relative one fails silently.
 
 The JSON-LD may only state things the visible page also states. Smoke checks enforce
 this for the email, the venue, the venue's municipality, the street address, the
-postal code, and every `sameAs` URL, which has to appear as a real `href` a visitor
-can follow. Structured data that disagrees with the page is worse than none.
+postal code, the `description`, and every `sameAs` URL, which has to appear as a real
+`href` a visitor can follow. Structured data that disagrees with the page is worse
+than none.
+
+`description` joined that list in #54 and was the last property in the block sourced
+from `<head>` instead of from the page. That is why it had drifted: it still described
+the league the old way while every other copy had moved on, and no check could see it,
+because the rule above is checked against `visiblePage()` and `<head>` is not in it.
+The hero carrying the pitch is what made it checkable at all.
 
 **"The visible page" means `visiblePage()` in `scripts/smoke-build.js`, never the raw
 file.** It drops `<head>`, the JSON-LD block, and HTML comments, and all three matter:
@@ -153,11 +169,27 @@ There is no `telephone`, deliberately. The league has no phone number, and Arch
 Pickleball's front desk is a different organisation that cannot answer for the league.
 This is a decision, not a gap: reopen it only if the league gets its own number.
 
-The homepage must name **St. Louis** in its `<title>` and in at least one `h2`. The
-`h1` is exempt, because it is a wordmark. This is a smoke check, and it exists because
-the title once said "STL" while every other tag said "St. Louis": searchers type the
-full name, so the abbreviation was competing for the wrong string while nothing
-appeared broken.
+The homepage must name **St. Louis** and **ladder** in its `<title>` and in at least
+one `h2`. The `h1` is exempt, because it is a wordmark. This is one smoke check over a
+`SEARCH_TERMS` list, and each half has its own history. The city is there because the
+title once said "STL" while every other tag said "St. Louis": searchers type the full
+name, so the abbreviation was competing for the wrong string while nothing appeared
+broken. The format is there because of #54: "pickleball ladder league st louis" is the
+phrase, and "ladder" appeared exactly once on the whole site, in an `h3`, which is a
+slot neither half of this check can see.
+
+The city is matched **case-sensitively and the format is not**, and that asymmetry is
+deliberate. "St. Louis" is a proper noun with one correct spelling, so folding case
+would quietly stop the check rejecting "st. louis". "ladder" is an ordinary word whose
+casing follows its slot: the title is title case and headings are sentence case, so
+one entry has to match both "Ladder League" and "ladder leagues". Adding a term means
+deciding which of the two it is.
+
+The pitch itself is checked separately, and that check requires it in three places at
+once: the visible page, the description tags, and the JSON-LD `description`. The
+constant is hardcoded rather than sliced out of the structured data, because the
+sentence contains "St. Louis'" and splitting on the first full stop yields "One of
+St". Editing that constant by hand when the league changes its pitch is the point.
 
 The page states a location twice, in the League Info list and in the Contact section.
 A smoke check requires both to name the venue and municipality the JSON-LD claims, so
@@ -284,14 +316,24 @@ The league's pitch is that it is the human alternative to disorganized corporate
 leagues, so the copy should not read like a corporate league wrote it.
 
 - Sentence case for headings. The `h1` is the exception: it is a wordmark.
-- Headings carry search language as well as voice. The About `h2` names the city;
-  "Built by players, for players" moved into the lead paragraph rather than being
-  cut, because a heading that tells a search engine nothing is a wasted slot. A
-  smoke check fails if no `h2` names St. Louis.
+- Headings carry search language as well as voice. The About `h2` names the city and
+  the format; "Built by players, for players" moved into the lead paragraph rather
+  than being cut, because a heading that tells a search engine nothing is a wasted
+  slot. A smoke check fails if no `h2` names St. Louis, or ladder.
 - No em dashes. En dashes only in numeric ranges (`Apr 12 – Jun 7`, `6:00–8:00 PM`),
   never as a general separator.
-- Straight quotes and apostrophes.
+- Straight quotes and apostrophes. The pitch uses `St. Louis'`, not `St. Louis's`,
+  and it is the only possessive form of the city on the site.
 - **Prefer a number to an adjective.** "$50 for eight weeks" beats "affordable".
+  **The pitch line is the standing exception**, chosen by the league and worked in by
+  #54: "One of St. Louis' largest and most affordable indoor pickleball ladder
+  leagues." Both "largest" and "most affordable" are exactly the adjectives this rule
+  argues against, and the numbers are available: the roster was 56 players on
+  2026-07-31, and the fee is $70. It stays as written anyway, because it is the
+  league's own claim about itself and not a description this repo gets to tune. Do
+  not quietly rewrite it into a roster count or a price. A smoke check now requires
+  it verbatim in the hero, the description tags and the JSON-LD, so a rewrite fails
+  the build rather than shipping.
 - Prefer `is` and `has` to `serves as`, `offers`, `features`, `fosters`.
 - Descriptive link text. Never "click here", which reads as nothing at all in a
   screen reader's link list.
