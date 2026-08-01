@@ -90,7 +90,7 @@ with everything else. `npm run smoke` fails if a third-party subresource reappea
 
 Updating the schedule is the most common recurring maintenance task.
 1. Open `index.html`.
-2. Locate the league schedule section (starts around line 136 `<h2>League schedule</h2>`).
+2. Locate the league schedule section (starts around line 155 `<h2>League schedule</h2>`).
 3. Update the `<tr>` rows within the `<tbody>` table with the new dates, times, and matchup details for the current season.
 
 Each row carries `data-start`, `data-end` and `data-registration`. Those dates are
@@ -101,6 +101,18 @@ is open, and a "Play as a sub" offer appears while a season is running that cann
 joined yet. Editing a row changes what a visitor sees before scrolling, so keep the
 `data-*` dates and the dates written in the cells in step. The rows do not need to be
 in date order.
+
+`npm test` checks the rows you write. A row has to play the number of weeks the
+`Cost:` line in League Info sells, counted from its own dates: league nights between
+`data-start` and `data-end`, minus any bye. Its cells have to show the dates its
+`data-*` attributes claim, and a bye has to fall on a league night inside its own
+season. So a season is made longer or shorter by moving `data-end`, not by editing
+the copy, and if the league ever sells a different season length, that is an edit to
+the `Cost:` line which every row then has to match.
+
+This is not hypothetical. The Fall 2026 row shipped scheduling nine playing Sundays
+against the eight-week season the site sells in eight places, and every check passed,
+because until then nothing read the rows the page actually carries.
 
 ## Deployment
 

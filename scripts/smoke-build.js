@@ -437,6 +437,27 @@ function metaContent(attrPattern) {
   return match ? match[2] : null;
 }
 
+// Shared by the court-time check and the schedule week-count check, and
+// declared up here rather than beside either one because check() runs its
+// callback immediately. A const declared lower in the file is in the temporal
+// dead zone for every check above it, and the ReferenceError that causes is
+// caught by check() and reported as an ordinary content failure, so a wiring
+// mistake would read as a copy bug.
+const NUMBER_WORDS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+};
+
 const DESCRIPTION_TAGS = [
   'name=["\']description["\']',
   'property=["\']og:description["\']',
@@ -1333,6 +1354,283 @@ check('the next season is the soonest one, not whichever row comes first', funct
   }
 });
 
+// ---- the schedule rows the page actually ships --------------------------
+// Everything above this point drives the bundle with the synthetic fixture at
+// the top of this section. Nothing read the rows index.html really carries, so
+// the table that CLAUDE.md calls the most frequently edited part of the site
+// was the one part of it no check could see. #58 is what that bought: the Fall
+// 2026 row scheduled nine playing Sundays against the eight-week season sold in
+// six places on the homepage and twice more in the FAQ, stayed valid HTML, kept
+// every check green, and was the next season players would have paid for.
+//
+// That is the Bridgeton-against-St. Louis defect class one more time: two
+// hand-maintained statements of one fact with no check between them.
+function scheduleRows() {
+  const body = indexHtml.slice(indexHtml.indexOf('<body'));
+  // Tables are enumerated and then selected on a class token, rather than
+  // matched with one pattern that reaches from <table to league-table. Any
+  // such pattern has to cross the opening tag's closing >, so it does not
+  // actually constrain the class to belong to the table it started at: add a
+  // second table above this one and the match bridges into the wrong rows.
+  const table = [...body.matchAll(/<table\b([^>]*)>([^]*?)<\/table>/g)].find(function (found) {
+    const classAttr = found[1].match(/\bclass=(["'])(.*?)\1/);
+    return classAttr !== null && classAttr[2].split(/\s+/).includes('league-table');
+  });
+  if (!table) {
+    throw new Error('no league schedule table on the built homepage');
+  }
+  const rows = [...table[2].matchAll(/<tr\b([^>]*\bdata-start=[^>]*)>([^]*?)<\/tr>/g)];
+  if (rows.length === 0) {
+    throw new Error('the schedule table ships no rows carrying data-start');
+  }
+  return rows.map(function (row) {
+    // Delimiter captured and matched to its next occurrence rather than
+    // excluded with [^"']*, per the metaContent() rule near the top.
+    function attr(name) {
+      const found = row[1].match(new RegExp('\\b' + name + '=(["\'])(.*?)\\1'));
+      if (!found) {
+        throw new Error('a schedule row is missing ' + name);
+      }
+      return found[2];
+    }
+    // The label is escaped here rather than by the caller, so that "Bye
+    // (reason)" can be passed as it is written in the markup. A helper that
+    // silently requires pre-escaped input is a trap for whoever adds the next
+    // column.
+    function cell(label) {
+      const found = row[2].match(
+        new RegExp(
+          '<td\\b[^>]*\\bdata-label=(["\'])' +
+            label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+            '\\1[^>]*>([^]*?)</td>'
+        )
+      );
+      if (!found) {
+        throw new Error('a schedule row has no "' + label + '" cell');
+      }
+      return found[2]
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    return {
+      season: cell('Season'),
+      start: attr('data-start'),
+      end: attr('data-end'),
+      registration: attr('data-registration'),
+      datesCell: cell('Season Dates'),
+      registrationCell: cell('Registration Opens'),
+      byeCell: cell('Bye (reason)'),
+    };
+  });
+}
+
+// League Info renders as <li><strong>Label:</strong> value</li>, the same shape
+// the Location and court-time checks read.
+function leagueInfo(label) {
+  const body = indexHtml.slice(indexHtml.indexOf('<body'));
+  const found = body.match(new RegExp('<strong>' + label + ':</strong>([\\s\\S]*?)</li>'));
+  return found
+    ? found[1]
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : null;
+}
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Parsed at UTC noon so a yyyy-mm-dd never lands on the wrong calendar day,
+// the same reason the status checks above freeze their clock there.
+function parseDay(iso) {
+  const date = new Date(iso + 'T12:00:00Z');
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('unparseable date: ' + iso);
+  }
+  return date;
+}
+
+// The night the league plays and the number of weeks it sells are both stated
+// in League Info, so both are read from there rather than hardcoded here. Move
+// the league to Saturdays, or sell a six-week season, and this check follows
+// the copy instead of needing an edit of its own.
+check('every season plays the number of weeks the price copy sells', function () {
+  const cost = leagueInfo('Cost');
+  if (!cost) {
+    throw new Error('League Info has no Cost line to read a season length out of');
+  }
+  const sold = cost.match(/([A-Za-z]+)-week\b/);
+  if (!sold) {
+    throw new Error('the Cost line no longer states a season length: ' + cost);
+  }
+  const soldWeeks = NUMBER_WORDS[sold[1].toLowerCase()];
+  if (soldWeeks === undefined) {
+    throw new Error('unrecognised number word in the Cost line: ' + sold[1]);
+  }
+
+  const day = leagueInfo('Day');
+  if (!day) {
+    throw new Error('League Info has no Day line, so nothing says which night play falls on');
+  }
+  const playDay = WEEKDAYS.findIndex((name) => day.includes(name));
+  if (playDay === -1) {
+    throw new Error('the Day line does not name a weekday: ' + day);
+  }
+
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    const start = parseDay(row.start);
+    const end = parseDay(row.end);
+    if (end < start) {
+      problems.push(row.season + ' ends before it starts');
+      return;
+    }
+    let nights = 0;
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      if (d.getUTCDay() === playDay) {
+        nights += 1;
+      }
+    }
+    // "None" is the table's own word for a season with no bye.
+    const noBye = row.byeCell.toLowerCase() === 'none';
+    const byes = noBye ? 0 : (row.byeCell.match(/\b[A-Z][a-z]{2}\s+\d{1,2}\b/g) || []).length;
+    if (!noBye && byes === 0) {
+      problems.push(
+        row.season + ' lists a bye this check cannot read a date out of: ' + row.byeCell
+      );
+      return;
+    }
+    const playing = nights - byes;
+    if (playing !== soldWeeks) {
+      problems.push(
+        row.season +
+          ' plays ' +
+          playing +
+          ' weeks (' +
+          nights +
+          ' ' +
+          WEEKDAYS[playDay] +
+          's minus ' +
+          byes +
+          (byes === 1 ? ' bye' : ' byes') +
+          ') against the ' +
+          sold[1].toLowerCase() +
+          '-week season the price copy sells'
+      );
+    }
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// CLAUDE.md already tells a maintainer to keep the data-* dates and the human
+// readable ones in the same row in step, and says only the data-* ones are read
+// by code. Nothing enforced it. A row whose attributes and cells disagree shows
+// a visitor one season and behaves like another, and the check above would be
+// satisfied by whichever half happened to be right. Both halves are edited by
+// hand in the same edit, which is the edit that can go half-done.
+check('each schedule row shows the dates its attributes claim', function () {
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    // The cells abbreviate the month and state the year once, at the end:
+    // "Sep 20 – Nov 8, 2026" and "Aug 20, 2026". Some Registration cells spell
+    // the month out ("March 11, 2027"), so this matches on the prefix.
+    function shows(text, iso, label) {
+      const date = parseDay(iso);
+      const month = MONTHS[date.getUTCMonth()];
+      const dayOfMonth = date.getUTCDate();
+      const year = date.getUTCFullYear();
+      if (!new RegExp('\\b' + month + '[a-z]*\\s+' + dayOfMonth + '\\b').test(text)) {
+        problems.push(
+          row.season +
+            ' ' +
+            label +
+            ' cell "' +
+            text +
+            '" does not show ' +
+            month +
+            ' ' +
+            dayOfMonth +
+            ' from ' +
+            iso
+        );
+      }
+      if (!text.includes(String(year))) {
+        problems.push(
+          row.season + ' ' + label + ' cell "' + text + '" does not show the year ' + year
+        );
+      }
+    }
+    shows(row.datesCell, row.start, 'Season Dates');
+    shows(row.datesCell, row.end, 'Season Dates');
+    shows(row.registrationCell, row.registration, 'Registration Opens');
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// The check above counts a bye by reading month-day tokens out of the bye cell.
+// A bye typo'd onto a Tuesday, or onto a date outside its own season, still
+// counts as one token, so the week arithmetic still balances and that check
+// stays green while the table tells a player to skip the wrong night.
+check('every bye falls on a league night inside its own season', function () {
+  const day = leagueInfo('Day');
+  const playDay = WEEKDAYS.findIndex((name) => day && day.includes(name));
+  if (playDay === -1) {
+    throw new Error('the Day line does not name a weekday, so no bye can be placed');
+  }
+
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    if (row.byeCell.toLowerCase() === 'none') {
+      return;
+    }
+    const start = parseDay(row.start);
+    const end = parseDay(row.end);
+    // The bye cell carries no year, so the year comes from the season the bye
+    // sits in. Both ends are tried because a winter season can straddle
+    // December, and only a date landing inside the range is accepted.
+    (row.byeCell.match(/\b[A-Z][a-z]{2}\s+\d{1,2}\b/g) || []).forEach(function (token) {
+      const parts = token.match(/([A-Z][a-z]{2})\s+(\d{1,2})/);
+      const month = MONTHS.indexOf(parts[1]);
+      if (month === -1) {
+        problems.push(row.season + ' bye names no month this check knows: ' + token);
+        return;
+      }
+      const placed = [start.getUTCFullYear(), end.getUTCFullYear()]
+        .map((year) => new Date(Date.UTC(year, month, Number(parts[2]), 12)))
+        .find((d) => d >= start && d <= end);
+      if (!placed) {
+        problems.push(
+          row.season + ' bye ' + token + ' falls outside ' + row.start + ' to ' + row.end
+        );
+        return;
+      }
+      if (placed.getUTCDay() !== playDay) {
+        problems.push(
+          row.season +
+            ' bye ' +
+            token +
+            ' is a ' +
+            WEEKDAYS[placed.getUTCDay()] +
+            ', but the league plays ' +
+            WEEKDAYS[playDay] +
+            's'
+        );
+      }
+    });
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // Relative luminance and contrast ratio, WCAG 2.1 definitions, on #rrggbb.
 function relativeLuminance(hex) {
   const channels = [1, 3, 5]
@@ -1683,9 +1981,9 @@ check('the FAQ structured data matches the visible page', function () {
 // catch, one list further up the same page.
 //
 // The hours are derived from the Time line rather than hardcoded, so moving the
-// league is one edit here and none in this file.
-const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-
+// league is one edit here and none in this file. NUMBER_WORDS is declared with
+// the shared helpers near the top, because the schedule week-count check reads
+// it too and runs before this point.
 check('the court time a member gets matches the hours the league runs', function () {
   const body = indexHtml.slice(indexHtml.indexOf('<body'));
 
