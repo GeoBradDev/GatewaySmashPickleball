@@ -1185,6 +1185,45 @@ check('the schedule flips to registration open on the right day', function () {
   }
 });
 
+// Registration is a 24-hour window, not the month between the opening date and
+// the first night. Treating it as the whole gap meant 214 days of "Registration
+// open" across the seven seasons the table ships, against at most seven that
+// are real, and a hero reading "Join Fall 2026" for a month after Fall 2026 had
+// filled. Same defect class as #10, which was about announcing a window early
+// rather than retiring one late.
+check('registration is open on its day only', function () {
+  const on = statusesOn('2026-08-13');
+  if (on.labels[2] !== 'Registration open') {
+    throw new Error('Fall 2026 was ' + on.labels[2] + ' on the day registration opens');
+  }
+  const dayAfter = statusesOn('2026-08-14');
+  if (dayAfter.labels[2] !== 'Full') {
+    throw new Error(
+      'the window is 24 hours, so Fall 2026 should read Full the day after it opened, got ' +
+        dayAfter.labels[2]
+    );
+  }
+});
+
+// A closed window must not leave the hero offering a season nobody can join.
+// The next season is picked from the rows that are still open or still to open,
+// so a filled one drops out of that set rather than needing its own branch.
+check('the hero moves to the next season once a window has closed', function () {
+  const during = statusesOn('2026-08-13');
+  if (during.join !== 'Join Fall 2026') {
+    throw new Error('hero should offer Fall 2026 on its open day, got ' + JSON.stringify(during.join));
+  }
+  const after = statusesOn('2026-08-14');
+  if (after.join !== 'Join Winter 2027') {
+    throw new Error(
+      'hero still offers ' + JSON.stringify(after.join) + ' the day after Fall 2026 filled'
+    );
+  }
+  if (!/Winter 2027 registration opens December 11, 2026/.test(after.note || '')) {
+    throw new Error('hero note does not give the next window: ' + JSON.stringify(after.note));
+  }
+});
+
 check('a season is complete the day after it ends, not before', function () {
   const lastDay = statusesOn('2026-08-23');
   if (lastDay.labels[1] !== 'In progress') {
@@ -1420,16 +1459,19 @@ check('a running season with nothing after it is announced without renaming the 
 // frozen clock in this suite lands inside a season, so a hero that announced a
 // running season unconditionally would have gone green everywhere.
 check('the hero claims no season is running during the gap between seasons', function () {
-  // Sep 1 2026. Summer closed Aug 23, Fall starts Sep 13, and Fall
-  // registration has been open since Aug 13.
-  const open = statusesOn('2026-09-01');
+  // Dec 11 2026. Fall closed Nov 8, Winter starts Jan 10, and Winter
+  // registration is open for exactly this one day. It used to be Sep 1, which
+  // was only "between seasons with registration open" because a window was
+  // treated as lasting until the season started; the state is real, the date
+  // that reaches it is not.
+  const open = statusesOn('2026-12-11');
   if (open.note !== 'Registration is open now.') {
     throw new Error('hero note between seasons with registration open: ' + JSON.stringify(open.note));
   }
   // The note stays as it shipped rather than gaining "Fall 2026 registration":
   // the button beside it already names the season, and the second name only
   // earns its place once a running season has put another one in the sentence.
-  if (open.join !== 'Join Fall 2026') {
+  if (open.join !== 'Join Winter 2027') {
     throw new Error('hero CTA between seasons: ' + JSON.stringify(open.join));
   }
   // Nov 15 2026. Fall closed Nov 8 and Winter registration does not open until
@@ -1630,6 +1672,110 @@ check('the FAQ structured data matches the visible page', function () {
       throw new Error('answer text is not on the page: ' + opening);
     }
   });
+});
+
+// How much court time a member gets and when the league runs are two
+// hand-maintained statements of one fact, sitting two lines apart in the same
+// list, and the FAQ states both again on another page. Widen the league to
+// 6:00–9:00 PM and every court-time claim on the site is silently wrong: the
+// markup stays valid, the sentence stays present, it just stops being true.
+// That is the Bridgeton-against-St. Louis failure the Location check exists to
+// catch, one list further up the same page.
+//
+// The hours are derived from the Time line rather than hardcoded, so moving the
+// league is one edit here and none in this file.
+const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+
+check('the court time a member gets matches the hours the league runs', function () {
+  const body = indexHtml.slice(indexHtml.indexOf('<body'));
+
+  // League Info renders as <li><strong>Label:</strong> value</li>, the same
+  // shape the Location check reads.
+  function listed(label) {
+    const found = body.match(new RegExp('<strong>' + label + ':</strong>([\\s\\S]*?)</li>'));
+    return found ? found[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : null;
+  }
+
+  const time = listed('Time');
+  const courtTime = listed('Court time');
+  if (!time || !courtTime) {
+    throw new Error(
+      'League Info needs both a Time and a Court time line, found ' +
+        (time ? 'only Time' : courtTime ? 'only Court time' : 'neither')
+    );
+  }
+
+  // "6:00–8:00 PM" states the meridiem once, at the end, so a start without one
+  // takes the end's. En dash, because the copy style guide requires it here.
+  const window = time.match(/(\d{1,2}):(\d\d)\s*(AM|PM)?\s*[–-]\s*(\d{1,2}):(\d\d)\s*(AM|PM)/i);
+  if (!window) {
+    throw new Error('cannot read a time window out of the Time line: ' + time);
+  }
+
+  function minutesInto(hour, minute, meridiem) {
+    const h = Number(hour) % 12 + (meridiem.toUpperCase() === 'PM' ? 12 : 0);
+    return h * 60 + Number(minute);
+  }
+
+  const meridiem = window[6];
+  const span =
+    minutesInto(window[4], window[5], meridiem) -
+    minutesInto(window[1], window[2], window[3] || meridiem);
+  if (span <= 0) {
+    throw new Error('the Time line does not describe a forward window: ' + time);
+  }
+  if (span % 60 !== 0) {
+    throw new Error(
+      'the league no longer runs a whole number of hours (' +
+        time +
+        '), so the copy cannot keep saying "N hours" and this check needs rewriting'
+    );
+  }
+  const hours = span / 60;
+
+  const claimed = courtTime.match(/^([A-Za-z]+)\s+hours?\b/);
+  if (!claimed) {
+    throw new Error('the Court time line does not open with a number of hours: ' + courtTime);
+  }
+  const claimedHours = NUMBER_WORDS[claimed[1].toLowerCase()];
+  if (claimedHours === undefined) {
+    throw new Error('unrecognised number word in the Court time line: ' + claimed[1]);
+  }
+  if (claimedHours !== hours) {
+    throw new Error(
+      'League Info promises ' +
+        claimed[1].toLowerCase() +
+        ' hours of court time but the league runs ' +
+        time +
+        ', which is ' +
+        hours
+    );
+  }
+
+  // The FAQ states the same amount again, so it can drift from the homepage as
+  // easily as the homepage can drift from itself. Read from visiblePage() and
+  // not the raw file: the same sentence is in the FAQ's JSON-LD, and that copy
+  // must not be what satisfies this.
+  const faqBlock = faqHtml.match(JSON_LD_BLOCK);
+  if (!faqBlock) {
+    throw new Error('no JSON-LD block on the FAQ page to exclude from the visible text');
+  }
+  const faqVisible = visiblePage(faqHtml, faqBlock[0])
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  const faqClaim = faqVisible.match(/([A-Za-z]+)\s+hours? of court time/i);
+  if (!faqClaim) {
+    throw new Error('the FAQ never says how much court time a member gets');
+  }
+  if (NUMBER_WORDS[faqClaim[1].toLowerCase()] !== hours) {
+    throw new Error(
+      'the FAQ promises ' +
+        faqClaim[1].toLowerCase() +
+        ' hours of court time, the homepage runs ' +
+        hours
+    );
+  }
 });
 
 // The whole point of moving the FAQ on-site was to stop sending people to

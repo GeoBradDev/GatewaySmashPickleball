@@ -219,6 +219,21 @@ question and the opening clause of each answer against the rendered text with th
 JSON-LD stripped out. Rich results that promise text a visitor cannot find are worse
 than no markup.
 
+**Nothing states the two hours of court time as a number of its own.** The `Court
+time:` line in League Info and the court-time bullet in the FAQ both say "Two
+hours", and a smoke check derives that number from the `Time:` line's own window
+(`6:00–8:00 PM`) rather than hardcoding it, then requires both pages to agree with
+it. Widen the league to 6:00–9:00 PM and all three claims are silently wrong: the
+markup stays valid and the sentence stays present, it just stops being true, which
+is the Bridgeton-against-St. Louis failure one list further up the same page. The
+FAQ half reads `visiblePage()` output, because that page's JSON-LD carries the same
+sentence verbatim and would otherwise satisfy the check on its own.
+
+Adding the court time also required rewriting the FAQ's "One more game" note, which
+told the reader to book with Arch for court time after league matches. The site
+would otherwise sell an included hour and then send people to buy it. Anything that
+changes what league night includes has to be checked against that note.
+
 The code of conduct is linked from the **footer**, not the nav, which was already six
 items and is the path to joining rather than to policy. It carries no JSON-LD on
 purpose: no schema.org type fits a conduct policy, and markup that fits nothing is
@@ -269,6 +284,19 @@ Four rules that are easy to break by accident:
   west of UTC, so the page announced open registration hours early and retired a
   season on its own closing night, in the league's own timezone. A smoke check
   pins both boundaries at 19:30 Central by setting `process.env.TZ`.
+- **Registration is a 24-hour window, not the month before the season.** It
+  closes a day after it opens or as soon as 56 players sign up, whichever comes
+  first, so `data-registration` names the single day a season is joinable.
+  `statusOf` reads `today === registration` for open and `today > registration`
+  for **Full**, and treating it as `today >= registration` is the bug that was
+  there: 214 days of "Registration open" across the seven seasons the table
+  ships, against seven that are real, with the hero reading "Join Fall 2026" for
+  a month after Fall 2026 had filled. That is #10's defect class pointing the
+  other way, retiring a window late rather than announcing it early. **Full is
+  not derived from capacity**, which a static page cannot know; it is the honest
+  label for a window that closed the usual way. The hero needs no branch for it,
+  because the next season is picked from the rows still `open` or `upcoming` and
+  a filled one drops out of that set on its own.
 - **The next season is the soonest one**, chosen by comparing start dates, not
   the first matching row. The rows are hand-maintained and nothing orders them.
 - **The hero and the callout say the running season in one shared string.**

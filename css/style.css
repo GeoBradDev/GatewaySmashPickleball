@@ -655,8 +655,11 @@ nav {
   color: var(--amber-dark);
 }
 
+/* Full joins these two rather than --open: a closed window is not something a
+   visitor can act on, so it should not carry the colour that means "act now". */
 .season-status--past,
-.season-status--upcoming {
+.season-status--upcoming,
+.season-status--full {
   color: var(--ink-muted);
   font-weight: 500;
 }

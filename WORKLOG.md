@@ -1353,3 +1353,88 @@ which is now verified by hand each time. The rule is real and the scan is one gr
 but it is site-wide and unrelated to this issue, so it belongs on its own.
 
 Merge commit: pending
+
+## Unnumbered: league facts and the registration window
+
+No issue. Driven by the league correcting facts in conversation, so the record of
+what was asked and answered is here rather than in a tracker.
+
+Registration was the bug. `statusOf` returned "Registration open" for every day
+between `data-registration` and `data-start`, which across the seven seasons in
+the table is 214 days against at most seven that are real: the window is 24 hours
+from opening, or however long 56 spots take to fill. The hero therefore read
+"Join Fall 2026" for the month after Fall 2026 had closed. Same defect class as
+#10, pointing the other way, retiring a window late rather than announcing one
+early. `statusOf` now reads `today === registration` for open and
+`today > registration` for **Full**. The hero needed no branch: the next season is
+already chosen from rows still `open` or `upcoming`, so a filled one leaves that
+set on its own.
+
+**Full is not derived from capacity**, which a static page cannot know. It is the
+honest label for a window that closed the usual way, and it is wrong in the case
+where a season closes with spots unsold. The league chose it over "Registration
+closed" knowing that.
+
+Facts corrected, each confirmed with the league before editing:
+
+| Was | Is |
+|---|---|
+| Courts #5, #6, #7, #10, #12 | 7 league courts and 2 social courts |
+| "The league does not pause" for holidays | It does; the schedule names every bye |
+| Members find their own substitute | Substitutes come off the GPN waitlist |
+| DUPR "not required, but recommended" | Required, members and substitutes alike |
+| "every dollar collected goes to court rental" | A 3% Stripe fee comes out of the $70 |
+| A team captain submits scores | No captain; a rotating-partner ladder has no teams |
+| "The WhatsApp group is where subs get found" | Announcements and conversation only |
+
+The courts line was found by arithmetic, not by being told. 56 players at three
+matches each is 42 distinct matches, which needs 600 court-minutes at a realistic
+game length, and five courts over two hours is exactly 600. That left no room for
+two of the five to be social for an hour, which is what the site had just been
+told to claim. Seven league courts resolves it: 14 pods over 7 courts is two waves
+of an hour, 20 minutes a match, so every player gets an hour of league matches and
+an hour free. That hour is the two social courts, and the copy was right all along
+while the court count was not.
+
+Also: the Drinks with Dinks column is gone, along with its name in the table
+caption, which is `visually-hidden` and would otherwise have described a column no
+longer there to a screen reader only.
+
+Three checks added, each negative-tested by breaking what it guards:
+
+- *the court time a member gets matches the hours the league runs*. Derives the
+  hours from the `Time:` line rather than hardcoding 2, and requires the homepage
+  and the FAQ to agree with it. The FAQ half reads `visiblePage()`, because that
+  page's JSON-LD carries the same sentence verbatim; deleting the visible bullet
+  and leaving the JSON-LD goes red, which was checked.
+- *registration is open on its day only*.
+- *the hero moves to the next season once a window has closed*.
+
+Restoring `today >= registration` turns the last two red; widening the league to
+6:00–9:00 PM or changing "Two hours" to "Three hours" turns the first red on
+either page.
+
+One existing check moved rather than being relaxed. *the hero claims no season is
+running during the gap between seasons* froze the clock at 2026-09-01, which was
+only "between seasons with registration open" because a window used to last a
+month. The state is still real, on 2026-12-11, where Fall has ended, Winter starts
+Jan 10 and Winter's window is open for that one day. Same assertion, a date that
+still reaches it.
+
+Verified: `npm test` green, 53 ok and 0 not ok, after rebasing onto #57.
+`npm run check-links` resolves all 7, `MINIMUM_EXPECTED` unchanged because the
+DUPR signup link added to the join steps was already counted. The rebase touched
+`index.html`, `CLAUDE.md` and `scripts/smoke-build.js`, all three of which #57 also
+changed, and #57's new pitch and `SEARCH_TERMS` checks pass against the merged
+tree.
+
+Left undone, deliberately. The Courts line no longer gives court numbers, because
+the five it named were wrong and the nine real ones were not supplied; it also
+lost "(all next to each other)", which may or may not still hold. Nothing states
+how a member signals they will be absent, so the waitlist answer describes what
+happens without saying what triggers it. DUPR is absent from the homepage despite
+now being required to join. The price check still reads `dist/index.html` only,
+leaving the four `$70` mentions in the FAQ unguarded; the league was asked and
+chose to leave it.
+
+Merge commit: pending

@@ -228,7 +228,20 @@ import '../css/style.css';
     if (today >= start) {
       return { label: 'In progress', modifier: 'current' };
     }
-    if (today >= registration) {
+    // The window is 24 hours from the moment it opens, or however long it takes
+    // to fill 56 spots, whichever comes first. So a season is joinable on its
+    // registration day and not afterwards. Reading this as "open until the
+    // season starts" put "Registration open" on the row, and "Join <season>" on
+    // the hero, for the month in between: 214 days across the seven seasons the
+    // table ships, against seven that are real.
+    //
+    // Whether capacity was actually reached is not something a static page can
+    // know, so Full is the honest-in-practice label rather than a fact derived
+    // from the dates. It is right whenever the window closed the usual way.
+    if (today > registration) {
+      return { label: 'Full', modifier: 'full' };
+    }
+    if (today === registration) {
       return { label: 'Registration open', modifier: 'open' };
     }
     return { label: 'Upcoming', modifier: 'upcoming' };
