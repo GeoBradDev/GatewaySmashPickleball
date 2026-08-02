@@ -103,13 +103,19 @@ joined yet. Editing a row changes what a visitor sees before scrolling, so keep 
 `data-*` dates and the dates written in the cells in step. The rows do not need to be
 in date order.
 
-`npm test` checks the rows you write. A row has to play the number of weeks the
-`Cost:` line in League Info sells, counted from its own dates: league nights between
-`data-start` and `data-end`, minus any bye. Its cells have to show the dates its
-`data-*` attributes claim, and a bye has to fall on a league night inside its own
-season. So a season is made longer or shorter by moving `data-end`, not by editing
-the copy, and if the league ever sells a different season length, that is an edit to
-the `Cost:` line which every row then has to match.
+`npm test` checks the rows you write. Every `data-*` value has to be a real calendar
+date written as `yyyy-mm-dd`, and the season has to start and end on a league night.
+A row has to play the number of weeks the `Cost:` line in League Info sells, counted
+from its own dates: league nights between `data-start` and `data-end`, minus any bye.
+Its cells have to show the dates its `data-*` attributes claim, and a bye has to fall
+on a league night inside its own season. So a season is made longer or shorter by
+moving `data-end`, not by editing the copy, and if the league ever sells a different
+season length, that is an edit to the `Cost:` line which every row then has to match.
+
+A typo in one of those dates no longer reaches a visitor. `js/app.js` gives a row it
+cannot read no status at all, rather than the wrong one, so the row appears exactly
+as it does with JavaScript turned off and the hero goes on naming a season that is
+really there.
 
 This is not hypothetical. The Fall 2026 row shipped scheduling nine playing Sundays
 against the eight-week season the site sells in eight places, and every check passed,
