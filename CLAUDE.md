@@ -123,12 +123,9 @@ loop runs over. The hardcoded "at least 4 pages" guard it replaced is gone.
 carries no module script and no stylesheet link by design, and the check that it
 stays standalone already scans it for third-party subresources itself.
 
-Still index-only, deliberately: **the icon and manifest URL checks**. `every icon and
-manifest URL in dist/index.html resolves` and `every declared link type matches the
-file it points at` read the homepage alone, while every subpage ships the same five
-icon links and the same manifest link. #61 scoped itself to the four checks it named.
-This is the same defect class one surface over, and closing it is its own issue. #62
-found and closed a fifth, the price agreement check, which has its own section below.
+#62 found and closed a fifth, the price agreement check, which has its own section
+below, and #69 closed the last two. Both have their own section further down, under
+"The icon block was four hand-copied blocks, and two checks watched one".
 
 **Lint and link checking run against `dist/`, not source.** The source now contains
 `{{> header}}`, which is not HTML, and `dist/` is what visitors actually receive.
@@ -151,6 +148,74 @@ people to ignore red.
 Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
 stylesheet that has produced no defects, and **prettier** would reformat every file
 in the repo for a formatting problem `.editorconfig` already covers.
+
+### The icon block was four hand-copied blocks, and two checks watched one
+
+`every icon and manifest URL ... resolves` and `every declared link type matches the
+file it points at` read `dist/index.html` alone until #69, while all four content
+pages ship the same six icon and manifest links, the same `og:image` and the same
+three typed links, in each page's own `<head>` rather than in `partials/header.html`,
+which is pulled into `<body>`. The homepage was watched and three copies were not.
+Proved before anything changed: `faq/index.html`'s `apple-touch-icon` repointed at a
+file absent from `dist/` reported `ok` and `All smoke checks passed.`
+
+Both now walk **every built page**, `404.html` included, the way the price check
+above does. That page ships three icon links of its own and had been read by nothing:
+review pointed one at a missing file and declared its PNG as `type="image/svg+xml"`,
+which is verbatim the defect the link-type check exists for, and the suite stayed
+green.
+
+Two checks were added beside them, and each answers a question the widening cannot.
+
+**`every content page declares an icon, an apple-touch-icon and a manifest`** is the
+floor, and it names rels rather than counting links. A count was the first attempt
+and it had exactly one link of slack: six links against a floor of five, so deleting
+the manifest link from all four pages left nothing on the site referencing the
+manifest, the install prompt gone everywhere, and *both* checks with the word
+manifest in their names reporting `ok`. `the web manifest is installable and its
+icons exist` cannot help, because it reads `dist/site.webmanifest` directly and never
+asks whether a page links it. Naming the rels keeps what a bare floor was for:
+adding or dropping a favicon size stays a copy edit with none in the script, while
+the three links that must never disappear are held by name. This is the
+`MINIMUM_EXPECTED` lesson in the shape that fits: a floor with slack cannot do the
+job, and the repair is not always an exact count.
+
+**`every content page ships the same icon and manifest links`** turns the four
+hand-copied blocks into one enforced fact, which is the move #68 made for the bundle
+and the stylesheet. The two claim-checks cannot see this, because the realistic drift
+produces claims that are all true: repointing one page's `apple-touch-icon` at
+`/img/favicon-32x32.png` is a URL that resolves and a tag with no type at all, and
+that page then hands iOS a 32px favicon for the home screen. It groups the pages by
+block rather than diffing against a reference page, so a break in the reference is
+not reported as the other three disagreeing, and it prints only the links that
+differ.
+
+**All three read one parser, `linkAttributes`, and both halves of it closed a live
+hole.** It strips HTML comments, because nothing in this build strips them and they
+reach `dist/` intact: wrapping the FAQ's whole icon block in `<!-- -->` left `npm
+test` at exit 0 with that page shipping no icons, and the agreement check counted the
+commented tags as present, which is an assertion a comment can satisfy. It also
+discards attribute order, because the URL check used to read `rel` and `href` in one
+pattern that only matched them in that order. Writing `href` before `rel` on all four
+pages hid an `apple-touch-icon` pointing at a missing file with every check green.
+**Sorting attributes in the fingerprint without fixing that was the worst of both**:
+the reorder stopped the href being resolved and the agreement check then certified it
+as no difference at all. Order-independence has to be everywhere or nowhere.
+
+`og:image` is deliberately outside the agreement check. The URL check already proves
+each page's resolves, which is the silent 404 it exists for, and requiring the four to
+name the *same* image would forbid a per-page share image, which is a reasonable thing
+to want later in a way four different favicons is not. `404.html` is outside the floor
+and the agreement check for the same kind of reason: its smaller block is deliberate,
+and requiring a manifest link there would redefine what that page is for.
+
+Still unchecked, deliberately: **nothing compares a `sizes` attribute to the file's
+real pixel dimensions.** `favicon-32x32.png` declared `sizes="16x16"` is structurally
+valid, resolves, and carries an honest `type`, so all four checks pass. The same holds
+for all four pages agreeing on a *wrong* set: drop `favicon-16x16.png` from every page
+and the rels that must be present are all still there. Both need a check that opens
+the image rather than the markup, which is a different kind of check from everything
+in this file.
 
 ### The price check, and what a `$` cannot see
 
@@ -222,11 +287,18 @@ at all, which is exactly why that risk is untested.
 
 ## Icons and the web manifest
 
-One manifest, `public/site.webmanifest`, referenced from `index.html`. Its
+One manifest, `public/site.webmanifest`, referenced from every content page. Its
 `theme_color` and `background_color` must stay equal to the `theme-color` meta tag
 and to `--cream`; `npm run smoke` fails if the three drift apart. Icon `src` values
 are root-relative and are checked to exist in `dist/`, because a manifest icon that
 404s fails silently: nothing breaks, the install prompt just shows no icon.
+
+**That check reads the manifest file, not the pages, so it is happy with a manifest
+nothing links.** Since #69 a separate check requires every content page to declare
+the manifest link by `rel`, which is what stops the install prompt disappearing
+site-wide with the suite green. See "The icon block was four hand-copied blocks"
+above. The link lives in each page's own `<head>`, so all four copies are
+hand-maintained and both the block's contents and its presence are now enforced.
 
 `public/icon.svg` is the canonical form of the mark, and its geometry is identical to
 the inline logo in the header of `index.html`. Every PNG in `public/img/` and the

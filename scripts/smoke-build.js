@@ -295,27 +295,128 @@ function missingFromDist(urls) {
   });
 }
 
+// Every built page, 404.html included, the way the price check walks them. The
+// error page ships three icon links of its own and had never been read by
+// anything: review of #69 pointed one at a missing file and declared its PNG as
+// image/svg+xml, and the whole suite stayed green. Its block is deliberately
+// smaller than a content page's, carrying no manifest link and no og:image, so
+// only the two checks about a page's own claims being true reach it. The floor
+// and the agreement check below stay on CONTENT_PAGES.
+function builtPages() {
+  return walk(distDir).filter((rel) => rel.endsWith('.html'));
+}
+
+// Parses every <link> on a page into its attributes, with HTML comments
+// stripped first and the attribute order thrown away. Three checks read this
+// and each half of it closed a live hole found in review of #69.
+//
+// Comments are stripped because nothing in this build strips them and they
+// reach dist/ intact, which is the rule CLAUDE.md states in four places and the
+// #67 parity check obeys one commit before this branch. Wrapping the FAQ's
+// whole icon block in <!-- --> left npm test at exit 0 with that page shipping
+// no icons at all, and the agreement check reading the commented tags as
+// present is the worse half: a comment satisfying an assertion reads as
+// coverage.
+//
+// Attributes are parsed rather than matched in sequence because a single regex
+// running rel before href only matches tags written that way. Writing
+// href="/img/does-not-exist.png" rel="apple-touch-icon" on all four pages left
+// every check green against a file absent from dist/, and the sort in
+// iconLinkFingerprints then certified that reorder as no difference at all. The
+// order-independent form is what the third-party subresource check already
+// uses; this makes it the only form in the file.
+function linkAttributes(html) {
+  return [...html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<link\b[^>]*>/g)].map(function (match) {
+    const attrs = new Map();
+    for (const attr of match[0]
+      .slice('<link'.length)
+      .matchAll(/([a-zA-Z][a-zA-Z0-9-]*)(?:\s*=\s*["']([^"']*)["'])?/g)) {
+      attrs.set(attr[1].toLowerCase(), attr[2] === undefined ? '' : attr[2]);
+    }
+    return attrs;
+  });
+}
+
+// og:image, read the same order-independent way, so a content= written ahead of
+// its property= is not silently skipped.
+function ogImages(html) {
+  return [...html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<meta\b[^>]*>/g)]
+    .filter((match) => /\bproperty=["']og:image["']/.test(match[0]))
+    .map((match) => match[0].match(/\bcontent=["']([^"']*)["']/))
+    .filter(Boolean)
+    .map((match) => match[1]);
+}
+
+const ICON_RELS = ['icon', 'apple-touch-icon', 'manifest'];
+
+function iconLinks(html) {
+  return linkAttributes(html).filter((attrs) => ICON_RELS.includes(attrs.get('rel')));
+}
+
 // The orphaned manifest carried icon paths that were root-relative to files
 // that lived one directory down, so every one of them would have 404'd. That
 // is silent: nothing fails a build, the install prompt just shows no icon.
-check('every icon and manifest URL in dist/index.html resolves', function () {
-  const urls = [
-    ...[...indexHtml.matchAll(/<link[^>]*\brel=["'](?:icon|apple-touch-icon|manifest)["'][^>]*\bhref=["']([^"']+)["']/g)],
-    ...[...indexHtml.matchAll(/<meta[^>]*\bproperty=["']og:image["'][^>]*\bcontent=["']([^"']+)["']/g)],
-  ].map((m) => m[1]);
-
-  if (urls.length < 5) {
-    throw new Error('expected at least 5 icon/manifest URLs, found ' + urls.length);
+//
+// Every content page ships its own copy of this block, in its own <head>,
+// which is not what partials/header.html holds. Reading the homepage alone
+// left the other three unwatched, and #69 proved it live: faq/index.html's
+// apple-touch-icon repointed at a file absent from dist/, npm test green.
+check('every icon and manifest URL on every built page resolves', function () {
+  const problems = [];
+  builtPages().forEach(function (file) {
+    const html = fs.readFileSync(path.join(distDir, file), 'utf8');
+    const urls = [...iconLinks(html).map((attrs) => attrs.get('href')), ...ogImages(html)];
+    const missing = missingFromDist(urls);
+    if (missing.length > 0) {
+      problems.push('dist/' + file + ' references but does not ship: ' + missing.join(', '));
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
-  const missing = missingFromDist(urls);
-  if (missing.length > 0) {
-    throw new Error('referenced but not in dist/: ' + missing.join(', '));
+});
+
+// Which links have to be there, rather than how many there are in total. A
+// count is the wrong shape for this: each page ships six icon and manifest
+// links against a floor of five, so exactly one could vanish unnoticed, and
+// review of #69 showed which one. Delete the manifest link from all four pages
+// and nothing on the site references the manifest, the install prompt is gone
+// everywhere, and both checks with the word manifest in their names report ok.
+// "The web manifest is installable and its icons exist" cannot help, because it
+// reads dist/site.webmanifest directly and never asks whether a page links it.
+//
+// Naming the rels rather than pinning the count keeps the thing that made a
+// bare floor attractive: adding or dropping a favicon size is still a copy
+// edit with none in this file, while the three links that must never disappear
+// are held by name.
+//
+// CONTENT_PAGES rather than every built page. 404.html deliberately carries no
+// manifest link, and requiring one would either be wrong or would quietly
+// redefine what that page is for.
+check('every content page declares an icon, an apple-touch-icon and a manifest', function () {
+  const problems = [];
+  CONTENT_PAGES.forEach(function (page) {
+    const rels = new Set(iconLinks(pageHtml(page)).map((attrs) => attrs.get('rel')));
+    const absent = ICON_RELS.filter((rel) => !rels.has(rel));
+    if (absent.length > 0) {
+      problems.push('dist/' + page.file + ' declares no ' + absent.join(' and no '));
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
 // index.html once declared a PNG as type="image/svg+xml". html-validate does
 // not catch that, because the markup is structurally valid; only the claim
 // about the file is wrong. So it is checked here.
+//
+// Over every built page for the same reason as the check above. Each content
+// page's <head> carries its own three typed links, and #69 declared
+// subs/index.html's favicon-32x32.png as image/svg+xml with the suite green.
+// 404.html carries one typed link and was reached by nothing at all, so review
+// of #69 shipped the exact defect this check's first line describes, on the one
+// page no check opened.
 check('every declared link type matches the file it points at', function () {
   const EXTENSION_TYPES = {
     '.png': 'image/png',
@@ -328,26 +429,135 @@ check('every declared link type matches the file it points at', function () {
   };
 
   const wrong = [];
-  for (const match of indexHtml.matchAll(/<link\b[^>]*>/g)) {
-    const tag = match[0];
-    const href = tag.match(/\bhref=["']([^"']+)["']/);
-    const type = tag.match(/\btype=["']([^"']+)["']/);
-    if (!href || !type) {
-      continue;
+  builtPages().forEach(function (file) {
+    for (const attrs of linkAttributes(fs.readFileSync(path.join(distDir, file), 'utf8'))) {
+      const href = attrs.get('href');
+      const type = attrs.get('type');
+      if (!href || !type) {
+        continue;
+      }
+      const ext = path.extname(href.split('?')[0]).toLowerCase();
+      const expected = EXTENSION_TYPES[ext];
+      if (!expected) {
+        continue;
+      }
+      const allowed = Array.isArray(expected) ? expected : [expected];
+      if (!allowed.includes(type)) {
+        wrong.push(
+          'dist/' + file + ': ' + href + ' declared as ' + type +
+            ', expected ' + allowed.join(' or ')
+        );
+      }
     }
-    const ext = path.extname(href[1].split('?')[0]).toLowerCase();
-    const expected = EXTENSION_TYPES[ext];
-    if (!expected) {
-      continue;
-    }
-    const allowed = Array.isArray(expected) ? expected : [expected];
-    if (!allowed.includes(type[1])) {
-      wrong.push(href[1] + ' declared as ' + type[1] + ', expected ' + allowed.join(' or '));
-    }
-  }
+  });
   if (wrong.length > 0) {
     throw new Error(wrong.join('; '));
   }
+});
+
+// One icon or manifest <link> reduced to a comparison key: its parsed
+// attributes written back in name order, so the order they appear in the tag
+// cannot read as a difference. Returns the page's icon and manifest links as a
+// sorted array.
+//
+// Sorting is what makes this a comparison of links rather than of text. The
+// four blocks are byte-identical today, so comparing raw text would pass, but
+// that is the state of four hand-copied blocks rather than something to build a
+// check on: writing href before rel is valid, html-validate accepts it, and
+// calling it a drift is the #ffffff-against-#fff trap #67 names in a different
+// spelling.
+//
+// That same reorder used to blind the URL check, which read rel and href in one
+// pattern that only matched them in that order. Sorting here without fixing
+// that there is the worst of both: the reorder stops the href being resolved
+// and this check certifies it as no difference at all. Both now read
+// linkAttributes, so neither can see an ordering.
+//
+// The tag list is sorted for the same reason as the attributes: a browser picks
+// an icon by rel and sizes, so document order is not a fact worth pinning,
+// while a link added, dropped or repointed is. Sorted rather than
+// de-duplicated, so the same link shipped twice on one page stays a difference.
+function iconLinkFingerprints(html) {
+  return iconLinks(html)
+    .map((attrs) =>
+      [...attrs]
+        .map(([name, value]) => name + '="' + value + '"')
+        .sort()
+        .join(' ')
+    )
+    .sort();
+}
+
+// The two checks above ask whether each page's own claims are true. Neither
+// can see the four hand-copied blocks drifting apart, because a link repointed
+// at a different file that ships is a URL that resolves and a type that is
+// honest. Repointing code-of-conduct/index.html's apple-touch-icon at
+// /img/favicon-32x32.png left both green while that page handed iOS a 32px
+// favicon for the home screen. This is the move #68 made for the bundle and
+// the stylesheet, pointed at the block those checks do not cover: four
+// hand-kept copies become one enforced fact.
+//
+// Grouped rather than compared against a reference page. Naming one page the
+// reference means a break in that page is reported as the other three
+// disagreeing, sending a maintainer to three files that are correct. Grouping
+// prints each distinct block beside the pages that ship it, so the page at
+// fault is the group of one. assetRefs answers the same question a shorter way,
+// with a Set over one ref per page, which does not carry here: a page holds six
+// links rather than one, so a flat list would not say which of them differed.
+//
+// og:image is deliberately not here. The check above already proves each
+// page's resolves in dist/, which is the silent 404 it exists for, and
+// requiring the four to name the *same* image would additionally forbid a
+// per-page share image. That is a reasonable thing for this site to want
+// later, in a way four different favicons is not.
+//
+// No floor of its own. "Every content page declares an icon, an
+// apple-touch-icon and a manifest" is the floor, and it is the better shape:
+// four pages that had all lost the block would agree with each other here, and
+// that check names the rels rather than counting them. A second count in this
+// function would be one more thing to keep in step and would forbid the league
+// ever shipping fewer favicon sizes.
+//
+// No non-empty guard on CONTENT_PAGES itself either: "every page the sitemap
+// lists was actually built" asserts that once, above every check that loops the
+// list.
+check('every content page ships the same icon and manifest links', function () {
+  const blocks = new Map();
+  CONTENT_PAGES.forEach(function (page) {
+    const key = iconLinkFingerprints(pageHtml(page)).join('\n');
+    blocks.set(key, [...(blocks.get(key) || []), page.file]);
+  });
+  if (blocks.size === 1) {
+    return;
+  }
+
+  // Only the links that actually differ. Printing all six per group put roughly
+  // 1.5 KB on one line and left the maintainer to spot the odd entry by eye,
+  // which is the useful half buried in the rest.
+  //
+  // Counted rather than tested for membership, because the duplicate case
+  // differs by multiplicity alone: a manifest link shipped twice on one page is
+  // present in both groups, so an `includes` test finds nothing varying and the
+  // message reduces to "[] against []". Filtering the group's own array against
+  // the varying list then keeps the repeat visible, which is what says which
+  // side has two of them.
+  const groups = [...blocks].map(([key, files]) => ({ files, links: key.split('\n') }));
+  const counted = groups.map((group) =>
+    group.links.reduce((seen, link) => seen.set(link, (seen.get(link) || 0) + 1), new Map())
+  );
+  const varying = [...new Set(groups.flatMap((group) => group.links))].filter(
+    (link) => new Set(counted.map((seen) => seen.get(link) || 0)).size > 1
+  );
+  throw new Error(
+    'content pages ship different icon and manifest links: ' +
+      groups
+        .map(
+          (group) =>
+            group.files.map((file) => 'dist/' + file).join(' and ') + ' has ' +
+            JSON.stringify(group.links.filter((link) => varying.includes(link)))
+        )
+        .join('; against ')
+  );
 });
 
 check('the web manifest is installable and its icons exist', function () {
