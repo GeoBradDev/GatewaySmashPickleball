@@ -298,18 +298,40 @@ function missingFromDist(urls) {
 // The orphaned manifest carried icon paths that were root-relative to files
 // that lived one directory down, so every one of them would have 404'd. That
 // is silent: nothing fails a build, the install prompt just shows no icon.
-check('every icon and manifest URL in dist/index.html resolves', function () {
-  const urls = [
-    ...[...indexHtml.matchAll(/<link[^>]*\brel=["'](?:icon|apple-touch-icon|manifest)["'][^>]*\bhref=["']([^"']+)["']/g)],
-    ...[...indexHtml.matchAll(/<meta[^>]*\bproperty=["']og:image["'][^>]*\bcontent=["']([^"']+)["']/g)],
-  ].map((m) => m[1]);
+//
+// Every content page ships its own copy of this block, in its own <head>,
+// which is not what partials/header.html holds. Reading the homepage alone
+// left the other three unwatched, and #69 proved it live: faq/index.html's
+// apple-touch-icon repointed at a file absent from dist/, npm test green.
+//
+// The floor is per page rather than over the total, or three pages that ship
+// no icons at all would be covered by the homepage's seven URLs. It is a floor
+// and not the exact count on purpose; see the note in CLAUDE.md for what that
+// still does not catch.
+check('every icon and manifest URL on every content page resolves', function () {
+  const problems = [];
+  CONTENT_PAGES.forEach(function (page) {
+    const html = pageHtml(page);
+    const urls = [
+      ...[...html.matchAll(/<link[^>]*\brel=["'](?:icon|apple-touch-icon|manifest)["'][^>]*\bhref=["']([^"']+)["']/g)],
+      ...[...html.matchAll(/<meta[^>]*\bproperty=["']og:image["'][^>]*\bcontent=["']([^"']+)["']/g)],
+    ].map((m) => m[1]);
 
-  if (urls.length < 5) {
-    throw new Error('expected at least 5 icon/manifest URLs, found ' + urls.length);
-  }
-  const missing = missingFromDist(urls);
-  if (missing.length > 0) {
-    throw new Error('referenced but not in dist/: ' + missing.join(', '));
+    if (urls.length < 5) {
+      problems.push(
+        'dist/' + page.file + ': expected at least 5 icon/manifest URLs, found ' + urls.length
+      );
+      return;
+    }
+    const missing = missingFromDist(urls);
+    if (missing.length > 0) {
+      problems.push(
+        'dist/' + page.file + ' references but does not ship: ' + missing.join(', ')
+      );
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
