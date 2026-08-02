@@ -1058,6 +1058,78 @@ check('every price on the site states the same amount', function () {
   }
 });
 
+// The check above walks *.html, which is every surface a price can be read off
+// except the one that writes copy at runtime. js/app.js builds the sentence
+// beside the Join button and the callout under the schedule table, and until
+// #70 nothing in this file had ever opened a .js file at all.
+//
+// #70 was filed claiming a fee appended to the hero note would leave the suite
+// green. It would not, and the correction matters more than the claim: three
+// checks pin that note by exact string equality, so that edit already goes red
+// today. It goes red from three messages that name the hero note and never say
+// the word price, which is its own problem, but it is covered. The callout is
+// the surface genuinely open, because it is asserted with substring regexes
+// instead, and substrings cannot see an appended sentence. Proved before this
+// check existed by pushing '$70 for the season.' onto the callout's own parts
+// array: 73 checks ok, "All smoke checks passed.", html-validate clean, npm
+// test exit 0, and a shipped bundle telling every visitor under the schedule
+// table what the season costs.
+//
+// This is a floor, not a comparison, and that difference is the whole design.
+// Folding the bundle into the check above was the other option on the table and
+// it goes red one fee change too late: a $70 in the bundle against pages that
+// also say $70 passes, so the price sits in the one file no other check reads
+// for however long it takes the league to change the fee, which is exactly the
+// interval during which nobody has js/app.js open. Forbidding it outright fails
+// on the day it is written, while the maintainer who wrote it is still looking
+// at the diff. It also states the rule rather than merely enforcing an
+// agreement: prices belong in the markup, because the markup is what every
+// other check in this file can read and hold to every other copy.
+//
+// The exposure this buys is a $-and-digits token that is not a price, and two
+// are real. A $1 replacement backreference in a String.replace() call is one.
+// A minified identifier is the other: esbuild draws an identifier's first
+// character from a 54-character alphabet in which $ is legal and adds digits
+// from the second character on, so $0 is a name it can emit, at roughly the
+// 3,077th one in a scope. Today's bundle is 5,078 bytes and carries exactly one
+// $, the end anchor of #63's ISO_DATE regex, so there is nothing in the current
+// output to calibrate a narrowing against. Requiring two or more digits would
+// pre-empt both and is deliberately not done: it would stop the check seeing a
+// genuine $5, which is the half-recognised spelling this file argues against
+// everywhere else. The message names the escape instead, so on the day it does
+// fire the repair a maintainer reaches for is this check and not the copy.
+//
+// The pattern is the comparison check's, character for character. Two price
+// patterns kept in step by hand is the trap named in six other places here.
+check('no built JavaScript states a price', function () {
+  const bundles = walk(distDir).filter((rel) => rel.endsWith('.js'));
+  // The list is derived from dist/, which is what makes it maintenance-free
+  // when Vite splits a chunk and equally what makes it silently emptiable. A
+  // forEach over nothing pushes no problems and reports ok, which is the
+  // vacuous pass CONTENT_PAGES needed its own floor for. Assert it before
+  // looping, not after.
+  if (bundles.length === 0) {
+    throw new Error('dist/ contains no JavaScript at all, so this check vouches for nothing');
+  }
+  const found = new Set();
+  bundles.forEach(function (rel) {
+    const js = fs.readFileSync(path.join(distDir, rel), 'utf8');
+    for (const match of js.matchAll(/\$(\d+(?:\.\d\d)?)/g)) {
+      found.add('$' + match[1] + ' in dist/' + rel);
+    }
+  });
+  if (found.size > 0) {
+    throw new Error(
+      'built JavaScript states a price: ' + [...found].sort().join(', ') +
+        '; the file to edit is js/app.js, not the hashed asset named here. ' +
+        'Prices belong in the markup, where the check above holds every copy to ' +
+        'every other one. If this is not a price, a $1 replacement backreference ' +
+        'or a minified identifier such as $0, then this check in ' +
+        'scripts/smoke-build.js is what to update'
+    );
+  }
+});
+
 // Reads width and height out of a PNG's IHDR chunk, which is always the first
 // chunk and always at a fixed offset. Cheaper than a dependency.
 function pngSize(file) {
