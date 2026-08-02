@@ -384,6 +384,39 @@ The hero subs line added in #51 is checked the same way again, both halves of it
 room, so that rule restates its colour rather than inheriting from the base `a`
 rule purely so the check can resolve it.
 
+### The eyebrow pills, and why one of them needed its own check
+
+The three checks above all read the built stylesheet, and #60 was the colour that
+proved a fourth surface existed which none of them could reach. `.hero-eyebrow`
+and the 404 page's `.eyebrow` both put `--amber` on an `--amber-light` pill, which
+is **2.44:1**: not merely under the 4.5:1 their 0.85rem text needs, but under even
+the 3:1 that large text gets. Both are now `--amber-dark`, at **5.31:1**. That is
+the same darkening the comment beside `--amber-dark` in `css/style.css` records,
+arriving at the two places it never reached.
+
+`--amber` survives, and is now used exactly once, as the `border-left` on the
+callout. It is a border, not text, so no contrast rule applies to it.
+
+The two checks share `ruleContrast`, which differs from the three above in
+resolving **both** sides from the custom properties the rule itself names. The
+subs check has to hardcode `--cream` because `.hero-sub-cta` sets no background
+and inherits the hero's; a pill sets its own, so hardcoding would only invent a
+second copy to keep in step.
+
+**The 404 half cannot be checked against the stylesheet, and that is the point.**
+That page carries its own copy of the palette so it still renders when the hashed
+stylesheet is the thing that failed, so there is no stylesheet for a check to
+read. Its check reads the page's own inline `<style>`, tokens included, and
+judges the pair on the values that page actually ships. Point its `--amber-dark`
+at the old `#c26f06` and it goes red at 3.43:1 while the homepage stays green,
+which is what a copied palette drifting looks like.
+
+Not adopted: **parity between the 404 palette and `css/style.css`**. The comment
+at the top of `404.html` still asks a maintainer to keep the copied tokens in
+step by hand, and nothing enforces it. The check above does not need it, because
+it reads the tokens of the file it is judging, so that pill stays above 4.5:1
+whatever the stylesheet holds. Every other copied token is still unguarded.
+
 ## Copy style
 
 The league's pitch is that it is the human alternative to disorganized corporate

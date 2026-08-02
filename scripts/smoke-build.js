@@ -1710,6 +1710,93 @@ check('the hero subs line meets AA on the hero background', function () {
   );
 });
 
+// Resolves both sides of a contrast pair from the custom properties the rule
+// itself names, so recolouring either one re-runs the sum instead of quietly
+// dropping below AA. The subs check above has to hardcode its background
+// because that rule sets none and inherits the hero's; a pill sets its own, so
+// there is nothing here worth hardcoding.
+function ruleContrast(css, selector, source) {
+  const rule = css.match(
+    new RegExp('[^{}]*' + selector.replace(/\./g, '\\.') + '\\s*\\{([^}]*)\\}')
+  );
+  if (!rule) {
+    throw new Error('no ' + selector + ' rule in ' + source);
+  }
+  // `background` also spells itself `background-color`, and either is a real
+  // answer to "what is behind this text", so refusing the longhand would fail
+  // a rule that had done nothing wrong. `color` takes no such alternative: it
+  // is anchored on a declaration boundary precisely so it cannot match the
+  // tail of `background-color:` and report the pill as if it were the text.
+  const named = [['color', 'color'], ['background', 'background(?:-color)?']].map(
+    function ([property, pattern]) {
+      const match = rule[1].match(
+        new RegExp('(?:^|;)\\s*' + pattern + ':\\s*var\\(\\s*--([a-z-]+)\\s*\\)')
+      );
+      if (!match) {
+        throw new Error(
+          selector + ' does not take its ' + property + ' from a custom property'
+        );
+      }
+      return match[1];
+    }
+  );
+  // cssVariable says "the emitted css", which is a lie when the caller handed
+  // us a page's inline block instead. A check that misnames the file it read
+  // sends a maintainer to the wrong one.
+  const [foreground, background] = named.map(function (name) {
+    try {
+      return cssVariable(css, name);
+    } catch {
+      throw new Error('no --' + name + ' in ' + source);
+    }
+  });
+  return {
+    ratio: contrastRatio(foreground, background),
+    foreground,
+    background,
+    foregroundName: named[0],
+    backgroundName: named[1]
+  };
+}
+
+// Shared by the two eyebrow checks below, which read the same pill out of two
+// different files and have no other reason to agree on wording.
+function eyebrowContrast(css, selector, source) {
+  const pair = ruleContrast(css, selector, source);
+  if (pair.ratio < 4.5) {
+    throw new Error(
+      '--' + pair.foregroundName + ' ' + pair.foreground + ' on --' +
+        pair.backgroundName + ' ' + pair.background + ' is ' +
+        pair.ratio.toFixed(2) + ':1, under the 4.5:1 AA needs for 0.85rem text'
+    );
+  }
+}
+
+// The eyebrow is the first text in the hero and it shipped as --amber on
+// --amber-light, which is 2.44:1: under even the 3:1 large text gets, and this
+// is 0.85rem at weight 600, so it is small text needing 4.5:1. That is the
+// same defect the --amber-dark comment in css/style.css records, in the one
+// place that darkening never reached.
+check('the hero eyebrow meets AA on its own pill', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  eyebrowContrast(css, '.hero-eyebrow', 'the emitted css');
+});
+
+// The same pill on the 404 page, which carries its own copy of the palette so
+// it still renders when the hashed stylesheet is the thing that failed. That
+// is also why the check above cannot see it: there is no stylesheet to read.
+// This one reads the page's own inline block, tokens included, so the pair is
+// judged on the values that page actually ships rather than on whatever
+// css/style.css happens to hold.
+check('the 404 eyebrow meets AA on its own pill', function () {
+  const html = fs.readFileSync(path.join(distDir, '404.html'), 'utf8');
+  const style = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
+  if (!style) {
+    throw new Error('dist/404.html has no inline styles to check');
+  }
+  eyebrowContrast(style[1], '.eyebrow', 'the 404 page inline styles');
+});
+
 // Nothing upstream guarantees the table always carries a future row. The last
 // row here closes in March 2027, so a clock past that leaves no season to
 // join, and the enhancement has to leave the page exactly as it shipped

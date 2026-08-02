@@ -417,7 +417,7 @@ nav {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--amber-dark);
   background: var(--amber-light);
   padding: 8px 20px;
   border-radius: 50px;
