@@ -753,18 +753,60 @@ check('every Location on the homepage names the same venue', function () {
   }
 });
 
-// A wrong price is the worst bug this site can ship, and the fee is now stated
-// in more than one place. If a second, genuinely different amount is ever
-// added, this check is the thing that should be updated deliberately.
-check('every price on the page states the same amount', function () {
-  const body = indexHtml.slice(indexHtml.indexOf('<body'));
-  const amounts = [...body.matchAll(/\$(\d+(?:\.\d\d)?)/g)].map((m) => m[1]);
-  if (amounts.length === 0) {
-    throw new Error('the page states no price at all, which is the first thing a player asks');
+// A wrong price is the worst bug this site can ship, and the fee is stated on
+// two pages now: six times in dist/index.html and four times in the FAQ. This
+// read dist/index.html alone, which left the realistic failure uncovered. The
+// league changes the fee, one page is edited, the other page's copies are
+// missed, and every check stays green while the site quotes two prices to the
+// same player. The FAQ's own JSON-LD-matches-page check does not close it: it
+// compares each answer's opening clause only, and the FAQ's four copies drift
+// together anyway.
+//
+// Walks every built page rather than CONTENT_PAGES, 404.html included, so a
+// price landing on a page nobody expected to carry one is still held to the
+// rest. Reads the whole document rather than slicing from <body>, which the
+// single-page version did: the three description tags in index.html's <head>
+// state the fee too and nothing compared them to the body. The per-page
+// description check requires only that a page's own three tags agree with each
+// other, so all three could say $75 against a body saying $70 and stay green,
+// and a price wrong only in og:description is the price a link preview shows.
+// Scanning the JSON-LD is correct for the same reason: a rich result surfaces
+// it. The amounts stay strings and are never coerced to Number, so $70 and
+// $70.00 read as a disagreement rather than folding into one value.
+//
+// The homepage floor is kept deliberately. Collecting across every page would
+// otherwise let index.html drop the fee entirely while the FAQ's copies
+// satisfied the check on their own, and it is what stops this passing
+// vacuously against a dist/ that built no pages at all.
+//
+// If a second, genuinely different amount is ever added, this check is the
+// thing that should be updated deliberately.
+check('every price on the site states the same amount', function () {
+  const pagesByAmount = new Map();
+  walk(distDir)
+    .filter((rel) => rel.endsWith('.html'))
+    .forEach(function (rel) {
+      const html = fs.readFileSync(path.join(distDir, rel), 'utf8');
+      for (const match of html.matchAll(/\$(\d+(?:\.\d\d)?)/g)) {
+        if (!pagesByAmount.has(match[1])) {
+          pagesByAmount.set(match[1], new Set());
+        }
+        pagesByAmount.get(match[1]).add(rel);
+      }
+    });
+  const onHomepage = [...pagesByAmount.values()].some((pages) => pages.has('index.html'));
+  if (!onHomepage) {
+    throw new Error(
+      'dist/index.html states no price at all, which is the first thing a player asks'
+    );
   }
-  const distinct = new Set(amounts);
-  if (distinct.size !== 1) {
-    throw new Error('conflicting prices on one page: $' + [...distinct].join(', $'));
+  if (pagesByAmount.size > 1) {
+    throw new Error(
+      'conflicting prices across the site: ' +
+        [...pagesByAmount]
+          .map(([amount, pages]) => '$' + amount + ' in ' + [...pages].sort().join(', '))
+          .join('; ')
+    );
   }
 });
 
