@@ -643,11 +643,77 @@ judges the pair on the values that page actually ships. Point its `--amber-dark`
 at the old `#c26f06` and it goes red at 3.43:1 while the homepage stays green,
 which is what a copied palette drifting looks like.
 
-Not adopted: **parity between the 404 palette and `css/style.css`**. The comment
-at the top of `404.html` still asks a maintainer to keep the copied tokens in
-step by hand, and nothing enforces it. The check above does not need it, because
-it reads the tokens of the file it is judging, so that pill stays above 4.5:1
-whatever the stylesheet holds. Every other copied token is still unguarded.
+### The copied palette is now held to the stylesheet, and until #67 a comment asked
+
+Parity between the 404 palette and `css/style.css` used to be listed here as not
+adopted: the comment at the top of `404.html` asked a maintainer to keep the
+eight copied tokens in step by hand, and nothing enforced it. That is the trap
+this file names in four other places, and #67 closed it.
+
+**All eight agreed when the check went in**, which is the reason to add one then
+rather than later. It ships as a guard, green, instead of arriving beside a fix
+and proving nothing.
+
+The copy is permanent and cannot be refactored away. `404.html` carries its own
+styles precisely so it renders when the hashed stylesheet is the thing that
+failed, so it can never link or `@import` the real palette. A check was the only
+option.
+
+**Parity and contrast are different questions and must not be merged.** The
+check above asks whether a pair is legible; this one asks whether the two files
+agree. A token that drifts to some other perfectly legible colour passes
+contrast and fails parity, and contrast is blind to the six tokens the eyebrow
+does not use at all. Two pairs on that page have little headroom, `--ink-muted`
+on `--cream` at 4.99:1 and `--white` on `--court-green` at 5.27:1, so lightening
+either token in `css/style.css` alone leaves the error page on the old value,
+and doing it in `404.html` alone drops that page under 4.5:1 by itself.
+
+**It iterates the 404 page's tokens, not the stylesheet's.** The stylesheet
+declares the whole type, shadow, spacing and radius scale on top of a wider
+palette, so comparing the other way would demand the error page carry the entire
+design system. The subset is deliberate. `rootTokens` reads the **first**
+`:root` block, because the stylesheet reopens `:root` in two media queries to
+shrink `--section-pad` and `--container-pad`; neither is a colour and neither is
+copied, so that only decides which value wins for an overridden token.
+
+Three things the parser has to keep doing:
+
+- **`#ffffff` and `#fff` compare equal.** The stylesheet is minified and the 404
+  block is not, so the two halves of one palette arrive spelled differently, and
+  `--white` is live proof: the page ships the long form against a stylesheet
+  that ships the short one. Compare raw text and every shortened token reads as
+  a drift. Named rather than hidden: minification also rewrites `rgba()` to
+  eight-digit hex, so a token copied in longhand would fail as a spelling
+  difference. All eight are bare six-digit hex, and that failure would be red
+  with both spellings in the message, not a silent pass.
+- **Comments are stripped before the declarations are matched.** The only
+  boundary in front of the first declaration is the start of the block, so a
+  comment sitting there pushes it past the anchor and it drops out of the map,
+  leaving the check reporting `ok` over seven of eight tokens. `css/style.css`
+  opens its own `:root` with `/* Palette */`, so that is a plausible edit and
+  not a hypothetical. Review of #67 caught it in the first pass, and the
+  pre-strip parser was confirmed green against a drifted `--cream`.
+- **The empty list cannot pass vacuously.** The token list is derived by reading
+  a `:root` block out of an HTML file, so a rewritten `<style>` block empties it
+  and a `forEach` over nothing pushes no problems. The check asserts its own
+  floor before looping.
+
+A second check requires `404.html` to declare **exactly** the tokens it uses.
+#60 removed `--amber` from that block when the eyebrow stopped using it, and
+nothing would have caught it staying: an unused token is one more line for the
+parity check to hold in step for no benefit, and it is the copy most likely to
+drift, because no rendered pixel changes when it does. The reverse is sharper
+and is why this is set equality rather than a scan for leftovers. A token the
+page uses but never declares resolves to nothing, so `color` goes black and
+`background` goes transparent. The page still renders, which is the whole point
+of it carrying its own styles, it just renders wrong. That half also derives its
+count from the `var()` calls rather than from the `:root` regex, so it fails by
+name when the block empties.
+
+Still not adopted, deliberately: **nothing checks the non-colour half of that
+file**. The fallback font stacks in `404.html` are copied from the ones
+`css/style.css` declares behind DM Serif Display and DM Sans, and the comment
+above them is still all that asks for those to stay in step.
 
 ## Copy style
 
