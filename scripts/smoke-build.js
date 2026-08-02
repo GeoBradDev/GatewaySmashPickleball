@@ -1287,6 +1287,13 @@ function buildScheduleTable(seasons) {
     // A null in the fixture models an attribute the markup never carried,
     // which is a different failure from one carrying a garbled value: the
     // bundle reads null rather than a string, and null.split() throws.
+    //
+    // Only meaningful for data-end and data-registration. A real page loses a
+    // row with no data-start to the `tbody tr[data-start]` selector before the
+    // bundle ever sees it, and this stub's querySelectorAll ignores its
+    // selector, so nulling data-start here would model a row no browser
+    // delivers. That row is caught in the markup instead, by the tbody count
+    // in scheduleRows().
     [
       ['data-start', season[1]],
       ['data-end', season[2]],
@@ -1609,25 +1616,31 @@ check('a row the bundle cannot read is skipped rather than guessed at', function
 });
 
 // The same defect one attribute over, and this is the half a visitor sees:
-// longDate reads the garbled string straight into the sentence beside the
-// Join button, so the page asks for money under copy reading "August NaN".
-check('a garbled date never reaches the hero as copy', function () {
+// longDate used to read the garbled string straight into the sentence beside
+// the Join button, so the page asked for money under copy reading "August NaN".
+// The rolled-over spellings are the check above; this one is the unparseable
+// spelling, and the two titles are worded to say which is which.
+check('an unparseable date never reaches the hero as copy', function () {
   const garbledRegistration = GARBLED_START.map(function (season) {
     return season[0] === 'Fall 2026'
       ? ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-1O']
       : season;
   });
   const result = statusesOn('2026-07-31', { seasons: garbledRegistration });
-  if (result.note !== 'Summer 2026 is in progress. Winter 2027 registration opens December 11, 2026.') {
-    throw new Error('hero note with an unreadable registration date: ' + JSON.stringify(result.note));
-  }
-  // Asserted separately from the sentence above so that a future rewrite of
-  // the copy cannot quietly take the only thing standing between a visitor
-  // and "Registration opens undefined NaN, 2026." with it.
+  // Scanned before the sentence is compared, not after. Reversed, the equality
+  // below rejects any note containing "NaN" first and this branch could never
+  // run, which is an assertion that reads as coverage while being unable to go
+  // red. It also gives the more diagnostic message of the two.
   if (/NaN|undefined/.test(result.note + ' ' + result.join)) {
     throw new Error(
       'the hero rendered an unparsed date: ' + JSON.stringify(result.note + ' / ' + result.join)
     );
+  }
+  // The scan above only proves nothing garbled reached the page. This proves
+  // the right thing did: the unreadable row dropped out and the hero named the
+  // next season a visitor could really join.
+  if (result.note !== 'Summer 2026 is in progress. Winter 2027 registration opens December 11, 2026.') {
+    throw new Error('hero note with an unreadable registration date: ' + JSON.stringify(result.note));
   }
 });
 
@@ -1683,6 +1696,12 @@ check('a date that rolls over instead of failing is still not a date', function 
 // escapes the schedule IIFE and aborts the rest of the module, taking the
 // footer year with it. One typo'd row must not cost the page every other
 // thing this bundle does.
+//
+// On the regression this was written for, the throw propagates out of
+// runBundle before either assertion below is reached, so what a maintainer
+// actually reads is the raw TypeError under this check's name. The footer-year
+// assertion is what proves the rest of the module still ran once the throw is
+// gone, which is the half a TypeError cannot tell you.
 check('a row missing a date attribute does not take the rest of the bundle down', function () {
   const schedule = buildScheduleTable([
     ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
@@ -1730,9 +1749,30 @@ function scheduleRows() {
   if (!table) {
     throw new Error('no league schedule table on the built homepage');
   }
-  const rows = [...table[2].matchAll(/<tr\b([^>]*\bdata-start=[^>]*)>([^]*?)<\/tr>/g)];
+  // Scoped to the tbody so the row count below is a count of season rows and
+  // not of the header row as well.
+  const tbody = table[2].match(/<tbody\b[^>]*>([^]*?)<\/tbody>/);
+  if (!tbody) {
+    throw new Error('the schedule table has no tbody, so no season row can be read out of it');
+  }
+  const rows = [...tbody[1].matchAll(/<tr\b([^>]*\bdata-start=[^>]*)>([^]*?)<\/tr>/g)];
   if (rows.length === 0) {
     throw new Error('the schedule table ships no rows carrying data-start');
+  }
+  // Every check in this section reads this list, and a row without data-start
+  // is not in it. Deleting that one attribute therefore dropped a whole season
+  // out of all of them with the suite green, which is precisely the shape of
+  // failure this section exists to catch. It is not a paper cut either: the
+  // browser's own `tbody tr[data-start]` selector drops the row too, while the
+  // bundle still appends the Status header, so the page ships a column that
+  // row has no cell for. Selecting rows by an attribute means the absence of
+  // that attribute has to be an error rather than a smaller set.
+  const total = (tbody[1].match(/<tr\b/g) || []).length;
+  if (total !== rows.length) {
+    throw new Error(
+      'the schedule tbody has ' + total + ' rows but only ' + rows.length +
+        ' carry data-start, and a row without it is invisible to every check in this section'
+    );
   }
   return rows.map(function (row) {
     // Delimiter captured and matched to its next occurrence rather than
@@ -1801,27 +1841,58 @@ function parseDay(iso) {
   return date;
 }
 
+// The night the league plays is stated once, in the League Info Day line, and
+// three checks below need it. Read in one place so the three cannot drift:
+// they already carried three different messages for the same failure, one of
+// which did not echo the line it had rejected, and a maintainer who moves the
+// league to Saturdays should be reading one derivation rather than three.
+// `consequence` keeps each caller's half of the sentence.
+function playNight(consequence) {
+  const day = leagueInfo('Day');
+  if (!day) {
+    throw new Error('League Info has no Day line, so nothing says which night play falls on');
+  }
+  const index = WEEKDAYS.findIndex((name) => day.includes(name));
+  if (index === -1) {
+    throw new Error('the Day line does not name a weekday, ' + consequence + ': ' + day);
+  }
+  return index;
+}
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// This check is about the error message, not about coverage, and saying so is
-// the point of this comment. A garbled date already turns the build red: the
-// three checks below all reach it through parseDay, which throws. What they
-// then report is "unparseable date: 2026-09-2O" from a check named after a
-// week count, and, for a day its month does not have, "cell ... does not show
-// Dec 1 from 2026-11-31", which sends a maintainer to edit the cell when the
-// attribute is the thing that is wrong. Both repairs are the wrong one. This
-// names the row, the attribute and the value, and it runs first.
+// Part message, part coverage, and which half depends on the attribute.
+//
+// For an unparseable value the build was already red: the four checks below
+// all reach the dates through parseDay, which throws. What they reported was
+// "unparseable date: 2026-09-2O" from a check named after a week count, or,
+// for a day its month does not have, "cell ... does not show Dec 1 from
+// 2026-11-31", which sends a maintainer to edit a cell that is correct. Both
+// are the wrong repair. This names the row, the attribute and the value, and
+// it runs ahead of them.
+//
+// For data-registration it is the only check there is. A roll-forward moves a
+// start or an end by one to three days, never a multiple of seven, so the
+// league-night check below always catches those; nothing catches a
+// registration date. Set data-registration="2027-09-31" and write the cell as
+// October 1, which is where it lands, and this is the sole failure in the
+// suite. Verified, not assumed.
 //
 // It is also the only statement of the contract that does not depend on
-// parseDay throwing. That is a side effect of a helper written for something
-// else: make parseDay lenient, to accept an unpadded "2026-8-20" say, and
-// every guarantee below evaporates with the suite still green. data-registration
-// rests on it most thinly, being read by one of the three checks.
+// parseDay throwing, which is a side effect of a helper written for something
+// else: make parseDay lenient enough to accept an unpadded "2026-8-20" and
+// every guarantee below evaporates with the suite green.
 //
-// The round-trip is what makes the regex mean something. Both V8's string
-// parser and Date.UTC accept "2026-11-31" and roll it forward to December 1
-// without complaint, so the shape alone passes a value that is not a date, and
-// a check that half-validates reads as one that validates.
+// The round-trip is what makes the regex mean anything. V8's string parser and
+// Date.UTC both accept "2026-11-31" and roll it forward to December 1 without
+// complaining, so the shape alone passes a value that is not a date, and a
+// check that half-validates reads as one that validates.
+//
+// js/app.js enforces the same rule in its own parseDate, and that is not
+// duplication for its own sake: this one tells a maintainer at build time
+// which row to open, and that one stops a visitor being shown the result if a
+// bad row ever reaches the page. Pushing to main is the deploy here and CI
+// does not gate it, so the second is not covered by the first.
 check('every schedule row carries dates that are real calendar dates', function () {
   const problems = [];
   scheduleRows().forEach(function (row) {
@@ -1867,11 +1938,7 @@ check('every schedule row carries dates that are real calendar dates', function 
 // a Thursday or a Friday on every row the table ships, because it is a window
 // rather than a night of play.
 check('every season starts and ends on a league night', function () {
-  const day = leagueInfo('Day');
-  const playDay = WEEKDAYS.findIndex((name) => day && day.includes(name));
-  if (playDay === -1) {
-    throw new Error('the Day line does not name a weekday, so no season can start on one');
-  }
+  const playDay = playNight('so no season can start on one');
 
   const problems = [];
   scheduleRows().forEach(function (row) {
@@ -1909,14 +1976,7 @@ check('every season plays the number of weeks the price copy sells', function ()
     throw new Error('unrecognised number word in the Cost line: ' + sold[1]);
   }
 
-  const day = leagueInfo('Day');
-  if (!day) {
-    throw new Error('League Info has no Day line, so nothing says which night play falls on');
-  }
-  const playDay = WEEKDAYS.findIndex((name) => day.includes(name));
-  if (playDay === -1) {
-    throw new Error('the Day line does not name a weekday: ' + day);
-  }
+  const playDay = playNight('so no season length can be counted');
 
   const problems = [];
   scheduleRows().forEach(function (row) {
@@ -2020,11 +2080,7 @@ check('each schedule row shows the dates its attributes claim', function () {
 // counts as one token, so the week arithmetic still balances and that check
 // stays green while the table tells a player to skip the wrong night.
 check('every bye falls on a league night inside its own season', function () {
-  const day = leagueInfo('Day');
-  const playDay = WEEKDAYS.findIndex((name) => day && day.includes(name));
-  if (playDay === -1) {
-    throw new Error('the Day line does not name a weekday, so no bye can be placed');
-  }
+  const playDay = playNight('so no bye can be placed');
 
   const problems = [];
   scheduleRows().forEach(function (row) {
