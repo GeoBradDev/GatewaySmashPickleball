@@ -381,6 +381,109 @@ check('every declared link type matches the file it points at', function () {
   }
 });
 
+// One icon or manifest <link> reduced to a comparison key: attributes sorted,
+// so their order inside the tag cannot read as a difference, and re-emitted in
+// one spelling. Returns the page's icon and manifest links as a sorted array.
+//
+// Sorting the attributes is the half that earns its keep. The four blocks are
+// byte-identical today, so comparing raw text would pass, but that is the
+// state of four hand-copied blocks rather than something to build a check on.
+// Writing href before rel on one page changes no meaning, html-validate is
+// happy with it, and reporting it as a drift is the #ffffff-against-#fff trap
+// #67 names in a different spelling. Confirmed by reordering those two on
+// subs/index.html: the suite stays green.
+//
+// Lowercasing the name and re-quoting the value are belt and braces, not the
+// live risk. .htmlvalidate.json's attr-case and attr-quotes already refuse
+// REL= and single quotes before this check is reached, which is why neither
+// was reachable to test the way the reorder was.
+//
+// The tag list is sorted for the same reason as the attributes: a browser
+// picks an icon by rel and sizes, so document order is not a fact worth
+// pinning, while a link added, dropped or repointed is. Sorted rather than
+// de-duplicated, so the same link shipped twice on one page stays a
+// difference.
+function iconLinkFingerprints(html) {
+  return [...html.matchAll(/<link\b[^>]*>/g)]
+    .map((m) => m[0])
+    .filter((tag) => /\brel=["'](?:icon|apple-touch-icon|manifest)["']/.test(tag))
+    .map(function (tag) {
+      return [
+        ...tag
+          .slice('<link'.length)
+          .matchAll(/([a-zA-Z][a-zA-Z0-9-]*)(?:\s*=\s*["']([^"']*)["'])?/g),
+      ]
+        .map((attr) => attr[1].toLowerCase() + (attr[2] === undefined ? '' : '="' + attr[2] + '"'))
+        .sort()
+        .join(' ');
+    })
+    .sort();
+}
+
+// The two checks above ask whether each page's own claims are true. Neither
+// can see the four hand-copied blocks drifting apart, because a link repointed
+// at a different file that ships is a URL that resolves and a type that is
+// honest. Repointing code-of-conduct/index.html's apple-touch-icon at
+// /img/favicon-32x32.png left both green while that page handed iOS a 32px
+// favicon for the home screen. This is the move #68 made for the bundle and
+// the stylesheet, pointed at the block those checks do not cover: four
+// hand-kept copies become one enforced fact.
+//
+// Grouped rather than compared against a reference page, which is the shape
+// assetRefs already uses. Naming one page the reference means a break in that
+// page is reported as the other three disagreeing, sending a maintainer to
+// three files that are correct. Grouping prints each distinct block beside the
+// pages that ship it, so the page at fault is the group of one.
+//
+// og:image is deliberately not here. The check above already proves each
+// page's resolves in dist/, which is the silent 404 it exists for, and
+// requiring the four to name the *same* image would additionally forbid a
+// per-page share image. That is a reasonable thing for this site to want
+// later, in a way four different favicons is not.
+//
+// No non-empty guard on CONTENT_PAGES itself: "every page the sitemap lists
+// was actually built" asserts that floor once, above every check that loops
+// the list, and a second copy here is one more thing to keep in step.
+check('every content page ships the same icon and manifest links', function () {
+  const byPage = new Map();
+  CONTENT_PAGES.forEach(function (page) {
+    byPage.set(page.file, iconLinkFingerprints(pageHtml(page)));
+  });
+
+  // Per page, not over the total: three pages that lost the block entirely
+  // would otherwise be in perfect agreement with each other.
+  const short = [...byPage].filter(([, links]) => links.length < 5);
+  if (short.length > 0) {
+    throw new Error(
+      short
+        .map(
+          ([file, links]) =>
+            'dist/' + file + ' declares only ' + links.length +
+            ' icon/manifest links, so agreement would prove nothing'
+        )
+        .join('; ')
+    );
+  }
+
+  const blocks = new Map();
+  byPage.forEach(function (links, file) {
+    const key = links.join('\n');
+    blocks.set(key, [...(blocks.get(key) || []), file]);
+  });
+  if (blocks.size > 1) {
+    throw new Error(
+      'content pages ship different icon and manifest links: ' +
+        [...blocks]
+          .map(
+            ([key, files]) =>
+              files.map((file) => 'dist/' + file).join(' and ') + ' -> ' +
+              JSON.stringify(key.split('\n'))
+          )
+          .join('; ')
+    );
+  }
+});
+
 check('the web manifest is installable and its icons exist', function () {
   const manifest = JSON.parse(fs.readFileSync(path.join(distDir, 'site.webmanifest'), 'utf8'));
 
