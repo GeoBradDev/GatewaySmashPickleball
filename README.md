@@ -45,11 +45,12 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 | `npm run check-links` | Fetches every outbound link on the site |
 
 `scripts/smoke-build.js` uses no dependencies and asserts against the built output
-rather than the source: content hashing, one script tag and one stylesheet, the
-manifest being installable with icons that exist, declared MIME types matching the
-files they point at, no third-party subresources, and the mobile nav actually
-opening. It exists because a green build is not evidence the site works. The bug in
-issue #1 compiled cleanly and shipped a page that loaded `app.js` twice.
+rather than the source: content hashing, one script tag and one stylesheet on every
+page, the manifest being installable with icons that exist, declared MIME types
+matching the files they point at, no third-party subresources on any page, and the
+mobile nav actually opening. It exists because a green build is not evidence the site
+works. The bug in issue #1 compiled cleanly and shipped a page that loaded `app.js`
+twice, and until #61 the checks guarding against it read the homepage only.
 
 `npm run check-links` is **not** part of `npm test`. Every outbound link points at a
 third party that can rate-limit or block a CI runner, and a pull request that goes

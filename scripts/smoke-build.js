@@ -32,6 +32,65 @@ const indexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
 // A content hash, as Vite emits it: name-HASH.ext with a base64url-ish hash.
 const HASHED = /-[A-Za-z0-9_-]{8,}\.(js|css)$/;
 
+// One origin, declared in several places that all have to agree. og:url was
+// shipped empty, which is the failure mode: nothing breaks, link previews just
+// quietly have no canonical target.
+const CANONICAL = 'https://www.gatewaysmash.com/';
+const ORIGIN = CANONICAL.replace(/\/$/, '');
+
+// Every built page a visitor navigates to. Derived from the built output rather
+// than hardcoded, so a page added to vite.config.js is covered the moment it
+// builds and cannot quietly ship without a canonical, a sitemap entry, or a
+// hashed bundle. Any list of pages kept in step by hand is the trap that let #46
+// ship a fifth page html-validate never saw.
+//
+// Declared up here, above the first check that reads it, because check() runs
+// its callback immediately: a const declared further down is in the temporal
+// dead zone for every check above it, and the ReferenceError that causes is
+// caught by check() and reported as an ordinary content failure, so a wiring
+// mistake would read as a copy bug. Same reason NUMBER_WORDS is hoisted.
+//
+// 404.html is deliberately absent: it is not an index.html, it is standalone by
+// design, and the check that it stays standalone is its own.
+const CONTENT_PAGES = walk(distDir)
+  .filter((rel) => rel.endsWith('index.html'))
+  .map((rel) => ({
+    file: rel,
+    url: CANONICAL + rel.replace(/index\.html$/, ''),
+  }));
+
+function pageHtml(page) {
+  return fs.readFileSync(path.join(distDir, page.file), 'utf8');
+}
+
+// Every check that loops CONTENT_PAGES passes vacuously on an empty list: a
+// forEach over nothing pushes no problems, so "no page loads a third-party
+// script" and "every page names one hashed bundle" both report ok against zero
+// pages. Deriving the list from dist/ is what makes it maintenance-free and is
+// also what makes it silently emptiable, by a build that stops emitting a page.
+// So the floor is asserted once, here, ahead of the first check that loops it.
+//
+// The floor is the sitemap's own entry count rather than a number written here,
+// because the sitemap already has to name every page: the canonical check lower
+// down requires each built page to appear in it, and this is that same
+// requirement pointing the other way. A page that stops building fails here
+// instead of quietly shrinking the set every loop below runs over.
+check('every page the sitemap lists was actually built', function () {
+  const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
+  const listed = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (listed.length === 0) {
+    throw new Error('sitemap.xml lists no pages at all, so it can vouch for nothing');
+  }
+  const built = new Set(CONTENT_PAGES.map((page) => page.url));
+  const missing = listed.filter((url) => !built.has(url));
+  if (missing.length > 0) {
+    throw new Error(
+      'listed in sitemap.xml but not built: ' + missing.join(', ') +
+        '; dist/ has ' + JSON.stringify(CONTENT_PAGES.map((page) => page.file))
+    );
+  }
+});
+
 // The JSON-LD <script> and its contents. Four checks need this, against two
 // different pages, and each wants to report its own failure in its own words,
 // so the pattern is shared while the error messages stay local. It had been
@@ -62,46 +121,90 @@ function visiblePage(html, block) {
     .replace(/<!--[\s\S]*?-->/g, '');
 }
 
-// Pulls the single asset URL matching a pattern out of the built HTML, and
-// fails loudly on zero or many. Returns the dist-relative path.
-function soleAssetRef(label, pattern) {
-  const matches = [...indexHtml.matchAll(pattern)].map((m) => m[1]);
-  if (matches.length !== 1) {
-    throw new Error(
-      'expected exactly 1 ' + label + ' in dist/index.html, found ' +
-        matches.length + ': ' + JSON.stringify(matches)
+// Collects the one asset URL each content page names, and reports every page
+// that has none or several rather than stopping at the first. Returns the
+// dist-relative refs keyed by page file.
+//
+// Every content page is its own Vite entry point with its own <head>, so each
+// one can regress on its own. #1 shipped a page that loaded app.js twice; a
+// version of this that read index.html alone would let that land on /faq/ today
+// with npm test green, and pushing to main is the deploy.
+function assetRefs(label, pattern, problems) {
+  const refs = new Map();
+  CONTENT_PAGES.forEach(function (page) {
+    const matches = [...pageHtml(page).matchAll(pattern)].map((m) =>
+      m[1].replace(/^\//, '')
+    );
+    if (matches.length !== 1) {
+      problems.push(
+        'expected exactly 1 ' + label + ' in dist/' + page.file + ', found ' +
+          matches.length + ': ' + JSON.stringify(matches)
+      );
+      return;
+    }
+    if (!HASHED.test(matches[0])) {
+      problems.push(
+        'dist/' + page.file + ': ' + label + ' is not content-hashed: ' + matches[0]
+      );
+      return;
+    }
+    refs.set(page.file, matches[0]);
+  });
+
+  // One emitted bundle and one emitted stylesheet serve every page, and the
+  // checks below that read the bundle or the stylesheet resolve the name once,
+  // from the homepage. Requiring every page to name the same file is what keeps
+  // those honest: give one page its own chunk and they would silently cover the
+  // homepage's copy only, so this goes red rather than quietly narrowing. Vite
+  // does exactly that the moment a page's script list stops matching the others.
+  if (new Set(refs.values()).size > 1) {
+    problems.push(
+      'content pages disagree on which ' + label + ' to load: ' +
+        [...refs].map(([file, ref]) => file + ' -> ' + ref).join(', ')
     );
   }
-  return matches[0].replace(/^\//, '');
+  return refs;
 }
 
 let scriptRef = null;
 let styleRef = null;
 
-check('dist/index.html references exactly one hashed module script', function () {
-  scriptRef = soleAssetRef(
+check('every content page references exactly one hashed module script', function () {
+  const problems = [];
+  const refs = assetRefs(
     'module script',
-    /<script[^>]*\btype=["']module["'][^>]*\bsrc=["']([^"']+)["']/g
+    /<script[^>]*\btype=["']module["'][^>]*\bsrc=["']([^"']+)["']/g,
+    problems
   );
-  if (!HASHED.test(scriptRef)) {
-    throw new Error('script is not content-hashed: ' + scriptRef);
-  }
-  if (!fs.existsSync(path.join(distDir, scriptRef))) {
-    throw new Error('referenced script is missing from dist/: ' + scriptRef);
+  // Assigned before the problems are thrown, so a broken subpage reports itself
+  // rather than cascading into every downstream check as a null path.
+  scriptRef = refs.get('index.html') ?? null;
+  new Set(refs.values()).forEach(function (ref) {
+    if (!fs.existsSync(path.join(distDir, ref))) {
+      problems.push('referenced script is missing from dist/: ' + ref);
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
-check('dist/index.html references exactly one hashed stylesheet', function () {
-  styleRef = soleAssetRef(
+check('every content page references exactly one hashed stylesheet', function () {
+  const problems = [];
+  const refs = assetRefs(
     'stylesheet link',
-    /<link[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["']/g
+    /<link[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["']/g,
+    problems
   );
-  if (!HASHED.test(styleRef)) {
-    throw new Error('stylesheet is not content-hashed: ' + styleRef);
-  }
-  const target = path.join(distDir, styleRef);
-  if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
-    throw new Error('referenced stylesheet is missing or empty: ' + styleRef);
+  styleRef = refs.get('index.html') ?? null;
+  new Set(refs.values()).forEach(function (ref) {
+    const target = path.join(distDir, ref);
+    if (!fs.existsSync(target) || fs.statSync(target).size === 0) {
+      problems.push('referenced stylesheet is missing or empty: ' + ref);
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
@@ -173,12 +276,6 @@ check('every file in public/ reaches dist/ at the same path and size', function 
     throw new Error('missing or altered in dist/: ' + problems.join(', '));
   }
 });
-
-// One origin, declared in several places that all have to agree. og:url was
-// shipped empty, which is the failure mode: nothing breaks, link previews just
-// quietly have no canonical target.
-const CANONICAL = 'https://www.gatewaysmash.com/';
-const ORIGIN = CANONICAL.replace(/\/$/, '');
 
 // Resolves a URL as written in the HTML against dist/, and reports the ones
 // that do not exist. Root-relative and relative both land in the same place,
@@ -298,7 +395,7 @@ check('manifest and meta theme colours agree', function () {
 // stylesheet on a third-party origin before the font URLs were even known.
 // Only subresources are checked; outbound links in the copy are the point of
 // the copy and are left alone.
-check('the built page loads no third-party subresources', function () {
+check('no content page loads third-party subresources', function () {
   // Only rels that actually cause a fetch. canonical and alternate are
   // metadata: they name a URL, they do not load it, and canonical is
   // required to be absolute.
@@ -315,24 +412,27 @@ check('the built page loads no third-party subresources', function () {
   ]);
 
   const external = [];
-  for (const match of indexHtml.matchAll(/<link\b[^>]*>/g)) {
-    const tag = match[0];
-    const rel = tag.match(/\brel=["']([^"']+)["']/);
-    const href = tag.match(/\bhref=["']([^"']+)["']/);
-    if (!rel || !href || !FETCHING_RELS.has(rel[1].toLowerCase())) {
-      continue;
+  CONTENT_PAGES.forEach(function (page) {
+    const html = pageHtml(page);
+    for (const match of html.matchAll(/<link\b[^>]*>/g)) {
+      const tag = match[0];
+      const rel = tag.match(/\brel=["']([^"']+)["']/);
+      const href = tag.match(/\bhref=["']([^"']+)["']/);
+      if (!rel || !href || !FETCHING_RELS.has(rel[1].toLowerCase())) {
+        continue;
+      }
+      if (/^https?:\/\//.test(href[1]) && !href[1].startsWith(ORIGIN + '/')) {
+        external.push('dist/' + page.file + ': ' + href[1]);
+      }
     }
-    if (/^https?:\/\//.test(href[1]) && !href[1].startsWith(ORIGIN + '/')) {
-      external.push(href[1]);
+    for (const match of html.matchAll(/<script[^>]*\bsrc=["'](https?:\/\/[^"']+)["']/g)) {
+      if (!match[1].startsWith(ORIGIN + '/')) {
+        external.push('dist/' + page.file + ': ' + match[1]);
+      }
     }
-  }
-  for (const match of indexHtml.matchAll(/<script[^>]*\bsrc=["'](https?:\/\/[^"']+)["']/g)) {
-    if (!match[1].startsWith(ORIGIN + '/')) {
-      external.push(match[1]);
-    }
-  }
+  });
   if (external.length > 0) {
-    throw new Error('third-party subresources in dist/index.html: ' + external.join(', '));
+    throw new Error('third-party subresources: ' + external.join(', '));
   }
 
   const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
@@ -423,15 +523,20 @@ check('canonical, og:url and the sitemap all name the same origin', function () 
   }
 });
 
-// Reads a meta tag's content attribute. The delimiter is captured and matched
-// against itself rather than excluded with [^"']*, because a content attribute
-// can legitimately contain an apostrophe and since #54 these ones do: the pitch
-// says "St. Louis'". The naive class stops dead at that apostrophe, which turned
-// the check below into a comparison of the first 33 characters of each tag; three
-// tags saying three different things after that point would have passed. Nothing
-// would have looked wrong, which is the failure mode this file exists to catch.
-function metaContent(attrPattern) {
-  const match = indexHtml.match(
+// Reads a meta tag's content attribute out of one page. The delimiter is
+// captured and matched against itself rather than excluded with [^"']*, because
+// a content attribute can legitimately contain an apostrophe and since #54 these
+// ones do: the pitch says "St. Louis'". The naive class stops dead at that
+// apostrophe, which turned the check below into a comparison of the first 33
+// characters of each tag; three tags saying three different things after that
+// point would have passed. Nothing would have looked wrong, which is the failure
+// mode this file exists to catch.
+//
+// The page is a parameter rather than a closure over indexHtml because every
+// content page ships its own three description tags and every one of them can
+// drift on its own.
+function metaContent(html, attrPattern) {
+  const match = html.match(
     new RegExp('<meta[^>]*\\b' + attrPattern + '[^>]*\\bcontent=(["\'])([\\s\\S]*?)\\1')
   );
   return match ? match[2] : null;
@@ -464,16 +569,31 @@ const DESCRIPTION_TAGS = [
   'name=["\']twitter:description["\']',
 ];
 
-// The same sentence is declared three times. Search results, link previews and
-// X cards each read a different one, so they drift apart silently.
-check('the three description tags agree', function () {
-  const found = DESCRIPTION_TAGS.map(metaContent);
-  if (found.some((value) => value === null)) {
-    throw new Error('one of description, og:description or twitter:description is missing');
-  }
-  const values = new Set(found);
-  if (values.size !== 1) {
-    throw new Error('descriptions disagree: ' + [...values].map((v) => JSON.stringify(v)).join(' vs '));
+// The same sentence is declared three times on every page. Search results, link
+// previews and X cards each read a different one, so they drift apart silently,
+// and each page carries its own set: /faq/ drifting says nothing about /subs/.
+check('every content page states one description in all three of its tags', function () {
+  const problems = [];
+  CONTENT_PAGES.forEach(function (page) {
+    const html = pageHtml(page);
+    const found = DESCRIPTION_TAGS.map((attrPattern) => metaContent(html, attrPattern));
+    if (found.some((value) => value === null)) {
+      problems.push(
+        'dist/' + page.file +
+          ' is missing one of description, og:description or twitter:description'
+      );
+      return;
+    }
+    const values = new Set(found);
+    if (values.size !== 1) {
+      problems.push(
+        'dist/' + page.file + ' descriptions disagree: ' +
+          [...values].map((v) => JSON.stringify(v)).join(' vs ')
+      );
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
@@ -518,7 +638,7 @@ check('the pitch reaches the page, the description tags and the structured data'
 
   // The three tags are proven identical directly above, so reading one reads all
   // three.
-  const description = metaContent(DESCRIPTION_TAGS[0]);
+  const description = metaContent(indexHtml, DESCRIPTION_TAGS[0]);
   if (description === null) {
     throw new Error('dist/index.html has no meta description');
   }
@@ -1972,25 +2092,15 @@ check('the built hero ships the ids the bundle enhances', function () {
 });
 
 // ---- content pages ------------------------------------------------------
-// Derived from the built output rather than hardcoded, so a page added to
-// vite.config.js is covered here the moment it builds, and cannot quietly
-// ship without a canonical or a sitemap entry.
-const CONTENT_PAGES = walk(distDir)
-  .filter((rel) => rel.endsWith('index.html'))
-  .map((rel) => ({
-    file: rel,
-    url: CANONICAL + rel.replace(/index\.html$/, ''),
-  }));
+// CONTENT_PAGES itself is declared at the top of this file, above the first
+// check that reads it. See the note there.
 
 check('every content page has its own canonical, one h1, and a sitemap entry', function () {
-  if (CONTENT_PAGES.length < 4) {
-    throw new Error('expected at least 4 pages, found ' + CONTENT_PAGES.length);
-  }
   const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
   const problems = [];
 
   CONTENT_PAGES.forEach(function (page) {
-    const html = fs.readFileSync(path.join(distDir, page.file), 'utf8');
+    const html = pageHtml(page);
 
     const canonical = html.match(/<link[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']*)["']/);
     if (!canonical || canonical[1] !== page.url) {
