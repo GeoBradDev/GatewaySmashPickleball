@@ -171,11 +171,44 @@ import '../css/style.css';
     return;
   }
 
+  var ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+  // The one place a string becomes a date. Everything downstream works in
+  // timestamps, so there is no second parser to disagree with this one.
+  //
   // Parsed as UTC midnight so a visitor's timezone cannot shift a season by a
-  // day either side of a boundary.
+  // day either side of a boundary. NaN is the answer for anything that is not
+  // a date, in three families that look nothing alike from here:
+  //
+  //  - A missing attribute, which reads as null rather than a string.
+  //    null.split() would throw out of this IIFE and abort the rest of the
+  //    module, taking the footer year down with a typo in the schedule.
+  //  - A value Number() cannot read, "2026-08-2O" with a letter O, which makes
+  //    Date.UTC return NaN.
+  //  - A value that is three numbers but not a day: "2026-13-01" is January 1
+  //    2027 to Date.UTC and "2026-02-30" is March 2, neither of them an error.
+  //    Rejecting only NaN let those through, and the first pass at #63 shipped
+  //    exactly that, putting "Registration opens undefined 1, 2026." beside
+  //    the Join button. Reading the three fields back off the result is what
+  //    separates a date from a sum that happens to produce one.
   function parseDate(value) {
-    var parts = value.split('-');
-    return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    var parts = typeof value === 'string' ? ISO_DATE.exec(value) : null;
+    if (!parts) {
+      return NaN;
+    }
+    var year = Number(parts[1]);
+    var month = Number(parts[2]);
+    var day = Number(parts[3]);
+    var time = Date.UTC(year, month - 1, day);
+    var date = new Date(time);
+    if (
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
+    ) {
+      return NaN;
+    }
+    return time;
   }
 
   // Local accessors, not UTC ones. Both sides of every comparison have to be
@@ -191,9 +224,14 @@ import '../css/style.css';
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-  function longDate(value) {
-    var parts = value.split('-');
-    return MONTHS[Number(parts[1]) - 1] + ' ' + Number(parts[2]) + ', ' + parts[0];
+  // Formats a timestamp parseDate has already vetted, rather than splitting the
+  // attribute a second time. It used to take the raw string, which made it a
+  // second parser with no guard of its own: statusOf could accept a row whose
+  // "2026-13-01" Date.UTC had quietly rolled into 2027, and this would then
+  // read MONTHS[12] and render the word "undefined" into the hero.
+  function longDate(time) {
+    var date = new Date(time);
+    return MONTHS[date.getUTCMonth()] + ' ' + date.getUTCDate() + ', ' + date.getUTCFullYear();
   }
 
   // One sentence, two consumers. The callout under the schedule table and the
@@ -221,6 +259,17 @@ import '../css/style.css';
     var start = parseDate(row.getAttribute('data-start'));
     var end = parseDate(row.getAttribute('data-end'));
     var registration = parseDate(row.getAttribute('data-registration'));
+
+    // parseDate answers NaN for anything that is not a date, and NaN loses
+    // every comparison below without erroring: the row reads Upcoming forever,
+    // and it wins the nextRegistration selection the moment it is reached,
+    // after which no later row can displace it because `start < NaN` is false.
+    // The hero then names a season off a row nothing could read. Answering "no
+    // status" is the honest reply, and it leaves the row exactly as the page
+    // without JavaScript already shows it.
+    if (isNaN(start) || isNaN(end) || isNaN(registration)) {
+      return null;
+    }
 
     if (today > end) {
       return { label: 'Completed', modifier: 'past' };
@@ -261,6 +310,9 @@ import '../css/style.css';
 
   Array.prototype.forEach.call(rows, function (row) {
     var status = statusOf(row);
+    if (!status) {
+      return;
+    }
     var cell = document.createElement('td');
     cell.setAttribute('data-label', 'Status');
     cell.className = 'season-status season-status--' + status.modifier;
@@ -285,7 +337,10 @@ import '../css/style.css';
         nextRegistration = {
           name: name,
           start: start,
-          opens: row.getAttribute('data-registration'),
+          // The parsed timestamp, not the attribute. Both re-reads here are
+          // safe because statusOf returned a status, which it only does when
+          // all three of this row's dates parsed.
+          opens: parseDate(row.getAttribute('data-registration')),
           isOpen: status.modifier === 'open',
         };
       }

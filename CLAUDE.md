@@ -395,8 +395,42 @@ write would take the `/subs/` link inside it with it. The same trap is why the
 one inside `#hero-join` would be wiped by the label rewrite, so it has to hang
 off a second `aria-describedby` id instead.
 
-Four rules that are easy to break by accident:
+Six rules that are easy to break by accident:
 
+- **A row whose dates the bundle cannot read gets no status at all**, and
+  **`parseDate` is the only place a string becomes a date.** The two halves are
+  one rule, and #63 needed two passes to get there. `statusOf` answers `null`
+  when any of its three dates is `NaN`, and the row loop skips those rows, which
+  leaves the row exactly as the page without JavaScript already shows it. Before
+  that the row read Upcoming forever and won the `nextRegistration` selection the
+  moment it was reached, after which no later row could displace it because
+  `start < NaN` is false for every one of them, so the hero named a season off a
+  row nothing could read.
+
+  **Rejecting `NaN` is not the same as requiring a date**, which is what review
+  of the first pass caught. `Date.UTC(2026, 12, 1)` is January 1 2027, not an
+  error, so `data-registration="2026-13-01"` passed an `isNaN` guard, and
+  `longDate` then read `MONTHS[12]` off the raw attribute and rendered
+  "Registration opens undefined 1, 2026." beside the Join button, confirmed in a
+  browser against a real build. That is the string #63 was filed about, still
+  reachable after the guard meant to close it. The cause was **two parsers**:
+  `nextRegistration.opens` carried the raw string and `longDate` split it a
+  second time with no guard of its own. `parseDate` now requires the
+  `yyyy-mm-dd` shape and reads the three fields back off the result, which is
+  what separates a date from a sum that happens to produce one, and `longDate`
+  only formats a timestamp that has already been through it. **Do not give
+  `longDate` a string again.**
+
+  `parseDate` also returns `NaN` for a non-string, because a missing attribute
+  reads as `null` and `null.split()` threw out of this IIFE and stopped the
+  footer year updating along with it.
+
+  One consequence worth knowing: if the row that gets skipped is the **running**
+  season, `current` stays null, so the hero loses its "X is in progress" half and
+  the subs offer never appears. That is the conservative answer rather than a
+  bug, since the offer is only true when a season really is on court, but the
+  subs offer is documented above as independent of the note branch and it is not
+  independent of `current`.
 - **Compare local calendar days, not UTC ones.** `today` is built from
   `getFullYear/getMonth/getDate`, not the `getUTC*` variants. Reading UTC parts
   off a local `Date` rolls the date over during the evening for every visitor
@@ -448,8 +482,77 @@ part of the site, was the one part of it no check could read. Nothing parsed a r
 #58 is what that bought. The Fall 2026 row spanned nine playing Sundays with no bye
 against the eight-week season sold in six places on the homepage and twice more in
 the FAQ. Valid markup, 53 green checks, and it was the next season players would have
-paid for. Three checks now read the shipped rows:
+paid for. Nine checks now read the shipped rows, six of them added by #63. The
+first two below are about the dates being dates; the next four are about the row
+being the season it says it is, which is a failure no amount of date validation
+can see, because every row they reject carries dates that are impeccable:
 
+- **Every `data-*` value is a real calendar date.** `^\d{4}-\d{2}-\d{2}$`, then a
+  round-trip through `Date.UTC`. **Part message, part coverage, and which half
+  applies depends on the attribute.** For an unparseable value the build was
+  already red, because the four checks below all reach the dates through
+  `parseDay`, which throws: what they reported was "unparseable date: 2026-09-2O"
+  from a check named after a week count, or a cell that "does not show Dec 1"
+  when the attribute is the thing that is wrong, and both send a maintainer to
+  the wrong repair. For **`data-registration` it is the only check there is**: a
+  roll-forward moves a start or an end by one to three days, never a multiple of
+  seven, so the league-night check always catches those, and nothing catches a
+  registration date. `data-registration="2027-09-31"` with the cell written as
+  October 1, where it lands, is the sole failure in the suite. It is also the only
+  statement of the contract that does not depend on `parseDay` throwing, which is
+  a side effect of a helper written for something else: make `parseDay` lenient
+  enough to accept an unpadded `2026-8-20`, which `js/app.js` reads quite happily,
+  and every guarantee below it evaporates with the suite green. The round-trip is
+  what makes the regex mean anything, because V8's string parser and `Date.UTC`
+  both accept `2026-11-31` and roll it forward to December 1 without complaining.
+  `js/app.js` enforces the same rule in its own `parseDate`, and that is not
+  duplication: this one names the row a maintainer has to open, that one stops a
+  visitor being shown the result, and pushing to `main` is the deploy while CI
+  does not gate it.
+- **Every season starts and ends on a league night.** This one is coverage. The
+  week count below counts league nights *between* the two dates, so nudging a
+  start off the play night still balances: Sat Sep 19 to Sun Nov 8 holds the same
+  eight Sundays that Sun Sep 20 does, and the cell beside it agrees, because both
+  halves are written in the same edit. Moving Fall 2026 back one day leaves the
+  other four row checks green while the table opens a season on a night the league
+  does not play and `js/app.js` flips the row to In progress a day early. The play
+  night comes from the League Info `Day:` line through the shared `playNight()`
+  helper, which the week-count and bye checks also use: the three had been
+  deriving it separately and had already drifted to three different failure
+  messages, one of which did not echo the line it had rejected.
+  `data-registration` is exempt: it opens on a Thursday or a Friday on every row
+  the table ships, because it is a window rather than a night of play.
+- **Every registration window belongs to the season beside it.** Two failures in
+  one check. Opening **on or after** the first night is not a window: `statusOf`
+  tests `today >= start` before it tests the registration day, so the row runs
+  Upcoming straight into In progress, "Registration open" is unreachable, and the
+  hero can never announce the one season a visitor could join. And a registration
+  date **left behind from the row it was copied out of** is how this goes wrong
+  in practice, invisible to everything else because the date is real, matches its
+  own cell and falls before its start. A Winter 2028 row carrying Winter 2027's
+  `data-registration` reads Full forever.
+  **Neither half hardcodes an interval**, and that is the point: the one-month
+  practice is recorded under Maintenance Notes as deliberately unchecked, because
+  Winter 2027 would fail it. The first half is strictly weaker than that rule and
+  Winter 2027 clears it; the second asks only which `data-start` the date is
+  **nearest**, which the table already answers. The league can change how far
+  ahead it opens registration without editing this check.
+- **Every season name states the year its own dates fall in, and no two rows name
+  the same season.** `js/app.js` reads `cells[0]` straight into the hero CTA, so
+  the Season cell is the name a visitor is asked to join, and nothing had ever
+  looked at it. Roll a row forward a year and forget the name and the page offers
+  "Join Fall 2027" for a season playing October 2028. Copy the row instead and
+  the table ships two rows called Fall 2027, one Completed and one Registration
+  open, with the button naming whichever the selection reaches. Either end's year
+  satisfies it, because a winter season can straddle December.
+- **No two seasons are on court at the same time.** The row loop assigns
+  `current` unconditionally, so two overlapping rows both reading In progress
+  leave the callout and the hero naming whichever sits **later in the document**.
+  That is the mirror image of a bug already pinned for the *next* season, which
+  is chosen by comparing start dates precisely so document order cannot decide
+  it; the running season had the same exposure with no rule and no check. Every
+  pair is compared rather than each row and the one after it, because nothing
+  orders the rows.
 - **Every season plays the number of weeks the price copy sells.** Counts league
   nights between `data-start` and `data-end` inclusive, subtracts the byes, and
   requires the result to equal the week count the League Info `Cost:` line states.
@@ -473,7 +576,17 @@ paid for. Three checks now read the shipped rows:
 **The table is selected by class token, not by one regex reaching from `<table` to
 `league-table`.** Any such pattern has to cross the opening tag's `>`, so it does not
 actually constrain the class to the table it started at, and a second table added
-above this one would silently redirect all three checks at the wrong rows.
+above this one would silently redirect all nine checks at the wrong rows.
+
+**`scheduleRows()` counts the `<tr>` in the tbody and fails if any of them lacks
+`data-start`.** It selects rows *by* that attribute, so without the count a row
+that lost it was not a failure, it was a smaller set: #63 review deleted
+`data-start` from the Fall 2026 row and every check above went green over the five
+rows that were left, reporting a whole season as though it were not there. The browser's own `tbody tr[data-start]` selector drops
+that row too, while the bundle still appends the Status header, so the page ships
+a column the row has no cell for. **Any check that selects its subjects by an
+attribute has this hole**, and the repair is always to assert the count against
+something that does not depend on the attribute.
 
 Still unchecked, deliberately: **nothing ties the other "eight-week" claims to the
 `Cost:` line.** The hero, the three description tags, the JSON-LD and the FAQ each
@@ -597,10 +710,17 @@ here changes the button a visitor sees before they have scrolled at all. Keep th
 `data-*` dates and the human-readable dates in the same row in step; only the
 `data-*` ones are read by code.
 
-Since #58 that last sentence is enforced rather than merely asked for, and a new
-row has to satisfy three things or the build goes red: it plays exactly the number
-of weeks the League Info `Cost:` line sells, its cells show the dates its
-attributes claim, and any bye falls on a league night inside its own season. The
+Since #58 and #63 that last sentence is enforced rather than merely asked for, and
+a new row has to satisfy nine things or the build goes red. Four are about the
+dates: every `data-*` value is a real calendar date, the season starts and ends on
+a league night, it plays exactly the number of weeks the League Info `Cost:` line
+sells, and its cells show the dates its attributes claim. Four are about the row
+being the season it claims to be: its registration window opens before its own
+first night and nearer to its own start than to any other row's, its name states a
+year its dates fall in, no other row shares that name, and it does not overlap
+another season. The ninth is that any bye falls on a league night inside its own
+season. A row that fails the first of those is not merely unchecked, it is
+unreadable, and `js/app.js` now gives it no status rather than a wrong one. The
 week count is counted from the dates, so **a season is lengthened or shortened by
 moving `data-end`, not by editing the copy**; changing the sold length means
 editing the `Cost:` line, and then every row has to match the new number. See "The
@@ -611,9 +731,18 @@ season by comparing start dates rather than by taking the first row. Adding a
 season at the top is safe.
 
 Registration has opened one month before the season starts on every row except
-Winter 2027, which is Dec 11, 2026 against a Jan 10, 2027 start. No check asserts
-that rule, precisely because that row would fail it. Adding one means settling
-Winter 2027 first.
+Winter 2027, which is Dec 11, 2026 against a Jan 10, 2027 start. **That rule is
+still unchecked, precisely because that row would fail it**, and adding one means
+settling Winter 2027 first.
+
+What #63 added instead are two weaker rules that Winter 2027 satisfies: a window
+opens **before** its own first night, and it is **nearer to its own start than to
+any other row's**. Between them they catch the two ways this actually goes wrong,
+a window opening after the season has begun and a date left behind from the row
+it was copied out of, without anyone having to decide how far ahead registration
+ought to open. Keep it that way. A check that hardcodes an interval is a second
+place to edit when the league changes its practice, and the one that gets
+forgotten.
 
 > **CRITICAL RULE FOR AI ASSISTANTS:**
 > Whenever a change alters the tech stack, an integration (e.g., WhatsApp), or the project layout, this `CLAUDE.md` file MUST be updated in the same commit to prevent it from drifting from reality.
