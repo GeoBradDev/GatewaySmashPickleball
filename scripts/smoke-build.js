@@ -2286,6 +2286,73 @@ function cssVariable(css, name) {
   return '#' + (digits.length === 3 ? digits.replace(/./g, (d) => d + d) : digits);
 }
 
+// The <style> block the 404 page carries instead of a stylesheet link. Read
+// through one helper because three checks want it and each of them would
+// otherwise carry its own copy of this pattern, which is the trap that let the
+// html-validate page list drift.
+function inlineStyles(file) {
+  const html = fs.readFileSync(path.join(distDir, file), 'utf8');
+  const style = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
+  if (!style) {
+    throw new Error('dist/' + file + ' has no inline styles to check');
+  }
+  return style[1];
+}
+
+// #ffffff and #fff are the same colour and a different string. The built
+// stylesheet is minified and the 404 page's inline block is not, so the two
+// halves of the palette reach a comparison spelled differently, and comparing
+// the raw text would report every shortened token as a drift. Anything that is
+// not a bare hex is compared on its collapsed whitespace instead, which is the
+// other thing minification changes, so this stays honest for a non-colour
+// token without pretending to understand it.
+//
+// What that leaves, named rather than hidden: the minifier also rewrites
+// rgba() to eight-digit hex, so a token copied in the longhand form would read
+// as a drift against a stylesheet that had shortened it. The eight tokens the
+// 404 page copies are all bare six-digit hex, and the failure would be a red
+// build with a message naming both spellings, not a silent pass.
+function normaliseCssValue(value) {
+  const collapsed = value.trim().replace(/\s+/g, ' ');
+  const hex = collapsed.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!hex) {
+    return collapsed;
+  }
+  const digits = hex[1].toLowerCase();
+  return '#' + (digits.length === 3 ? digits.replace(/./g, (d) => d + d) : digits);
+}
+
+// Every custom property a :root block declares, as a name -> value map.
+//
+// The *first* :root block, which is what source order means here: the
+// stylesheet reopens :root inside two media queries to shrink --section-pad
+// and --container-pad, and the base value is the one a copy has to match.
+// Neither of those is a colour and neither is copied, so this only decides
+// which value wins for a token that is overridden, never which tokens exist.
+//
+// Each declaration is anchored on a boundary rather than matched loose, for
+// the reason ruleContrast anchors `color`: an unanchored `--name:` can match
+// inside a value and report a token the block never declared.
+//
+// Comments are stripped before that anchoring runs, and the two halves are one
+// rule. The only boundary in front of the first declaration is the start of
+// the block, so a comment sitting there pushes it past the anchor and it drops
+// out of the map: the check goes on reporting ok over seven of the eight
+// tokens. css/style.css opens its own :root with `/* Palette */`, and the 404
+// block is not minified, so that is a plausible edit and not a hypothetical.
+function rootTokens(css, source) {
+  const block = css.match(/:root\s*\{([^}]*)\}/);
+  if (!block) {
+    throw new Error('no :root block in ' + source);
+  }
+  const declarations = block[1].replace(/\/\*[\s\S]*?\*\//g, '');
+  const tokens = new Map();
+  for (const [, name, value] of declarations.matchAll(/(?:^|;)\s*--([\w-]+)\s*:\s*([^;}]+)/g)) {
+    tokens.set(name, normaliseCssValue(value));
+  }
+  return tokens;
+}
+
 // --amber-dark is the "you can act on this now" colour, used for the hero note
 // and for the Registration open row in the schedule. It shipped at 3.5:1 on
 // cream, under the 4.5:1 AA needs for text this size, which made the single
@@ -2421,12 +2488,108 @@ check('the hero eyebrow meets AA on its own pill', function () {
 // judged on the values that page actually ships rather than on whatever
 // css/style.css happens to hold.
 check('the 404 eyebrow meets AA on its own pill', function () {
-  const html = fs.readFileSync(path.join(distDir, '404.html'), 'utf8');
-  const style = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
-  if (!style) {
-    throw new Error('dist/404.html has no inline styles to check');
+  eyebrowContrast(inlineStyles('404.html'), '.eyebrow', 'the 404 page inline styles');
+});
+
+// The 404 page copies eight colour tokens out of the :root block in
+// css/style.css, and a comment above them asking a maintainer to keep the two
+// in step is all that has ever held them together. That is a list kept in step
+// by hand, which this file names as a trap in four other places.
+//
+// All eight agree today, so this ships as a guard rather than with a fix, and
+// that is the reason to add it now: it goes in green instead of arriving with
+// a repair and proving nothing.
+//
+// The copy is permanent by design and cannot be refactored away. That page
+// carries its own styles so it still renders when the hashed stylesheet is the
+// thing that failed, so it can never link or @import the real palette. A check
+// is the only option there is.
+//
+// The #60 contrast check above does not cover this and must not absorb it.
+// Parity asks whether the two files agree; contrast asks whether a pair is
+// legible, and a page can pass either while failing the other. A token that
+// drifts to some other perfectly legible colour is invisible to contrast, and
+// contrast is blind to the six tokens the eyebrow does not use at all.
+//
+// Two of the pairs on that page have little headroom, --ink-muted on --cream
+// at 4.99:1 and --white on --court-green at 5.27:1, so lightening either token
+// in css/style.css alone leaves the 404 page on the old value, and doing it in
+// 404.html alone drops that page under 4.5:1 by itself. Either way the markup
+// stays valid and the text stays present.
+//
+// Iterating the 404 page's tokens rather than the stylesheet's is what keeps
+// this workable. The stylesheet declares the whole type, shadow, spacing and
+// radius scale on top of a wider palette, so comparing the other way would
+// demand the error page carry the entire design system. The subset is
+// deliberate.
+check('every colour token 404.html copies still matches the stylesheet', function () {
+  const copied = rootTokens(inlineStyles('404.html'), 'dist/404.html');
+  const palette = rootTokens(
+    fs.readFileSync(path.join(distDir, styleRef), 'utf8'),
+    'the emitted css'
+  );
+
+  // A loop over a derived list passes vacuously when the list is empty, and
+  // this list is derived by reading a :root block out of an HTML file. A
+  // rewritten <style> block, or the palette moved out of :root, would leave
+  // this reporting ok over nothing at all.
+  if (copied.size === 0) {
+    throw new Error('the :root block in dist/404.html declares no tokens, so this compared nothing');
   }
-  eyebrowContrast(style[1], '.eyebrow', 'the 404 page inline styles');
+
+  const problems = [];
+  copied.forEach(function (value, name) {
+    if (!palette.has(name)) {
+      problems.push(
+        '--' + name + ' is ' + value + ' in 404.html and the stylesheet does not declare it'
+      );
+    } else if (palette.get(name) !== value) {
+      problems.push(
+        '--' + name + ' is ' + palette.get(name) + ' in the stylesheet and ' + value +
+          ' in 404.html'
+      );
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// The other half of holding that copy honest. #60 removed --amber from the 404
+// palette when the eyebrow stopped using it, and nothing would have caught it
+// staying: an unused token is one more line for the check above to hold in step
+// for no benefit, and it is the copy most likely to drift, because no rendered
+// pixel changes when it does.
+//
+// The reverse is the sharper failure and is why this is set equality rather
+// than a scan for leftovers. A token the page uses but never declares resolves
+// to nothing, so the property it sets falls back to its initial value: colour
+// goes black, background goes transparent. The page still renders, which is
+// the whole point of it carrying its own styles, it just renders wrong.
+//
+// This is also what stops the check above being satisfiable by an empty block.
+// Its own floor catches the list going to zero; this one catches it going to
+// zero while eight var() calls are still asking for those tokens, and derives
+// the second number from something that does not depend on the :root regex.
+check('404.html declares exactly the colour tokens it uses', function () {
+  const style = inlineStyles('404.html');
+  const declared = rootTokens(style, 'dist/404.html');
+  const used = new Set([...style.matchAll(/var\(\s*--([\w-]+)/g)].map((match) => match[1]));
+
+  const problems = [];
+  [...declared.keys()]
+    .filter((name) => !used.has(name))
+    .forEach(function (name) {
+      problems.push('--' + name + ' is declared in 404.html and never used');
+    });
+  [...used]
+    .filter((name) => !declared.has(name))
+    .forEach(function (name) {
+      problems.push('--' + name + ' is used in 404.html and never declared');
+    });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
 });
 
 // Nothing upstream guarantees the table always carries a future row. The last
