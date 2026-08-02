@@ -1,7 +1,29 @@
 # Worklog
 
-A running record of issue work: what changed, how it was verified, where it landed,
-and what was deliberately left undone.
+A record of issue work from #3 through #61, closed on 2026-08-02. This is history,
+not a running record: nothing after #61 is here and nothing further will be added.
+Coverage inside that range is not complete either, and #1 and #2 predate the file
+entirely, surviving only as references inside later entries.
+
+Where the rest of the history lives:
+
+- `CLAUDE.md` carries the durable "why it is built this way" narrative, including
+  the "Still unchecked, deliberately" decisions that were this file's own "left
+  undone" half. It has grown over exactly the issues this file stopped covering.
+- The pull request history carries what changed and how it was verified.
+
+The issues that merged after #61 and appear nowhere below are #62 (PR #71), #63
+(PR #72), #67 (PR #73), #69 (PR #74) and #70 (PR #75). All five added or widened
+smoke checks, so a reader who came here to ask whether the price checks or the icon
+checks have been looked at before should search `CLAUDE.md` and those pull requests
+rather than read this file's silence as an absence of history. #76 is the issue
+that closed this file, and `CLAUDE.md` records why closing beat backfilling.
+
+The `Merge commit:` line at the foot of ten entries below reads `pending` and was
+never once filled, including on entries written while this file was still being
+kept up. Those are left as written: the merge commit for every issue is on its own
+pull request, and completing a field nobody read would be effort that reads as
+upkeep while changing nothing, which is the habit that made this notice necessary.
 
 ## Baseline
 
