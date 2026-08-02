@@ -465,3 +465,24 @@ Winter 2027 first.
 
 > **CRITICAL RULE FOR AI ASSISTANTS:**
 > Whenever a change alters the tech stack, an integration (e.g., WhatsApp), or the project layout, this `CLAUDE.md` file MUST be updated in the same commit to prevent it from drifting from reality.
+
+## Git exception for /work-issue
+
+When executing the /work-issue workflow, Claude may run `git commit` and `git push`
+on `issue-*` feature branches only. Never commit or push to the default branch, and
+never commit or push outside a /work-issue run. The global no-commit policy applies
+in all other circumstances.
+
+The grant is deliberately narrow, and each half of it is doing work. It is scoped to
+`issue-*` branches because that is the only place /work-issue creates commits, and
+every one of them reaches `main` through a pull request that a human merges: the
+exception buys the workflow the right to prepare a branch, not the right to release.
+Pushing to `main` **is** the deploy on this project, per the Deployment section, so
+the default-branch half of the rule is what keeps an agent from shipping to
+production without review.
+
+It exists because the workflow's own instructions cannot grant it. User instructions
+outrank skills, so a skill cannot write itself a permission the user's global policy
+withholds, which is why this block lives here rather than in the skill. Without it
+/work-issue still runs every phase and stops before committing, handing the finished
+branch over with the commands to ship it.
