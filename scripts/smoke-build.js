@@ -1747,6 +1747,59 @@ function parseDay(iso) {
   return date;
 }
 
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// This check is about the error message, not about coverage, and saying so is
+// the point of this comment. A garbled date already turns the build red: the
+// three checks below all reach it through parseDay, which throws. What they
+// then report is "unparseable date: 2026-09-2O" from a check named after a
+// week count, and, for a day its month does not have, "cell ... does not show
+// Dec 1 from 2026-11-31", which sends a maintainer to edit the cell when the
+// attribute is the thing that is wrong. Both repairs are the wrong one. This
+// names the row, the attribute and the value, and it runs first.
+//
+// It is also the only statement of the contract that does not depend on
+// parseDay throwing. That is a side effect of a helper written for something
+// else: make parseDay lenient, to accept an unpadded "2026-8-20" say, and
+// every guarantee below evaporates with the suite still green. data-registration
+// rests on it most thinly, being read by one of the three checks.
+//
+// The round-trip is what makes the regex mean something. Both V8's string
+// parser and Date.UTC accept "2026-11-31" and roll it forward to December 1
+// without complaint, so the shape alone passes a value that is not a date, and
+// a check that half-validates reads as one that validates.
+check('every schedule row carries dates that are real calendar dates', function () {
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    [
+      ['data-start', row.start],
+      ['data-end', row.end],
+      ['data-registration', row.registration],
+    ].forEach(function ([name, value]) {
+      const parts = ISO_DATE.exec(value);
+      if (!parts) {
+        problems.push(row.season + ' ' + name + '="' + value + '" is not a yyyy-mm-dd date');
+        return;
+      }
+      const [year, month, day] = parts.slice(1).map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== month - 1 ||
+        date.getUTCDate() !== day
+      ) {
+        problems.push(
+          row.season + ' ' + name + '="' + value + '" is not a day that exists; it lands on ' +
+            date.toISOString().slice(0, 10)
+        );
+      }
+    });
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // The night the league plays and the number of weeks it sells are both stated
 // in League Info, so both are read from there rather than hardcoded here. Move
 // the league to Saturdays, or sell a six-week season, and this check follows
