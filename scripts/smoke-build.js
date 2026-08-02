@@ -963,6 +963,20 @@ check('every Location on the homepage names the same venue', function () {
   }
 });
 
+// One price pattern, read by both checks below: the first compares the amounts
+// the pages state, the second forbids the bundle from stating any. Two copies
+// kept in step by hand is the trap this file names in six places, and the
+// second check shipped for one review round carrying a duplicate under a
+// comment claiming it was the first check's "character for character".
+//
+// Safe to share despite the /g flag. String.prototype.matchAll clones the
+// regex before iterating, so neither call site can advance the other's
+// lastIndex, and both call sites use matchAll rather than exec or test.
+//
+// What this calls a price is the byte $ followed by digits. That is narrower
+// than it sounds and #70 lists the spellings it leaves out.
+const PRICE = /\$(\d+(?:\.\d\d)?)/g;
+
 // A wrong price is the worst bug this site can ship, and the fee is stated on
 // two pages now: six times in dist/index.html and four times in the FAQ. This
 // read dist/index.html alone, which left the realistic failure uncovered. The
@@ -1032,7 +1046,7 @@ check('every price on the site states the same amount', function () {
       const html = fs
         .readFileSync(path.join(distDir, rel), 'utf8')
         .replace(/<!--[\s\S]*?-->/g, '');
-      for (const match of html.matchAll(/\$(\d+(?:\.\d\d)?)/g)) {
+      for (const match of html.matchAll(PRICE)) {
         if (!pagesByAmount.has(match[1])) {
           pagesByAmount.set(match[1], new Set());
         }
@@ -1053,6 +1067,95 @@ check('every price on the site states the same amount', function () {
           .map(([amount, pages]) => '$' + amount + ' in ' + [...pages].sort().join(', '))
           .join('; ') +
         '; if the site now states a second, genuinely different amount, this check in ' +
+        'scripts/smoke-build.js is what to update'
+    );
+  }
+});
+
+// The check above walks *.html, which is every surface a price can be read off
+// except the one that writes copy at runtime. js/app.js builds the sentence
+// beside the Join button and the callout under the schedule table. runBundle()
+// further down has always read the built bundle, but only to execute it against
+// a DOM stub and assert on what it renders; nothing had ever read it as text to
+// see what it says.
+//
+// A floor, not a comparison, and that difference is the design. Folding the
+// bundle into the check above was the other option and it goes red one fee
+// change too late: a $70 in the bundle against pages that also say $70 passes,
+// so the price sits in the file no other check reads until the league next
+// moves the fee, which is exactly the interval during which nobody has
+// js/app.js open. Forbidding it outright fails on the day it is written.
+//
+// What it enforces is narrower than its name, and the boundary is the
+// minifier's rather than anything about the code. rolldown folds string
+// assembly, so '$' + 70, `$${fee}`, '$'.concat(70), '$' + (35 * 2) and
+// String.fromCharCode(36) + 70 all emit a literal $70 and all go red. A
+// constant referenced twice is not folded: var FEE = 70 used once emits $70 and
+// is caught, used twice emits `$`+_+` for the season.` and is not, for
+// identical visible output. That is the most idiomatic way a fee would actually
+// arrive in JavaScript, and it is why #70 also pinned the callout that sentence
+// lands in by equality rather than by substring.
+//
+// The two are complements and neither subsumes the other, which was measured in
+// both directions rather than argued. This one is branch-independent, because
+// it reads the file instead of running it: a price behind a condition no
+// fixture reaches is red here and green there. That one is spelling-independent,
+// because it compares the rendered sentence: "70 USD", an Intl.NumberFormat
+// call, and a constant the minifier declined to inline are all green here and
+// red there. Deleting either one reopens a hole the other never covered.
+//
+// The false positive is a $-and-digits token that is not a price. Two are real.
+// A $1 replacement backreference in a String.replace() call is one, and it does
+// fire: it reports "$1" and the message below names it, so the repair is not
+// guessed at. A minified identifier is the other, since rolldown draws an
+// identifier's first character from a 54-character alphabet in which $ is legal
+// and adds digits from the second character on. Measured against this project's
+// own rolldown, a $-then-digit name first appears between 3,000 and 3,100
+// distinct names in one scope, at about 110 KB. Today's bundle is 5,078 bytes
+// with roughly thirty, and its only $ is the end anchor of #63's ISO_DATE
+// regex. Requiring two or more digits would pre-empt both and is deliberately
+// not done: it would stop the check seeing a genuine $5, which is the
+// half-recognised spelling this file argues against everywhere else.
+//
+// Out of scope on purpose: dist/**/*.css, where a price in a content: string is
+// possible and absurd, and an inline <script> in a page, which dist/ does not
+// carry today outside application/ld+json. Both would be seen only by the
+// comparison check, so both inherit its one-fee-change-late blind spot.
+check('no built JavaScript states a price', function () {
+  const bundles = walk(distDir).filter((rel) => /\.[cm]?js$/.test(rel));
+  // Two floors, because the obvious one has slack in it. An empty list is the
+  // vacuous pass CONTENT_PAGES needed its own floor for: a forEach over nothing
+  // pushes no problems and reports ok. But a non-empty list proves nothing
+  // either, which is the MINIMUM_EXPECTED lesson. Change entryFileNames, or
+  // drop any other .js into public/, and this could go on scanning a file that
+  // is not the bundle while the count stayed satisfied. So the real floor is
+  // the bundle every content page names, resolved by a check far above this one.
+  if (bundles.length === 0) {
+    throw new Error('dist/ contains no JavaScript at all, so this check vouches for nothing');
+  }
+  if (scriptRef && !bundles.includes(scriptRef)) {
+    throw new Error(
+      'the bundle every page loads, ' + scriptRef + ', is not among the files this ' +
+        'check scanned: ' + JSON.stringify(bundles) + '; it is reading something ' +
+        'other than the site\'s JavaScript'
+    );
+  }
+  const found = new Set();
+  bundles.forEach(function (rel) {
+    const js = fs.readFileSync(path.join(distDir, rel), 'utf8');
+    for (const match of js.matchAll(PRICE)) {
+      found.add('$' + match[1] + ' in dist/' + rel);
+    }
+  });
+  if (found.size > 0) {
+    // check() already prefixes this with the check's own name, so the message
+    // opens with the finding rather than restating it.
+    throw new Error(
+      [...found].sort().join(', ') +
+        '; the file to edit is js/app.js, not the hashed asset named here. ' +
+        'Prices belong in the markup, where the check above holds every copy to ' +
+        'every other one. If this is not a price, a $1 replacement backreference ' +
+        'or a minified identifier such as $0, then this check in ' +
         'scripts/smoke-build.js is what to update'
     );
   }
@@ -1617,11 +1720,17 @@ check('the schedule marks the season that is actually running', function () {
   if (JSON.stringify(result.labels) !== JSON.stringify(expected)) {
     throw new Error('got ' + JSON.stringify(result.labels) + ', expected ' + JSON.stringify(expected));
   }
-  if (!/Summer 2026 is in progress/.test(result.callout || '')) {
-    throw new Error('callout does not name the running season: ' + JSON.stringify(result.callout));
-  }
-  if (!/Fall 2026 registration opens August 13, 2026/.test(result.callout)) {
-    throw new Error('callout does not give the next registration date: ' + JSON.stringify(result.callout));
+  // Equality, not two substring tests, and #70 is why. Substrings see what was
+  // asserted and nothing else, so an appended sentence is invisible to them:
+  // pushing a fee onto the callout's own parts array shipped "$70 for the
+  // season." to every visitor under this table with all 73 checks green. The
+  // hero note beside the Join button was already pinned this way, which is the
+  // only reason the same edit made there was caught. This is the surface the
+  // price scan above cannot reach on its own, because a fee spelled "70 USD",
+  // or built from a constant the minifier declines to inline, carries no $ for
+  // it to match. Equality is spelling-independent and catches both.
+  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+    throw new Error('callout is not exactly the sentences the schedule derives: ' + JSON.stringify(result.callout));
   }
 });
 
@@ -1634,8 +1743,8 @@ check('the schedule flips to registration open on the right day', function () {
   if (on.labels[2] !== 'Registration open') {
     throw new Error('Fall 2026 was ' + on.labels[2] + ' on the day registration opens');
   }
-  if (!/Fall 2026 registration is open now/.test(on.callout || '')) {
-    throw new Error('callout did not switch to open: ' + JSON.stringify(on.callout));
+  if (on.callout !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
+    throw new Error('callout did not switch to open, or says more than it should: ' + JSON.stringify(on.callout));
   }
 });
 
@@ -1782,7 +1891,7 @@ check('the next season is the soonest one, not whichever row comes first', funct
   if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
     throw new Error('hero note with the rows listed newest first: ' + JSON.stringify(result.note));
   }
-  if (!/Fall 2026 registration is open now/.test(result.callout || '')) {
+  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
     throw new Error('callout with the rows listed newest first: ' + JSON.stringify(result.callout));
   }
 });

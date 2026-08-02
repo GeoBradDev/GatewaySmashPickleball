@@ -258,8 +258,13 @@ only "conflicting prices" makes editing the copy the cheaper repair, which on th
 second reading means making a true sentence false to get a green build.
 
 **What this check calls a price is the byte `$` followed by digits, in a file named
-`*.html`.** That is narrower than its name, and an adversarial pass on #62 confirmed
-six realistic edits that leave the site quoting two prices with the full suite green.
+`*.html`.** Since #70 the pattern lives in one `PRICE` const shared with the bundle
+scan described below, because two copies of it kept in step by hand is the trap this
+file names everywhere else, and the scan shipped for one review round carrying a
+duplicate under a comment claiming it was the original "character for character".
+That definition is narrower than the check's name, and an adversarial pass on #62
+confirmed six realistic edits that leave the site quoting two prices with the full
+suite green.
 Each is left open as a decision, because a check that half-recognises a spelling is
 worse than one that names the spelling it ignores:
 
@@ -277,13 +282,59 @@ worse than one that names the spelling it ignores:
   unreachable by any text check and is the likeliest place for a stale price to sit
   after a fee change.
 
-**`js/app.js` is never opened, and that one is #70 rather than a decision.**
-The bundle already writes the hero copy beside the Join button, so a fee written into
-`registrationSentence()` would be the first price a visitor sees and this check could
-not see it at all. Adding `.js` to the filter is one line, but minified identifiers
-may begin with `$` and continue with digits, so a larger bundle could emit a `$0`
-token and turn a fee check red against an asset file. Today's bundle contains no `$`
-at all, which is exactly why that risk is untested.
+### The bundle is read now, and the callout is what made reading it not enough
+
+**`js/app.js` is opened since #70**, and that issue is worth recording as much for
+where its reasoning was wrong as for what it asked. It was filed claiming a fee
+appended to the hero note would leave the suite green. It would not: three checks pin
+that note by exact string equality, so that edit already went red, from three messages
+that name the hero note and never say the word price. The surface genuinely open was
+the **callout** under the schedule table, asserted with substring regexes, and a
+substring sees what it was given and nothing else. Pushing `'$70 for the season.'`
+onto the callout's own parts array shipped a visible price with 73 checks green,
+html-validate clean and `npm test` at exit 0.
+
+Two checks close it, and **neither subsumes the other.** That was measured in both
+directions rather than argued, and deleting either one reopens a hole the other never
+covered.
+
+**`no built JavaScript states a price`** walks every `*.js` in `dist/` and fails if
+one carries a `$`-and-digits token at all. A floor, not a comparison: folding the
+bundle into the agreement check above goes red one fee change too late, because a
+`$70` in the bundle against pages that also say `$70` passes, so the price sits in the
+file no other check reads until the league next moves the fee, which is exactly the
+interval during which nobody has `js/app.js` open. It is **branch-independent**,
+because it reads the file instead of running it, so a price behind a condition no
+fixture reaches is red here and green everywhere else.
+
+**The callout is pinned by equality**, the way the hero note already was, and that
+half is **spelling-independent**. It has to exist, because the scan's coverage is set
+by the minifier rather than by the code. rolldown folds string assembly, so `'$' + 70`,
+`'$'.concat(70)`, `'$' + (35 * 2)` and `String.fromCharCode(36) + 70` all emit a
+literal `$70` and all go red. A constant referenced twice is not folded: `var FEE = 70`
+used once is caught, used twice emits the `$` and the digits as separate tokens and is
+not, for identical visible output. That is the most idiomatic way a fee would actually
+arrive in JavaScript. `70 USD` and an `Intl.NumberFormat` call carry no `$` at all. All
+three are green under the scan and red under the pin.
+
+The false positive the scan buys is a `$`-and-digits token that is not a price. A `$1`
+replacement backreference is one, and it does fire; the message names that possibility,
+so the repair is not guessed at. A minified identifier is the other, since **rolldown,
+not esbuild, is what Vite 8 builds with here**, and it draws an identifier's first
+character from a 54-character alphabet in which `$` is legal, adding digits from the
+second character on. Measured against this project's own rolldown, a `$`-then-digit
+name first appears between 3,000 and 3,100 distinct names in one scope, at about
+110 KB. **Today's bundle is 5,078 bytes and carries exactly one `$`**, the end anchor
+of #63's `ISO_DATE` regex; this file's previous claim that it carried none was true
+before #63 and stale after it. Narrowing the pattern to two or more digits would
+pre-empt both false positives and is deliberately not done, because it would stop the
+check seeing a genuine `$5`, which is the half-recognised spelling the list above
+argues against.
+
+Still unchecked, deliberately: `dist/**/*.css`, where a price in a `content:` string is
+possible and absurd, and an inline `<script>` in a page, which `dist/` does not carry
+today outside `application/ld+json`. Both would be seen only by the agreement check, so
+both inherit its one-fee-change-late blind spot.
 
 ## Icons and the web manifest
 
