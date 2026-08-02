@@ -338,6 +338,10 @@ check('every icon and manifest URL on every content page resolves', function () 
 // index.html once declared a PNG as type="image/svg+xml". html-validate does
 // not catch that, because the markup is structurally valid; only the claim
 // about the file is wrong. So it is checked here.
+//
+// Over every content page for the same reason as the check above. Each page's
+// <head> carries its own three typed links, and #69 declared
+// subs/index.html's favicon-32x32.png as image/svg+xml with the suite green.
 check('every declared link type matches the file it points at', function () {
   const EXTENSION_TYPES = {
     '.png': 'image/png',
@@ -350,23 +354,28 @@ check('every declared link type matches the file it points at', function () {
   };
 
   const wrong = [];
-  for (const match of indexHtml.matchAll(/<link\b[^>]*>/g)) {
-    const tag = match[0];
-    const href = tag.match(/\bhref=["']([^"']+)["']/);
-    const type = tag.match(/\btype=["']([^"']+)["']/);
-    if (!href || !type) {
-      continue;
+  CONTENT_PAGES.forEach(function (page) {
+    for (const match of pageHtml(page).matchAll(/<link\b[^>]*>/g)) {
+      const tag = match[0];
+      const href = tag.match(/\bhref=["']([^"']+)["']/);
+      const type = tag.match(/\btype=["']([^"']+)["']/);
+      if (!href || !type) {
+        continue;
+      }
+      const ext = path.extname(href[1].split('?')[0]).toLowerCase();
+      const expected = EXTENSION_TYPES[ext];
+      if (!expected) {
+        continue;
+      }
+      const allowed = Array.isArray(expected) ? expected : [expected];
+      if (!allowed.includes(type[1])) {
+        wrong.push(
+          'dist/' + page.file + ': ' + href[1] + ' declared as ' + type[1] +
+            ', expected ' + allowed.join(' or ')
+        );
+      }
     }
-    const ext = path.extname(href[1].split('?')[0]).toLowerCase();
-    const expected = EXTENSION_TYPES[ext];
-    if (!expected) {
-      continue;
-    }
-    const allowed = Array.isArray(expected) ? expected : [expected];
-    if (!allowed.includes(type[1])) {
-      wrong.push(href[1] + ' declared as ' + type[1] + ', expected ' + allowed.join(' or '));
-    }
-  }
+  });
   if (wrong.length > 0) {
     throw new Error(wrong.join('; '));
   }
