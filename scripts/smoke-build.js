@@ -1277,9 +1277,18 @@ function buildScheduleTable(seasons) {
     nameCell.textContent = season[0];
     const row = createElementStub();
     row.cells = [nameCell];
-    row.setAttribute('data-start', season[1]);
-    row.setAttribute('data-end', season[2]);
-    row.setAttribute('data-registration', season[3]);
+    // A null in the fixture models an attribute the markup never carried,
+    // which is a different failure from one carrying a garbled value: the
+    // bundle reads null rather than a string, and null.split() throws.
+    [
+      ['data-start', season[1]],
+      ['data-end', season[2]],
+      ['data-registration', season[3]],
+    ].forEach(function ([name, value]) {
+      if (value !== null) {
+        row.setAttribute(name, value);
+      }
+    });
     return row;
   });
   const headRow = createElementStub();
@@ -1551,6 +1560,94 @@ check('the next season is the soonest one, not whichever row comes first', funct
   }
   if (!/Fall 2026 registration is open now/.test(result.callout || '')) {
     throw new Error('callout with the rows listed newest first: ' + JSON.stringify(result.callout));
+  }
+});
+
+// parseDate is Date.UTC over three Number() calls, so anything that is not
+// three numbers yields NaN, and NaN loses every comparison in statusOf
+// silently. The row does not error, it just answers wrongly forever, and the
+// wrong answer reaches the most prominent control on the page.
+const GARBLED_START = [
+  ['Spring 2026', '2026-04-12', '2026-06-07', '2026-03-12'],
+  ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
+  ['Fall 2026', '2026-09-1O', '2026-11-08', '2026-08-13'],
+  ['Winter 2027', '2027-01-10', '2027-03-07', '2026-12-11'],
+];
+
+// The mechanism issue #63 names: a NaN start wins the nextRegistration
+// selection the moment it is reached, because `!nextRegistration` is true for
+// the first candidate, and then no later row can displace it, because
+// `start < NaN` is false for every one of them. The hero is pinned to the
+// unreadable row for as long as the typo is in the markup.
+check('a row the bundle cannot read is skipped rather than guessed at', function () {
+  const result = statusesOn('2026-07-31', { seasons: GARBLED_START });
+  if (result.labels[2] !== null) {
+    throw new Error(
+      'the unreadable row was labelled ' + JSON.stringify(result.labels[2]) +
+        ', which is a status derived from a date nothing could parse'
+    );
+  }
+  // Every other row still has to behave exactly as it does with the fixture
+  // intact, or the guard has swallowed the whole table rather than one row.
+  const others = [result.labels[0], result.labels[1], result.labels[3]];
+  if (JSON.stringify(others) !== JSON.stringify(['Completed', 'In progress', 'Upcoming'])) {
+    throw new Error('one bad row changed the rest of the table: ' + JSON.stringify(result.labels));
+  }
+  if (result.join !== 'Join Winter 2027') {
+    throw new Error(
+      'the hero offers ' + JSON.stringify(result.join) +
+        ', a season picked from a row whose start date is unreadable'
+    );
+  }
+});
+
+// The same defect one attribute over, and this is the half a visitor sees:
+// longDate reads the garbled string straight into the sentence beside the
+// Join button, so the page asks for money under copy reading "August NaN".
+check('a garbled date never reaches the hero as copy', function () {
+  const garbledRegistration = GARBLED_START.map(function (season) {
+    return season[0] === 'Fall 2026'
+      ? ['Fall 2026', '2026-09-13', '2026-11-08', '2026-08-1O']
+      : season;
+  });
+  const result = statusesOn('2026-07-31', { seasons: garbledRegistration });
+  if (result.note !== 'Summer 2026 is in progress. Winter 2027 registration opens December 11, 2026.') {
+    throw new Error('hero note with an unreadable registration date: ' + JSON.stringify(result.note));
+  }
+  // Asserted separately from the sentence above so that a future rewrite of
+  // the copy cannot quietly take the only thing standing between a visitor
+  // and "Registration opens undefined NaN, 2026." with it.
+  if (/NaN|undefined/.test(result.note + ' ' + result.join)) {
+    throw new Error(
+      'the hero rendered an unparsed date: ' + JSON.stringify(result.note + ' / ' + result.join)
+    );
+  }
+});
+
+// A missing attribute is the far end of the same problem and is worse than a
+// garbled one: getAttribute returns null, null.split() throws, and the throw
+// escapes the schedule IIFE and aborts the rest of the module, taking the
+// footer year with it. One typo'd row must not cost the page every other
+// thing this bundle does.
+check('a row missing a date attribute does not take the rest of the bundle down', function () {
+  const schedule = buildScheduleTable([
+    ['Summer 2026', '2026-06-28', '2026-08-23', '2026-05-28'],
+    ['Fall 2026', '2026-09-13', null, '2026-08-13'],
+  ]);
+  const year = createElementStub();
+  runBundle(
+    { 'footer-year': year },
+    false,
+    { table: schedule.table, today: '2026-07-31T12:00:00Z' }
+  );
+  if (year.textContent !== '2026') {
+    throw new Error(
+      'the footer year reads ' + JSON.stringify(year.textContent) +
+        ', so a row with a missing date attribute aborted the rest of the bundle'
+    );
+  }
+  if (schedule.rows[1].appended.length !== 0) {
+    throw new Error('the row with no data-end was given a status anyway');
   }
 });
 

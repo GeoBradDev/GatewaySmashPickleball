@@ -172,8 +172,14 @@ import '../css/style.css';
   }
 
   // Parsed as UTC midnight so a visitor's timezone cannot shift a season by a
-  // day either side of a boundary.
+  // day either side of a boundary. A missing attribute reads as null rather
+  // than a string, and null.split() would throw out of this IIFE and abort the
+  // rest of the module, so it returns the same NaN a garbled value does and
+  // statusOf below decides what to do about it in one place.
   function parseDate(value) {
+    if (typeof value !== 'string') {
+      return NaN;
+    }
     var parts = value.split('-');
     return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   }
@@ -222,6 +228,18 @@ import '../css/style.css';
     var end = parseDate(row.getAttribute('data-end'));
     var registration = parseDate(row.getAttribute('data-registration'));
 
+    // Date.UTC over Number() yields NaN for anything that is not three
+    // numbers, and NaN loses every comparison below without erroring: the row
+    // reads Upcoming forever, and it wins the nextRegistration selection the
+    // moment it is reached, after which no later row can displace it because
+    // `start < NaN` is false. The hero then names a season off a row nothing
+    // could read, or renders the attribute itself as "August NaN, 2026".
+    // Answering "no status" is the honest reply, and it leaves the row exactly
+    // as the page without JavaScript already shows it.
+    if (isNaN(start) || isNaN(end) || isNaN(registration)) {
+      return null;
+    }
+
     if (today > end) {
       return { label: 'Completed', modifier: 'past' };
     }
@@ -261,6 +279,9 @@ import '../css/style.css';
 
   Array.prototype.forEach.call(rows, function (row) {
     var status = statusOf(row);
+    if (!status) {
+      return;
+    }
     var cell = document.createElement('td');
     cell.setAttribute('data-label', 'Status');
     cell.className = 'season-status season-status--' + status.modifier;
