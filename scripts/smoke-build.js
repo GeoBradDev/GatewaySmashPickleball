@@ -67,15 +67,26 @@ function pageHtml(page) {
 // forEach over nothing pushes no problems, so "no page loads a third-party
 // script" and "every page names one hashed bundle" both report ok against zero
 // pages. Deriving the list from dist/ is what makes it maintenance-free and is
-// also what makes it silently emptiable, by a build that changes where it puts
-// its output. So the floor is asserted once, here, ahead of the first check
-// that loops it. Four is what vite.config.js declares minus 404.html, which is
-// not an index.html and is checked on its own.
-check('the build produced the content pages vite.config.js declares', function () {
-  if (CONTENT_PAGES.length < 4) {
+// also what makes it silently emptiable, by a build that stops emitting a page.
+// So the floor is asserted once, here, ahead of the first check that loops it.
+//
+// The floor is the sitemap's own entry count rather than a number written here,
+// because the sitemap already has to name every page: the canonical check lower
+// down requires each built page to appear in it, and this is that same
+// requirement pointing the other way. A page that stops building fails here
+// instead of quietly shrinking the set every loop below runs over.
+check('every page the sitemap lists was actually built', function () {
+  const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
+  const listed = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (listed.length === 0) {
+    throw new Error('sitemap.xml lists no pages at all, so it can vouch for nothing');
+  }
+  const built = new Set(CONTENT_PAGES.map((page) => page.url));
+  const missing = listed.filter((url) => !built.has(url));
+  if (missing.length > 0) {
     throw new Error(
-      'expected at least 4 content pages in dist/, found ' + CONTENT_PAGES.length +
-        ': ' + JSON.stringify(CONTENT_PAGES.map((page) => page.file))
+      'listed in sitemap.xml but not built: ' + missing.join(', ') +
+        '; dist/ has ' + JSON.stringify(CONTENT_PAGES.map((page) => page.file))
     );
   }
 });
