@@ -15,6 +15,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them, which is why it carries no code of conduct link.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
 - `LICENSE.txt` - Project license.
+- `WORKLOG.md` - Per-issue history from #3 through #61, closed as of #76. Not a running record, and nothing asks anyone to add to it. See "The worklog is closed" below for where the history after #61 lives.
 - `vite.config.js` - Build configuration. Declares `index.html`, `faq/index.html`, `subs/index.html`, `code-of-conduct/index.html` and `404.html` as entry points. A new page needs an entry here, a line in `public/sitemap.xml`, an entry in the `PAGES` array in `scripts/check-links.js`, and a link from somewhere: the nav in `partials/header.html` for a page people navigate to, the footer for one they do not. It does **not** need adding to the html-validate command or to the per-page smoke checks; both walk `dist/`.
 - `scripts/smoke-build.js` - Dependency-free assertions against `dist/` after a build. Run via `npm run smoke`.
 - `scripts/check-links.js` - Dependency-free outbound link check. Not part of `npm test`; see below.
@@ -883,6 +884,47 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.
 - *Note:* GroupMe was historically used but removed completely.
+
+## The worklog is closed, and closing it was the repair
+
+`WORKLOG.md` recorded issue work from #3 through #61 and stopped there, while going on
+opening with the sentence "A running record of issue work" through five more merged
+issues: #62, #63, #67, #69 and #70. That is the failure this file names everywhere
+else, arriving in the documentation itself. It read as coverage while doing
+nothing, and a reader asking whether the price checks had been looked at before was
+met with 1,577 lines of careful per-issue history with nothing in it about them.
+
+#76 closed it rather than backfilling it. The reasoning is worth keeping, because
+backfilling is the repair that looks more diligent:
+
+- **Nothing referenced it.** Before #76, `git grep -i worklog` over tracked files
+  returned exactly one hit, the title inside `WORKLOG.md` itself. No documented
+  workflow ever asked anyone to update it, which is the likely reason it stopped,
+  so a backfill that changed nothing else would have stopped again. The bullet in
+  Project Structure above is now the only tracked pointer to it, and it points at
+  a closed file rather than asking for entries.
+- **Its content is already carried twice.** This file holds the durable "why it is
+  built this way" narrative and has grown over exactly the issues the worklog
+  stopped covering, including the "Still unchecked, deliberately" paragraphs that
+  were the worklog's own "left undone" half. Pull request bodies hold what changed
+  and how it was verified, and GitHub indexes and preserves them.
+- **It had a second unkept promise that predates it stopping.** All ten
+  `Merge commit:` fields in the file read `pending` and not one was ever filled,
+  including in entries written while it was being actively maintained. A backfill
+  would have added a standing obligation to a file that had already dropped one
+  while someone was writing in it.
+
+**Nothing enforces the closure and nothing should.** The retired header states a
+completed fact about a file no code reads and `dist/` does not carry, so there is
+no ongoing obligation left to drift from. That is the real difference between the
+two repairs, and it is the reverse of the usual lesson here: backfilling would have
+created the hand-maintained duty that then needs a check, which is the trap the rest
+of this file exists to close. A check on the closure would assert prose about prose,
+and `scripts/smoke-build.js` asserts against the shipped site.
+
+Whether `docs/` should be tracked or gitignored is deliberately untouched. Plan
+files from `/work-issue` sit there as permanent untracked noise in `git status`,
+which #76 named and left for its own issue.
 
 ## Maintenance Notes
 
