@@ -1800,6 +1800,43 @@ check('every schedule row carries dates that are real calendar dates', function 
   }
 });
 
+// Unlike the check above, this one is coverage rather than a message. The
+// week count below counts league nights between the two dates, so nudging a
+// start off the play night still balances: Sat Sep 19 to Sun Nov 8 holds the
+// same eight Sundays that Sun Sep 20 does. The cell beside it agrees, because
+// both halves are written in the same edit and this is the edit that goes
+// half-done. Every other row check stays green while the table opens a season
+// on a night the league does not play, and js/app.js flips the row to In
+// progress a day early.
+//
+// data-registration is deliberately not held to this. It opens on a weekday,
+// a Thursday or a Friday on every row the table ships, because it is a window
+// rather than a night of play.
+check('every season starts and ends on a league night', function () {
+  const day = leagueInfo('Day');
+  const playDay = WEEKDAYS.findIndex((name) => day && day.includes(name));
+  if (playDay === -1) {
+    throw new Error('the Day line does not name a weekday, so no season can start on one');
+  }
+
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    [['starts', row.start], ['ends', row.end]].forEach(function ([label, iso]) {
+      const weekday = parseDay(iso).getUTCDay();
+      if (weekday !== playDay) {
+        problems.push(
+          row.season + ' ' + label + ' on ' + iso + ', a ' + WEEKDAYS[weekday] +
+            ', but the league plays ' + WEEKDAYS[playDay] + 's'
+        );
+      }
+    });
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // The night the league plays and the number of weeks it sells are both stated
 // in League Info, so both are read from there rather than hardcoded here. Move
 // the league to Saturdays, or sell a six-week season, and this check follows
