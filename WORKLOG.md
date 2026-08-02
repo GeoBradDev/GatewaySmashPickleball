@@ -1438,3 +1438,62 @@ leaving the four `$70` mentions in the FAQ unguarded; the league was asked and
 chose to leave it.
 
 Merge commit: pending
+
+## Batch 9: #60 the eyebrow pills
+
+`.hero-eyebrow` and the 404 page's `.eyebrow` both set `--amber` `#e8860c` on an
+`--amber-light` `#fef3e2` pill. That is **2.44:1**. The text is 0.85rem at weight
+600, so it is small text needing 4.5:1, and it failed even the 3:1 that large text
+gets. Both moved to `--amber-dark` `#96550a`, which is **5.31:1** on the same
+pill. The pill colour did not change; only the text darkened.
+
+This is the defect the comment beside `--amber-dark` in `css/style.css` already
+describes, in the two places that darkening never reached. The hero eyebrow is the
+first text on the page.
+
+`--amber` is not gone. It is now used exactly once, as the `border-left` on the
+callout, which is a border rather than text and carries no contrast obligation.
+It **is** gone from `404.html`, where the eyebrow was its only reader and an
+unused token would have been one more line to keep in step with the stylesheet
+for no benefit.
+
+Two checks added, sharing a `ruleContrast` helper that resolves **both** sides of
+the pair from the custom properties the rule itself names. The three existing
+contrast checks resolve only the foreground; the subs one hardcodes `--cream`
+because `.hero-sub-cta` sets no background and inherits the hero's. A pill sets
+its own, so there was nothing worth hardcoding.
+
+- *the hero eyebrow meets AA on its own pill*, against the built stylesheet.
+- *the 404 eyebrow meets AA on its own pill*, against that page's own inline
+  `<style>`. It has to be a separate check reading a separate file: the page
+  carries its own copy of the palette so it still renders when the hashed
+  stylesheet is the thing that failed, so there is no stylesheet to read.
+
+Negative-tested five ways, each one run. Pointing either rule back at `--amber`
+turns its own check red at 2.44:1 while the other stays green, which is what
+proves they read different files. Drifting the 404 page's `--amber-dark` to the
+old `#c26f06` turns only the 404 check red, at 3.43:1: that is a copied palette
+drifting, and it is caught because the check judges the tokens the page ships
+rather than the stylesheet's. Hardcoding `.eyebrow`'s colour as `#96550a` instead
+of naming a property fails loudly rather than passing, and spelling the pill
+`background-color` instead of `background` still passes, because refusing the
+longhand would fail a rule that had done nothing wrong.
+
+Verified: `npm test` exits 0, 58 ok and 0 not ok, from a clean `npm ci`. eslint,
+`vite build` and html-validate each exit 0 on their own. Driven live against
+`vite preview` on port 4317, because port 4173 was already held by another
+worktree: `getComputedStyle` reports `rgb(150, 85, 10)` on `rgb(254, 243, 226)` at
+13.6px weight 600 on both pages, and the browser's own arithmetic agrees at
+5.31:1. The 404 page still loads zero external stylesheets. The CSSOM shows two
+`.hero-eyebrow` rules, and the `(max-width: 480px)` one sets `font-size` alone, so
+the mobile pill is the same pair at 12px, still small text and still clearing AA.
+
+Left undone, deliberately. Nothing checks that the palette `404.html` copies
+agrees with `css/style.css`. The comment at the top of that file still asks a
+maintainer to keep them in step by hand, and every token other than the two this
+issue touched is unguarded; the eyebrow check does not need parity, because it
+reads the tokens of the file it is judging. The subs check still hardcodes
+`--cream` and was left alone, because `ruleContrast` cannot serve a rule that sets
+no background.
+
+Merge commit: pending
