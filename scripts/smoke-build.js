@@ -1925,6 +1925,141 @@ check('every schedule row carries dates that are real calendar dates', function 
   }
 });
 
+// ---- rows that are wrong about which season they are ---------------------
+// The four checks below came out of an adversarial pass on #63, and they share
+// a shape none of the checks around them can see. Every row they reject ships
+// dates that are real, agree with their cells, fall on league nights and count
+// to the eight weeks the price copy sells. Nothing is malformed. The row is
+// simply wrong about which season it belongs to, and each one reaches the hero.
+//
+// Both rules a maintainer might have expected to be hardcoded here are taken
+// from the table instead, which is the same reason the play night comes from
+// League Info: a rule written into this file is a second place to edit when
+// the league changes, and the one that gets forgotten.
+
+check('every registration window belongs to the season beside it', function () {
+  const rows = scheduleRows();
+  const problems = [];
+
+  rows.forEach(function (row) {
+    const start = parseDay(row.start);
+    const opens = parseDay(row.registration);
+
+    // Registration on or after the first night is not a window at all. statusOf
+    // tests `today >= start` before it tests the registration day, so such a
+    // row runs Upcoming straight into In progress and "Registration open" is
+    // unreachable: the hero can never announce the one season a visitor could
+    // join. This is deliberately weaker than the "one month before" practice
+    // CLAUDE.md declines to check, and Winter 2027, the row that would fail
+    // that rule, satisfies this one comfortably.
+    if (opens >= start) {
+      problems.push(
+        row.season + ' registration opens ' + row.registration + ', on or after its own start ' +
+          row.start + ', so the row can never read Registration open'
+      );
+      return;
+    }
+
+    // A registration date left behind from the row it was copied out of is how
+    // this goes wrong in practice, and every other check is blind to it: the
+    // date is real, it matches its own cell, and it is before its start. No
+    // interval has to be invented to catch it, because the table already says
+    // which starts exist. A window belongs to the season it is nearest.
+    const distance = start - opens;
+    const days = (ms) => Math.round(ms / 86400000);
+    // The nearest other start, not every nearer one. A stale date is nearer to
+    // most of the table, and a list of six seasons buries the one it was
+    // actually copied from, which is the row a maintainer has to open.
+    const nearest = rows
+      .filter((other) => other !== row)
+      .map((other) => ({ season: other.season, gap: Math.abs(parseDay(other.start) - opens) }))
+      .sort((a, b) => a.gap - b.gap)[0];
+    if (nearest && nearest.gap < distance) {
+      problems.push(
+        row.season + ' registration opens ' + row.registration + ', ' + days(distance) +
+          ' days before its own start but only ' + days(nearest.gap) + ' from ' +
+          nearest.season + ', so it is the wrong season\'s window'
+      );
+    }
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// js/app.js reads cells[0] straight into the hero CTA, so the Season cell is
+// the name a visitor is asked to join, and nothing checked it against the dates
+// in its own row. Roll a row forward a year and forget the name and the page
+// offers "Join Fall 2027" for a season playing in October 2028, with every
+// other check green because the dates themselves are impeccable.
+check('every season name states the year its own dates fall in', function () {
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    // Either end counts, because a winter season can straddle December. That is
+    // the same reason the bye check tries both years.
+    const years = [parseDay(row.start).getUTCFullYear(), parseDay(row.end).getUTCFullYear()];
+    if (!years.some((year) => row.season.includes(String(year)))) {
+      problems.push(
+        '"' + row.season + '" names no year its own dates fall in (' +
+          [...new Set(years)].join(' or ') + ')'
+      );
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// The other half of that same edit: copy a row, update the dates, forget the
+// name, and the table ships two rows called "Fall 2027", one Completed and one
+// Registration open. The hero names whichever the selection reaches, and a
+// visitor comparing the button against the table sees the button naming a row
+// that closed.
+check('no two schedule rows name the same season', function () {
+  const startsByName = new Map();
+  const problems = [];
+  scheduleRows().forEach(function (row) {
+    if (startsByName.has(row.season)) {
+      problems.push(
+        '"' + row.season + '" is the name of two rows, one starting ' +
+          startsByName.get(row.season) + ' and one starting ' + row.start
+      );
+    } else {
+      startsByName.set(row.season, row.start);
+    }
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// A ladder league plays one season at a time, and js/app.js assumes it without
+// saying so: the row loop assigns `current` unconditionally, so two rows both
+// reading In progress leave the callout and the hero naming whichever sits
+// later in the document. CLAUDE.md pins the mirror image of this for the next
+// season, which is chosen by comparing start dates precisely so document order
+// cannot decide it; the running season had the same exposure with no rule and
+// no check. Rows need not be chronological, so every pair is compared rather
+// than each row and the one after it.
+check('no two seasons are on court at the same time', function () {
+  const rows = scheduleRows();
+  const problems = [];
+  rows.forEach(function (row, index) {
+    rows.slice(index + 1).forEach(function (other) {
+      if (parseDay(row.start) <= parseDay(other.end) && parseDay(other.start) <= parseDay(row.end)) {
+        problems.push(
+          row.season + ' (' + row.start + ' to ' + row.end + ') overlaps ' +
+            other.season + ' (' + other.start + ' to ' + other.end + ')'
+        );
+      }
+    });
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // Unlike the check above, this one is coverage rather than a message. The
 // week count below counts league nights between the two dates, so nudging a
 // start off the play night still balances: Sat Sep 19 to Sun Nov 8 holds the
