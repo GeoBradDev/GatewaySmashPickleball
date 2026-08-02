@@ -103,14 +103,22 @@ joined yet. Editing a row changes what a visitor sees before scrolling, so keep 
 `data-*` dates and the dates written in the cells in step. The rows do not need to be
 in date order.
 
-`npm test` checks the rows you write. Every `data-*` value has to be a real calendar
-date written as `yyyy-mm-dd`, and the season has to start and end on a league night.
-A row has to play the number of weeks the `Cost:` line in League Info sells, counted
-from its own dates: league nights between `data-start` and `data-end`, minus any bye.
-Its cells have to show the dates its `data-*` attributes claim, and a bye has to fall
-on a league night inside its own season. So a season is made longer or shorter by
+`npm test` checks the rows you write, in two groups.
+
+The dates have to be dates. Every `data-*` value has to be a real calendar date
+written as `yyyy-mm-dd`, the season has to start and end on a league night, its cells
+have to show the dates its `data-*` attributes claim, and a bye has to fall on a
+league night inside its own season. A row also has to play the number of weeks the
+`Cost:` line in League Info sells, counted from its own dates: league nights between
+`data-start` and `data-end`, minus any bye. So a season is made longer or shorter by
 moving `data-end`, not by editing the copy, and if the league ever sells a different
 season length, that is an edit to the `Cost:` line which every row then has to match.
+
+The row also has to be the season it says it is, which is the half that catches a
+copied row you forgot to finish updating. Registration has to open before the first
+night and nearer to its own start than to any other row's. The season name has to
+state a year its own dates fall in, no two rows may share a name, and no two seasons
+may run at the same time.
 
 A typo in one of those dates no longer reaches a visitor. `js/app.js` gives a row it
 cannot read no status at all, rather than the wrong one, so the row appears exactly
