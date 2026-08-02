@@ -1161,8 +1161,15 @@ function runBundle(elementsById, isMobile, options) {
   // real Date is otherwise whatever day the build runs on.
   if (opts.today) {
     const frozen = opts.today;
-    function FrozenDate() {
-      return new Date(frozen);
+    // Only the argument-less call is frozen. `new Date(value)` has to honour
+    // its argument: js/app.js builds a Date from a parsed timestamp to read
+    // the day back off it, and a stub that answered "today" to every one of
+    // those made every row on the page fail to parse. A constructor that
+    // ignores its argument is not a stand-in for the real one, and the way
+    // this surfaced, 17 checks red for a reason none of their messages named,
+    // is what that costs.
+    function FrozenDate(value) {
+      return arguments.length > 0 ? new Date(value) : new Date(frozen);
     }
     FrozenDate.prototype = Date.prototype;
     FrozenDate.UTC = Date.UTC;
@@ -1622,6 +1629,53 @@ check('a garbled date never reaches the hero as copy', function () {
       'the hero rendered an unparsed date: ' + JSON.stringify(result.note + ' / ' + result.join)
     );
   }
+});
+
+// Rejecting NaN is not the same as requiring a date, and review of the first
+// pass at #63 caught the difference. Date.UTC(2026, 12, 1) is January 1 2027,
+// not an error, so a month of 13 sails through an isNaN guard, and longDate
+// then reads MONTHS[12] off the raw attribute and puts "Registration opens
+// undefined 1, 2026." beside the Join button. That is the exact string issue
+// #63 was filed about, still reachable after the guard that was supposed to
+// close it. Every value below is a single keystroke away from a real date.
+const ROLLOVER_DATES = [
+  // A month that does not exist. Rolls forward a year.
+  ['2026-13-01', 'month 13'],
+  // A day its month does not have. Rolls into September.
+  ['2026-08-32', 'day 32'],
+  // February 30, which Date.UTC and V8's own string parser both accept.
+  ['2026-02-30', 'February 30'],
+  // A two-digit year, which Date.UTC maps to 1926 and nothing else notices.
+  ['26-08-20', 'a two-digit year'],
+];
+
+check('a date that rolls over instead of failing is still not a date', function () {
+  ROLLOVER_DATES.forEach(function ([value, description]) {
+    const seasons = CHRONOLOGICAL_SEASONS.map(function (season) {
+      return season[0] === 'Fall 2026'
+        ? ['Fall 2026', '2026-09-13', '2026-11-08', value]
+        : season;
+    });
+    const result = statusesOn('2026-07-31', { seasons: seasons });
+    const rendered = result.note + ' / ' + result.join + ' / ' + result.callout;
+    if (/NaN|undefined/.test(rendered)) {
+      throw new Error(description + ' (' + value + ') reached the page: ' + JSON.stringify(rendered));
+    }
+    if (result.labels[2] !== null) {
+      throw new Error(
+        description + ' (' + value + ') was given the status ' + JSON.stringify(result.labels[2])
+      );
+    }
+    // Winter 2027 is the next season a visitor could really join once the
+    // unreadable row drops out. Asserted as well as the NaN scan, because a
+    // row that silently rolls to a plausible-looking date renders no NaN at
+    // all: "2026-02-30" would quietly advertise March 2.
+    if (result.join !== 'Join Winter 2027') {
+      throw new Error(
+        description + ' (' + value + ') left the hero offering ' + JSON.stringify(result.join)
+      );
+    }
+  });
 });
 
 // A missing attribute is the far end of the same problem and is worse than a
