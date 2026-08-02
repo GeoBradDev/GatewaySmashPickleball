@@ -772,21 +772,56 @@ check('every Location on the homepage names the same venue', function () {
 // and a price wrong only in og:description is the price a link preview shows.
 // Scanning the JSON-LD is correct for the same reason: a rich result surfaces
 // it. The amounts stay strings and are never coerced to Number, so $70 and
-// $70.00 read as a disagreement rather than folding into one value.
+// $70.00 read as a disagreement rather than folding into one value. A thousands
+// separator folds the other way, $1,250 capturing 1, which costs nothing at one
+// two-digit fee and is the thing to settle before the site prices anything over
+// $999.
 //
-// The homepage floor is kept deliberately. Collecting across every page would
-// otherwise let index.html drop the fee entirely while the FAQ's copies
-// satisfied the check on their own, and it is what stops this passing
-// vacuously against a dist/ that built no pages at all.
+// The floor and the comparison read deliberately different things, and that
+// asymmetry is load-bearing. The comparison takes the raw document, because
+// og:description and the JSON-LD are where a link preview and a rich result get
+// the fee. The floor takes visiblePage(), because "the page states a price" has
+// to mean a price a player can read: widening the comparison to the whole
+// document otherwise downgrades the floor to "the document mentions one
+// somewhere", and three <meta> tags nobody reads would satisfy an error message
+// that says this is the first thing a player asks. That is the drift #54 shipped
+// pointing the other way. The floor is stricter than the <body> slice it
+// replaces for the same reason: that slice could be satisfied by the JSON-LD
+// block or by a stray comment alone. Do not collapse the two back together.
+//
+// The floor is also what makes the widening safe. Collecting across every page
+// would otherwise let index.html drop the fee entirely while the FAQ's copies
+// satisfied the check on their own. It cannot, however, catch a dist/ that built
+// nothing: line 30 reads dist/index.html and line 55 walks dist/, both at module
+// load, so an empty build directory throws before any check runs.
 //
 // If a second, genuinely different amount is ever added, this check is the
 // thing that should be updated deliberately.
 check('every price on the site states the same amount', function () {
+  const block = indexHtml.match(JSON_LD_BLOCK);
+  if (!block) {
+    throw new Error('no JSON-LD block in dist/index.html');
+  }
+  if (!/\$\d/.test(visiblePage(indexHtml, block[0]))) {
+    throw new Error(
+      'dist/index.html states no price a reader can see, which is the first thing a player asks'
+    );
+  }
+
+  // Comments are stripped before the comparison, and this direction of the
+  // #48 rule is the less obvious one. A comment cannot show a visitor a price,
+  // so it cannot disagree with one either, but it can fail the build: a line
+  // recording that the fee was $60 before Spring 2026 reads as a second amount
+  // and goes red. The repair a maintainer reaches for is deleting the
+  // explanation, which is the check teaching people to remove the history that
+  // makes the next fee change safe.
   const pagesByAmount = new Map();
   walk(distDir)
     .filter((rel) => rel.endsWith('.html'))
     .forEach(function (rel) {
-      const html = fs.readFileSync(path.join(distDir, rel), 'utf8');
+      const html = fs
+        .readFileSync(path.join(distDir, rel), 'utf8')
+        .replace(/<!--[\s\S]*?-->/g, '');
       for (const match of html.matchAll(/\$(\d+(?:\.\d\d)?)/g)) {
         if (!pagesByAmount.has(match[1])) {
           pagesByAmount.set(match[1], new Set());
@@ -794,18 +829,21 @@ check('every price on the site states the same amount', function () {
         pagesByAmount.get(match[1]).add(rel);
       }
     });
-  const onHomepage = [...pagesByAmount.values()].some((pages) => pages.has('index.html'));
-  if (!onHomepage) {
-    throw new Error(
-      'dist/index.html states no price at all, which is the first thing a player asks'
-    );
-  }
   if (pagesByAmount.size > 1) {
+    // The message names this file as well as the pages. Every failure here has
+    // two possible repairs, and they point opposite ways: one of the copies has
+    // drifted and the copy is wrong, or the site genuinely states a second
+    // amount and this check is wrong. Reporting only "conflicting prices" makes
+    // editing the copy the path of least resistance, which on the second reading
+    // means making a true sentence false to get the build green.
     throw new Error(
       'conflicting prices across the site: ' +
         [...pagesByAmount]
+          .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([amount, pages]) => '$' + amount + ' in ' + [...pages].sort().join(', '))
-          .join('; ')
+          .join('; ') +
+        '; if the site now states a second, genuinely different amount, this check in ' +
+        'scripts/smoke-build.js is what to update'
     );
   }
 });
