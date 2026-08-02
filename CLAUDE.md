@@ -127,7 +127,8 @@ Still index-only, deliberately: **the icon and manifest URL checks**. `every ico
 manifest URL in dist/index.html resolves` and `every declared link type matches the
 file it points at` read the homepage alone, while every subpage ships the same five
 icon links and the same manifest link. #61 scoped itself to the four checks it named.
-This is the same defect class one surface over, and closing it is its own issue.
+This is the same defect class one surface over, and closing it is its own issue. #62
+found and closed a fifth, the price agreement check, which has its own section below.
 
 **Lint and link checking run against `dist/`, not source.** The source now contains
 `{{> header}}`, which is not HTML, and `dist/` is what visitors actually receive.
@@ -150,6 +151,74 @@ people to ignore red.
 Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
 stylesheet that has produced no defects, and **prettier** would reformat every file
 in the repo for a formatting problem `.editorconfig` already covers.
+
+### The price check, and what a `$` cannot see
+
+A wrong price is the worst bug this site can ship, and until #62 the check guarding
+against it read `dist/index.html`, sliced it from `<body>`, and asserted one distinct
+`$NN`. That is three of the ten copies the site ships. The FAQ states the fee four
+times, twice in prose and twice in its own JSON-LD, and none of them were compared to
+the homepage's. The realistic failure is the one the check was written for, one page
+further out: the league changes the fee, one page is edited, the other page's copies
+are missed, and `npm test` is green while the site quotes two prices to the same
+player. The FAQ's own JSON-LD-matches-page check does not close it, because it
+compares each answer's opening clause only and the FAQ's four copies drift together
+anyway. It now walks every built page, `404.html` included rather than
+`CONTENT_PAGES`, and keys each amount by the page it came from.
+
+**The floor and the comparison read deliberately different things, and collapsing
+them back together reintroduces a bug.** The comparison takes the raw document,
+because `og:description` and the JSON-LD are where a link preview and a rich result
+get the fee, and the three description tags in `index.html`'s `<head>` were compared
+to nothing: the per-page description check requires only that a page's own three tags
+agree with **each other**, so all three could say $75 against a body saying $70 and
+stay green. The floor takes `visiblePage()`, because "the page states a price" has to
+mean one a player can read. Widening both halves together is what the first pass at
+#62 shipped and what review caught: three `<meta>` tags nobody reads, or a single
+HTML comment, discharged an error message that says this is the first thing a player
+asks, and a homepage showing a visitor no price at all passed green. The pre-#62
+check goes red on that build, the first pass goes green, the shipped version goes
+red.
+
+Comments are stripped before the comparison, which is the #48 rule pointing the other
+way. A comment cannot show a visitor a price, so it cannot disagree with one, but it
+can fail the build: a line recording that the fee was $60 before Spring 2026 reads as
+a second amount, and the repair that invites is deleting the history that makes the
+next fee change safe.
+
+The failure message names `scripts/smoke-build.js` alongside the pages, because every
+failure here has two opposite repairs. Either a copy drifted, or the site genuinely
+states a second amount and the check is the thing that is wrong. A message reading
+only "conflicting prices" makes editing the copy the cheaper repair, which on the
+second reading means making a true sentence false to get a green build.
+
+**What this check calls a price is the byte `$` followed by digits, in a file named
+`*.html`.** That is narrower than its name, and an adversarial pass on #62 confirmed
+six realistic edits that leave the site quoting two prices with the full suite green.
+Each is left open as a decision, because a check that half-recognises a spelling is
+worse than one that names the spelling it ignores:
+
+- **A price split by a tag**, `$<strong>70</strong>`, matches nothing. Nested
+  `<strong>` is structurally valid, so html-validate has nothing to say either.
+- **`&#36;70` and `&dollar;70`** are the same price and a different byte.
+- **"70 dollars" and "70 USD"** are ordinary English, and this check silently rewards
+  writing the fee that way.
+- **A schema.org `Offer` carrying `"price": "70"`** is the canonical way to state a
+  price in structured data, and it is the one spelling that never carries a `$`. The
+  comment beside the check argues that scanning JSON-LD is right because a rich result
+  surfaces it, and that argument does not reach the markup Google actually reads.
+- **`public/` ships verbatim and is not `.html`**, so `site.webmanifest` is out of
+  scope, and so is the 1200x630 `og-share.png`. A fee baked into the social image is
+  unreachable by any text check and is the likeliest place for a stale price to sit
+  after a fee change.
+
+**`js/app.js` is never opened, and that one is #70 rather than a decision.**
+The bundle already writes the hero copy beside the Join button, so a fee written into
+`registrationSentence()` would be the first price a visitor sees and this check could
+not see it at all. Adding `.js` to the filter is one line, but minified identifiers
+may begin with `$` and continue with digits, so a larger bundle could emit a `$0`
+token and turn a fee check red against an asset file. Today's bundle contains no `$`
+at all, which is exactly why that risk is untested.
 
 ## Icons and the web manifest
 
