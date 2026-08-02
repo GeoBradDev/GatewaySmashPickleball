@@ -67,7 +67,7 @@ that belong in the smoke script.
 **Read attribute values with `metaContent()`, never with a `[^"']*` class.** That
 class excludes both quote characters, so it stops dead at the first apostrophe inside
 a double-quoted value. #54 put "St. Louis'" into the three description tags and the
-"three description tags agree" check silently became a comparison of their first 33
+description-agreement check silently became a comparison of their first 33
 characters: all three truncated to the same prefix, so the tags could have said three
 different things and it would still have passed. The helper captures the opening
 delimiter and matches to its next occurrence instead. Nothing errored and no output
@@ -78,6 +78,56 @@ stop the shell expanding it so html-validate does its own recursion. It used to 
 the four pages one by one, which meant #46 built and shipped a fifth page that was
 never structurally validated at all, and nothing went red. Any list of pages that has
 to be kept in step by hand is the same trap.
+
+### The asset and description checks read every page, and until #61 they read one
+
+The paragraph above fixed that trap for html-validate. Four checks in the smoke
+script still had the single-page version of it: exactly one hashed module script,
+exactly one hashed stylesheet, no third-party subresources, and the three
+description tags agreeing, all reading `dist/index.html` alone. The FAQ, subs and
+code of conduct pages are full entry points in `vite.config.js` with their own
+`<head>` and their own `<script type="module">`, so #1's double-loaded bundle, an
+unhashed stylesheet link, a Google Fonts tag, or three descriptions saying three
+different things could land on any of them with `npm test` green. Pushing to `main`
+is the deploy, so the smoke script was standing in front of one page out of five.
+All four now loop over `CONTENT_PAGES`, which is derived from `dist/`, and each
+failure names the page it found, or a red build sends a maintainer to the wrong file.
+
+`CONTENT_PAGES` moved to the **top** of the file to make that possible. `check()`
+runs its callback immediately, so a const declared beside its old only caller is in
+the temporal dead zone for every check above it, and `check()` catches the
+ReferenceError and reports it as an ordinary content failure. A wiring mistake would
+read as a copy bug. `NUMBER_WORDS` is hoisted for the same reason.
+
+The two asset checks also require every page to name the **same** bundle and the
+**same** stylesheet, which is stricter than the issue asked for and is what keeps the
+rest of the file honest. Seven checks resolve `styleRef` once, from the homepage, and
+read the file it names: minification, the emitted-CSS scan, the self-hosted fonts and
+the four contrast sums. `runBundle()` does the same with `scriptRef` for every bundle
+behaviour check. Give one page its own chunk and all of them go on passing while
+covering the homepage's copy of the asset. Vite splits exactly that way the moment a
+page's script list stops matching the others, which is how the negative test for it
+was built rather than imagined.
+
+**A loop over a derived list passes vacuously when the list is empty**, and three of
+those four did: a `forEach` over nothing pushes no problems, so they reported `ok`
+against zero pages. Deriving `CONTENT_PAGES` from `dist/` is what makes it
+maintenance-free and equally what makes it silently emptiable. The floor is asserted
+once, ahead of all of them, from `sitemap.xml`'s own entry count rather than a number
+written into the script. The canonical check already requires every built page to
+appear in the sitemap, so this is that requirement pointing the other way, and a page
+dropped from `vite.config.js` now fails by name instead of shrinking the set every
+loop runs over. The hardcoded "at least 4 pages" guard it replaced is gone.
+
+`404.html` is deliberately outside `CONTENT_PAGES`. It is not an `index.html`, it
+carries no module script and no stylesheet link by design, and the check that it
+stays standalone already scans it for third-party subresources itself.
+
+Still index-only, deliberately: **the icon and manifest URL checks**. `every icon and
+manifest URL in dist/index.html resolves` and `every declared link type matches the
+file it points at` read the homepage alone, while every subpage ships the same five
+icon links and the same manifest link. #61 scoped itself to the four checks it named.
+This is the same defect class one surface over, and closing it is its own issue.
 
 **Lint and link checking run against `dist/`, not source.** The source now contains
 `{{> header}}`, which is not HTML, and `dist/` is what visitors actually receive.

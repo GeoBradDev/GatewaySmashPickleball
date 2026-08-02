@@ -1497,3 +1497,81 @@ reads the tokens of the file it is judging. The subs check still hardcodes
 no background.
 
 Merge commit: pending
+
+## Batch 9 continued: #61 the checks that read one page
+
+Four checks read `dist/index.html` and nothing else: exactly one hashed module
+script, exactly one hashed stylesheet, no third-party subresources, and the three
+description tags agreeing. The FAQ, subs and code of conduct pages are full entry
+points in `vite.config.js` with their own `<head>` and their own
+`<script type="module">`, so the whole family was standing in front of one page out
+of five while reading as coverage for all of them.
+
+The gap is not theoretical, and the run that proved it is the one worth recording.
+Putting a second module script on `faq/index.html` pointing at
+`https://cdn.example.com/app.js` produced a built page loading two bundles, one of
+them from a third-party CDN, and the script printed `All smoke checks passed.` Both
+the module-script check and the third-party check reported `ok` on that build. That
+is #1's exact regression plus a third-party subresource, shipping green.
+
+All four now loop over `CONTENT_PAGES`, which was already derived from `dist/` and
+needed no maintenance, only moving. Each failure names the page it found.
+
+`CONTENT_PAGES` moved to the top of the file, with `CANONICAL` and `ORIGIN`. It was
+declared beside the one check that used it, near line 1978, and `check()` runs its
+callback immediately, so reading it from line 81 would have been a temporal dead zone
+ReferenceError, caught by `check()` and reported as an ordinary content failure. The
+issue's suggested patch did not mention this and would not have run.
+
+Two things went in beyond what the issue asked for, both after review of the diff:
+
+- **Every page must name the same bundle and the same stylesheet.** Seven checks
+  resolve `styleRef` once from the homepage and read the file it names, and
+  `runBundle()` does the same with `scriptRef`. A page with its own chunk leaves all
+  of them passing while covering the homepage's copy. This is not hypothetical: the
+  second negative test below is Vite doing it.
+- **The page list must not be empty.** Three of the four widened checks reported `ok`
+  against zero content pages, because a `forEach` over nothing pushes no problems.
+  Deriving the list from `dist/` is what makes it maintenance-free and equally what
+  makes it silently emptiable. The floor now comes from `sitemap.xml`'s own entry
+  count, not a number in the script: the canonical check already requires every built
+  page to be in the sitemap, so this is that requirement pointing the other way. The
+  hardcoded "at least 4 pages" guard is gone rather than duplicated.
+
+Negative-tested six ways, each run against both `origin/main`'s script and this
+branch's on the same broken build. `origin/main` said `ok` to all five of the breaks
+its checks existed for:
+
+- Two module scripts on `/faq/`. Caught, naming `dist/faq/index.html`.
+- `/faq/` diverging onto its own chunk, which Vite emits as soon as a page's script
+  list stops matching the others. Caught, listing which page names which bundle.
+- A second unhashed stylesheet on `/subs/`. Caught, naming the page.
+- A Google Fonts `preconnect` on `/subs/`. Caught, naming the page and the URL.
+- A drifted `twitter:description` on `/code-of-conduct/`. Caught, printing both
+  strings. The pitch check stayed `ok`, which is what proves `metaContent` gained its
+  page parameter without losing its homepage caller.
+- `code-of-conduct` deleted from `vite.config.js`, so the page stops building.
+  Caught by the new sitemap check, naming the URL that no longer has a page.
+
+One duplicate is worth noting: an identical `<script type="module" src="/js/app.js">`
+added twice to a page is folded back to one tag by Vite and never reaches `dist/`, so
+the first attempt at a negative test proved nothing. The break has to survive the
+build to be a break.
+
+Verified: `npm test` exits 0, 59 ok and 0 not ok, from a clean `rm -rf node_modules`
+and `npm ci`. `git diff origin/main --stat` shows `scripts/smoke-build.js` alone, so
+none of the temporary breaks leaked into a shipped file. Driven live against
+`vite preview` on port 4317: all four pages return 200, each with one module script
+and one stylesheet at the same two hashed URLs, three description tags, and zero
+third-party subresources. `matchAll` on a shared `/g` pattern was confirmed by
+experiment not to advance the original's `lastIndex`, rather than assumed, because
+`assetRefs` reuses one regex across four pages.
+
+Left undone, deliberately. `every icon and manifest URL in dist/index.html resolves`
+and `every declared link type matches the file it points at` still read the homepage
+alone, and every subpage carries the same five icon links and the same manifest link.
+That is the same defect class one surface over. #61 named four checks and this run
+stayed inside them; closing the icon half is its own issue. Nothing ties the FAQ and
+subs pages' own JSON-LD descriptions to their meta tags either.
+
+Merge commit: pending
