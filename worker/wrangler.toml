@@ -18,4 +18,4 @@ routes = [
 [vars]
 # Public by design: the site key is rendered into the challenge page. Replace
 # with the key from the Turnstile widget before deploying.
-TURNSTILE_SITEKEY = "0x4AAAAAAFV8qbviKZF-fL0GAbA02AWP7Gg"
+TURNSTILE_SITEKEY = "0x4AAAAAAFV8qaXG0bjrb7D-"
