@@ -10,3 +10,7 @@ dist
 .vscode
 *.swp
 .DS_Store
+
+# Cloudflare Worker local secrets and wrangler state (see worker/)
+.dev.vars
+.wrangler/

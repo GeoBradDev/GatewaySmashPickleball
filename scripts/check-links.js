@@ -6,9 +6,11 @@
 // runs on a schedule instead, where a failure is a notification rather than a
 // blocked merge.
 //
-// The links that matter most are the ones a prospective player uses: the
-// Global Pickleball Network registration and the WhatsApp group invite.
-// WhatsApp invites in particular can be revoked or regenerated at any time.
+// The link that matters most is the one a prospective player uses: the
+// Global Pickleball Network registration. The WhatsApp invite is not here on
+// purpose. The site links to /join, which the join-gate Cloudflare Worker in
+// worker/ serves, and the invite lives only in that Worker's secrets, so a
+// revoked invite is something to check in the Cloudflare dashboard.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -69,8 +71,9 @@ for (const page of PAGES) {
 // page's two links without moving it, and a floor with slack in it cannot do
 // the job this comment describes: both DUPR links could have gone and this
 // would still have passed. Removing a link on purpose means editing this line,
-// which is the point.
-const MINIMUM_EXPECTED = 7;
+// which is the point. It went from 7 to 6 when the WhatsApp invite moved
+// behind /join.
+const MINIMUM_EXPECTED = 6;
 if (links.size < MINIMUM_EXPECTED) {
   console.error(
     'Only found ' + links.size + ' outbound links, expected at least ' +

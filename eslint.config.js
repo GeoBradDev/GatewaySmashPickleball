@@ -57,4 +57,23 @@ export default [
       eqeqeq: ['error', 'always'],
     },
   },
+
+  // worker/: the join-gate Cloudflare Worker. Its own runtime, not the browser
+  // and not Node, so it gets its own globals.
+  {
+    files: ['worker/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        fetch: 'readonly',
+        Response: 'readonly',
+        URLSearchParams: 'readonly',
+      },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      eqeqeq: ['error', 'always'],
+    },
+  },
 ];

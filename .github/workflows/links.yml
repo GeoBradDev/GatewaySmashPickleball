@@ -1,10 +1,10 @@
 name: Link check
 
 # Every outbound link on the site points at a third party that can rotate or
-# expire: the Global Pickleball Network registration, the Notion FAQ, and the
-# WhatsApp group invite. WhatsApp invites in particular can be revoked or
-# regenerated at any time, and the first person to notice should not be a
-# prospective player trying to join.
+# expire, chiefly the Global Pickleball Network registration, and the first
+# person to notice should not be a prospective player trying to join. The
+# WhatsApp invite is not checked here: the site links to /join, and the invite
+# lives only in the join-gate Worker's secrets (see worker/).
 #
 # Deliberately separate from ci.yml. These hosts can rate-limit or block a
 # runner IP, and a pull request that goes red for that reason teaches people

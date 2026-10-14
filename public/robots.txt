@@ -1,5 +1,8 @@
-# Allow crawling of all content
+# Allow crawling of all content except /join
 User-agent: *
 Disallow:
+# /join is served by the join-gate Cloudflare Worker (see worker/), not by
+# this site. It is a Turnstile check in front of the WhatsApp invite.
+Disallow: /join
 
 Sitemap: https://www.gatewaysmash.com/sitemap.xml

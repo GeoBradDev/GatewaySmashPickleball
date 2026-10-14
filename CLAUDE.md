@@ -22,6 +22,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
 - `.github/workflows/ci.yml` - CI check. Runs `npm ci` and `npm test` on pull requests to `main` and on pushes to `main`. It does not deploy.
 - `.github/workflows/links.yml` - Weekly outbound link check, kept out of CI on purpose.
+- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Deployed separately with wrangler; see `worker/README.md`.
 
 ## Build
 
@@ -515,7 +516,7 @@ either `hidden` attribute goes missing.
 The subs offer is the one piece of the hero JS **reveals rather than writes**.
 Its copy names no season, so there is nothing to derive, and a `textContent`
 write would take the `/subs/` link inside it with it. The same trap is why the
-14 `target="_blank"` links still have no visually-hidden new-tab warning: adding
+`target="_blank"` links still have no visually-hidden new-tab warning: adding
 one inside `#hero-join` would be wiped by the label rewrite, so it has to hang
 off a second `aria-describedby` id instead.
 
@@ -879,7 +880,19 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 
 ## Integrations & Contact
 
-- **Community Chat:** WhatsApp (linked in `index.html:259` and about copy at `index.html:126`).
+- **Community Chat:** WhatsApp. Every link to the group points at `/join`
+  (`index.html`, `faq/index.html` twice, `subs/index.html` twice), never at the
+  invite itself. `/join` is not a page in this site: the `join-gate` Cloudflare
+  Worker in `worker/` owns that route, shows a Turnstile challenge, and
+  302-redirects to the invite, which exists only as the Worker secret
+  `INVITE_URL`. **The invite URL must never appear in this repo or in `dist/`**,
+  and two smoke checks enforce it: no built file may contain `chat.whatsapp.com`
+  or `wa.me/`, and each of those three pages must carry a `/join` link. The
+  links have no `target="_blank"` so the challenge opens in the same tab, and
+  `robots.txt` disallows `/join`. Nothing in the site may claim `/join`: no
+  `join` file or directory, and no Render redirect or rewrite rule for it.
+  Because the invite is no longer an outbound link, `npm run check-links` cannot
+  see a revoked one; rotating it is `npx wrangler secret put INVITE_URL`.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.

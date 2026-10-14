@@ -2412,6 +2412,17 @@ check('every season starts and ends on a league night', function () {
   }
 });
 
+// One bye date in a bye cell, written either way the table writes a month:
+// abbreviated ("Feb 14") or in full ("February 14"). Both bye checks below read
+// the cell through this, so they cannot drift to different ideas of what a date
+// is. They had one pattern each, both three letters and a space, and spelling
+// the months out took every bye but "May 9" out of the week count. Only real
+// month names match, so a word like "Week 3" is not mistaken for a date. It is
+// a literal rather than built from MONTHS because the first check runs above
+// that declaration, in its temporal dead zone.
+const BYE_DATE =
+  /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})\b/g;
+
 // The night the league plays and the number of weeks it sells are both stated
 // in League Info, so both are read from there rather than hardcoded here. Move
 // the league to Saturdays, or sell a six-week season, and this check follows
@@ -2448,7 +2459,7 @@ check('every season plays the number of weeks the price copy sells', function ()
     }
     // "None" is the table's own word for a season with no bye.
     const noBye = row.byeCell.toLowerCase() === 'none';
-    const byes = noBye ? 0 : (row.byeCell.match(/\b[A-Z][a-z]{2}\s+\d{1,2}\b/g) || []).length;
+    const byes = noBye ? 0 : (row.byeCell.match(BYE_DATE) || []).length;
     if (!noBye && byes === 0) {
       problems.push(
         row.season + ' lists a bye this check cannot read a date out of: ' + row.byeCell
@@ -2546,9 +2557,9 @@ check('every bye falls on a league night inside its own season', function () {
     // The bye cell carries no year, so the year comes from the season the bye
     // sits in. Both ends are tried because a winter season can straddle
     // December, and only a date landing inside the range is accepted.
-    (row.byeCell.match(/\b[A-Z][a-z]{2}\s+\d{1,2}\b/g) || []).forEach(function (token) {
-      const parts = token.match(/([A-Z][a-z]{2})\s+(\d{1,2})/);
-      const month = MONTHS.indexOf(parts[1]);
+    [...row.byeCell.matchAll(BYE_DATE)].forEach(function (parts) {
+      const token = parts[0];
+      const month = MONTHS.indexOf(parts[1].slice(0, 3));
       if (month === -1) {
         problems.push(row.season + ' bye names no month this check knows: ' + token);
         return;
@@ -3284,6 +3295,34 @@ check('nothing still points at Notion or GroupMe', function () {
     });
   if (stale.length > 0) {
     throw new Error(stale.join('; '));
+  }
+});
+
+// The WhatsApp invite lives only in the join-gate Worker's secrets (worker/),
+// and the site links to /join, which that Worker serves behind Turnstile. An
+// invite URL in any built file, HTML or bundle, hands it straight to the bots
+// the gate exists for. Reads every file in dist/, not just pages, because
+// public/ ships verbatim and a bundle can carry a string as easily as markup.
+check('no built file carries a WhatsApp invite URL', function () {
+  const leaks = walk(distDir).filter(function (rel) {
+    const text = fs.readFileSync(path.join(distDir, rel), 'latin1').toLowerCase();
+    return text.includes('chat.whatsapp.com') || text.includes('wa.me/');
+  });
+  if (leaks.length > 0) {
+    throw new Error('invite URL in ' + leaks.join(', ') + '; link to /join instead');
+  }
+});
+
+// Every link to the group goes through the gate. Counted against the pages
+// that state it, so a /join link that silently vanished fails by name.
+check('every page that links the WhatsApp group links it through /join', function () {
+  const missing = ['index.html', 'faq/index.html', 'subs/index.html'].filter(function (rel) {
+    return !/<a href="\/join" (?:class="[^"]*" )?rel="nofollow">/.test(
+      fs.readFileSync(path.join(distDir, rel), 'utf8')
+    );
+  });
+  if (missing.length > 0) {
+    throw new Error('no /join link on ' + missing.join(', '));
   }
 });
 
