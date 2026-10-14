@@ -1,0 +1,21 @@
+# join-gate: serves /join on gatewaysmash.com. Shows a Turnstile challenge and,
+# on success, 302s to the WhatsApp invite. See README.md in this directory.
+#
+# The invite URL and the Turnstile secret are Worker secrets, set with
+# `npx wrangler secret put`. Never put either in this file or anywhere else in
+# the repo.
+name = "join-gate"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Both hostnames, because Cloudflare matches routes on the exact host. The
+# trailing * also catches /join/ and query strings.
+routes = [
+  { pattern = "gatewaysmash.com/join*", zone_name = "gatewaysmash.com" },
+  { pattern = "www.gatewaysmash.com/join*", zone_name = "gatewaysmash.com" },
+]
+
+[vars]
+# Public by design: the site key is rendered into the challenge page. Replace
+# with the key from the Turnstile widget before deploying.
+TURNSTILE_SITEKEY = "0x4AAAAAAFV8qbviKZF-fL0GAbA02AWP7Gg"
