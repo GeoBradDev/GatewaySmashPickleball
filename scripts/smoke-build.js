@@ -2524,9 +2524,9 @@ check('the hero CTA names the season a visitor would be joining', function () {
 });
 
 // The boundary is the whole risk here. An off-by-one would have the button
-// promise an open registration a day early, which is the same class of error
-// as the hand-written copy this issue was filed about.
-check('the hero CTA says registration is open on the day it opens', function () {
+// send a visitor to a registration day that is not today, which is the same
+// class of error as the hand-written copy this issue was filed about.
+check('the hero CTA names the season on the day it opens', function () {
   const before = statusesOn('2026-08-12');
   if (before.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('hero note the day before registration opens: ' + JSON.stringify(before.note));
@@ -3985,8 +3985,9 @@ check('the court time a member gets matches the hours the league runs', function
 // The opening time is one fact stated in five places: the hero, the callout,
 // League Info, the FAQ answer and that answer's JSON-LD. Two of those are
 // written by the bundle, so the value is read back out of what the bundle
-// renders rather than written here a sixth time, and moving the time is one
-// edit in js/app.js plus the three copies this check then points at.
+// renders rather than written here a sixth time. Moving the time is one edit
+// in js/app.js, the three copies this check then points at, and the sentences
+// the checks above pin by equality.
 //
 // Every sentence the bundle can produce goes through: pending and registration
 // day, with and without a running season. Each is a separate call site's worth

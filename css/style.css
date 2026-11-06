@@ -79,9 +79,8 @@
   --amber-light: #fef3e2;
   /* Darkened from #c26f06, which was 3.5:1 on cream and 3.8:1 on white, both
      under the 4.5:1 AA needs for the 14px text this colour is used on. It
-     marks the season a visitor can register for right now, in the hero note
-     and in the schedule, so it is the worst text on the page to have to
-     squint at. */
+     marks the season whose registration day it is, in the hero note and in
+     the schedule, so it is the worst text on the page to have to squint at. */
   --amber-dark: #96550a;
   --ink: #1c1c1c;
   --ink-soft: #3d3d3d;

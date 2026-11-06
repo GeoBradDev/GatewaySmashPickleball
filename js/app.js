@@ -266,7 +266,7 @@ import '../css/style.css';
   // The hour registration opens, stated here once for both sentences below.
   // It is the same for every season, so it is one value rather than a per-row
   // attribute. "Central" and never CST or CDT, because the name has to hold on
-  // both sides of daylight saving, and a season opens on either side of it.
+  // both sides of daylight saving, and registration opens on either side of it.
   var REGISTRATION_TIME = '8:00 AM Central';
 
   // nameSeason names the season the registration belongs to. The hero leaves it
