@@ -16,6 +16,18 @@ import '../css/style.css';
     return;
   }
 
+  // The markup ships a native popover so the menu opens with no script running.
+  // From here on this file is the menu, so the popover goes first: left in
+  // place, the browser and the drawer would both claim the list. Anything the
+  // visitor opened before this ran is carried over at the end of this block.
+  // The `in` guard is load-bearing: matches() throws a SyntaxError on a selector
+  // the browser does not know, which would stop this whole IIFE.
+  var wasOpen = 'popover' in nav && nav.matches(':popover-open');
+  nav.removeAttribute('popover');
+  toggle.removeAttribute('popovertarget');
+  toggle.setAttribute('aria-label', 'Open navigation menu');
+  toggle.setAttribute('aria-expanded', 'false');
+
   // Mirrors the breakpoint that turns .nav-links into the off-canvas drawer in
   // css/style.css. `inert` is not media-query aware, so the two have to be kept
   // in step by hand: inerting the desktop nav would make it unusable.
@@ -126,6 +138,13 @@ import '../css/style.css';
   });
 
   syncInert();
+
+  // Only below the breakpoint. A popover carried past it before this ran would
+  // otherwise land as drawer state on the desktop nav, and the change listener
+  // above was not there to clear it.
+  if (wasOpen && mobile.matches) {
+    openMenu();
+  }
 
   // Header shadow on scroll
   var scrollThreshold = 10;

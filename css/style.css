@@ -103,6 +103,7 @@
   /* Spacing */
   --section-pad: 100px;
   --container-pad: 24px;
+  --header-height: 72px;
 
   /* Radius */
   --radius-sm: 8px;
@@ -273,7 +274,7 @@ nav {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 var(--container-pad);
-  height: 72px;
+  height: var(--header-height);
 }
 
 /* Logo */
@@ -304,6 +305,19 @@ nav {
   display: flex;
   align-items: center;
   gap: 2rem;
+  /* The list is a popover until js/app.js removes the attribute, on desktop too.
+     These undo the user-agent [popover] rules for that stretch: without them the
+     desktop nav is display:none until the module runs. */
+  position: static;
+  inset: auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  color: inherit;
+  background: none;
 }
 
 .nav-links a {
@@ -977,6 +991,42 @@ footer p {
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
   }
 
+  /* The drawer with no script running. Keep this a separate rule: an unknown
+     pseudo-class invalidates its whole selector list, so sharing one with
+     .nav-links.open would cost a browser without popover the JS drawer. */
+  .nav-links:popover-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
+    /* The panel is taller than a short viewport, and with no script there is no
+       other way to the links past its fold. Here and not on the shared rule, so
+       the JS drawer stays exactly as it was. */
+    overflow-y: auto;
+    /* Below the header, so the toggle stays uncovered and is the close control.
+       An outside tap did not close a popover on iOS before Safari 18.3 (WebKit
+       bug 267688), so it cannot be relied on. These overrides belong to this rule alone too. */
+    top: var(--header-height);
+    height: calc(100dvh - var(--header-height));
+    padding-top: 1.5rem;
+  }
+
+  .nav-links::backdrop {
+    background: rgba(28, 28, 28, 0.3);
+  }
+
+  /* The UA forces pointer-events:none !important on a popover's ::backdrop, so
+     unlike the JS overlay it swallows nothing, and the tap that closes the drawer
+     would also land on the page. Light dismiss still fires in Chrome. Two rules
+     rather than a list for the reason above. The header stays live: the toggle is
+     the close control here, and the JS path leaves the logo tappable too. */
+  body:has(.nav-links:popover-open) main {
+    pointer-events: none;
+  }
+
+  body:has(.nav-links:popover-open) footer {
+    pointer-events: none;
+  }
+
   .nav-links li {
     width: 100%;
   }
@@ -1183,10 +1233,7 @@ footer p {
   :root {
     --section-pad: 56px;
     --container-pad: 16px;
-  }
-
-  nav {
-    height: 60px;
+    --header-height: 60px;
   }
 
   .logo-text {
