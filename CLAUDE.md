@@ -1122,7 +1122,7 @@ all working. Local serving has no Cloudflare injection, so that result does not 
 the decision below. Nothing on Render or Cloudflare has been changed.
 
 ```
-Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'sha256-Ywg8xuaNd9SFC2I2/x418J72cFuVagQA4V5p/sX2U6w='; img-src 'self'; font-src 'self'; manifest-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'sha256-GiPXCak+KdJvuvkrSBZEyjMMOFeGcP8Wjp7A54C4BmY='; img-src 'self'; font-src 'self'; manifest-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 ```
