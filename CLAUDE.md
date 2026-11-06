@@ -610,10 +610,12 @@ These hold it up, and each looks removable:
   only added after the module strips the popover, and a header height or padding rule
   that applies only above 768px, where no toggle shows. Both fail safe. Neither is to be
   read as a real covered toggle.
-- **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
-  `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
-  reached, and with no script that includes the FAQ. The JS drawer clips the same way.
-  That predates this and is its own issue, so the shared rule stays as it was.
+- **`overflow-y: auto` sits on the shared `.nav-links` rule in the 768px block, not on
+  this one**, so the popover and the JS drawer both scroll. The base reset removes the
+  UA's `overflow: auto`, so without it the links past the panel's fold cannot be
+  reached on a short viewport. A state rule can take it away, so `the mobile nav
+  scrolls on a short viewport` also fails if `.nav-links.open` or
+  `.nav-links:popover-open` sets `overflow` or `overflow-y` to anything but `auto`.
 - **The page stops taking pointer events while the popover is open**, through
   `body:has(.nav-links:popover-open)` rules on `main` and `footer`, one rule each so
   no selector list carries `:popover-open`. `::backdrop` cannot do this job. The UA
