@@ -28,8 +28,9 @@ Run these from this `worker/` directory.
    and `package-lock.json`, and it is not a dependency of the site, so the
    repo root's `npm ci` does not install it. Call it through the npm scripts
    below rather than through `npx`: when `node_modules` is missing, `npx`
-   silently downloads whatever is latest, while a script stops with "not
-   found". Node 22 or later is required.
+   falls back to fetching the latest version, while a script stops with "not
+   found", unless a global wrangler is on your `PATH`, which would run instead.
+   Node 22 or later is required.
 
 2. **Create the Turnstile widget.** In the Cloudflare dashboard, go to
    Turnstile, add a widget, and add `gatewaysmash.com` and

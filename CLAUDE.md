@@ -34,9 +34,9 @@ either would put workerd and esbuild into every `npm ci` in CI and on Render, fo
 tool neither uses, and a Cloudflare runtime's advisories into the site's audit. Root
 `npm ci` installs no wrangler, and `npm test` must keep passing with
 `worker/node_modules` absent. It is called through npm scripts and never through
-`npx`, because `npx` silently downloads the latest version when `node_modules` is
+`npx`, because `npx` falls back to fetching the latest version when `node_modules` is
 missing, which is the unpinned deploy the lockfile exists to prevent. A script stops
-with "not found" instead.
+with "not found" instead, unless a global wrangler is on `PATH`, which would win.
 
 Asset paths in `dist/` are content-hashed, so **never hardcode a built filename**.
 `css/style.css` becomes something like `assets/main-tEWbBYpj.css` and the hash changes
@@ -824,8 +824,9 @@ Three things the parser has to keep doing:
   minifies it, so `404.html` says `--white: #ffffff`, `dist/404.html` says
   `--white:#fff`, and today the two halves of one palette arrive spelled alike.
   The normalising stays because a default that flipped in a minor can flip back,
-  and a flip back must not read as eight drifts. Compare raw text and it does:
-  every shortened token would be reported. Named rather than hidden: minification
+  and a flip back must not read as a drift. `--white` is the only token that
+  shortens today, so comparing raw text would report that one, and any token added
+  later with a short form would join it. Named rather than hidden: minification
   also rewrites `rgba()` to eight-digit hex. It does so on both sides today, but
   against an unminified block a token copied in longhand would fail as a spelling
   difference. All eight are bare six-digit hex, and that failure would be red with
@@ -846,6 +847,17 @@ Three things the parser has to keep doing:
   a `:root` block out of an HTML file, so a rewritten `<style>` block empties it
   and a `forEach` over nothing pushes no problems. The check asserts its own
   floor before looping.
+
+**The minifier can remove a declaration, not only respell one.** `404.html` writes
+`min-height: 100vh` and then `min-height: 100dvh`, and `dist/404.html` ships only
+`100dvh`. Vite's default `build.target`, `baseline-widely-available`, is chrome111,
+edge111, firefox114, safari16.4 and ios16.4, and `cssTarget` inherits it. Lightning
+CSS drops the `100vh` fallback because every one of those supports `dvh`; given a
+target older than `dvh` it keeps both lines. A browser without `dvh` therefore loses
+the page's vertical centring, which is cosmetic and accepted, and matches
+`css/style.css`, whose mobile drawer already uses `height: 100dvh` with no fallback.
+A render comparison in a current browser cannot see this, because that browser uses
+the `dvh` line either way.
 
 A second check requires `404.html` to declare **exactly** the tokens it uses.
 #60 removed `--amber` from that block when the eyebrow stopped using it, and

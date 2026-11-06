@@ -1,7 +1,8 @@
 version: 2
 updates:
   # Monthly, not weekly. The site changes a few times a year, so weekly PRs
-  # would be noise nobody reads. The CI build check gates every one of these.
+  # would be noise nobody reads. The CI build check gates every PR for this
+  # root tree.
   - package-ecosystem: npm
     directory: "/"
     schedule:

@@ -46,7 +46,16 @@ Comparing `dist/` from 8.2.0 and 8.3.6:
   Tokens now reach the parity check as `--white:#fff`, the same spelling as the
   stylesheet, and the block arrives on one line. Every check is green, which is
   exactly why this needs negative tests rather than trust: the 404 parsers were
-  written against the unminified form.
+  written against the unminified form. Outside `<style>` the page is unchanged.
+- **The minifier also removes a declaration, so this is more than spelling and
+  layout.** `404.html` has `min-height: 100vh` then `min-height: 100dvh`, and
+  `dist/404.html` ships only `min-height:100dvh`. Vite 8.3.6's default target,
+  `baseline-widely-available` (chrome111, edge111, firefox114, safari16.4, ios16.4),
+  is inherited by `cssTarget`, and Lightning CSS keeps both lines only for a target
+  older than `dvh`, confirmed by running it directly. A browser without `dvh` loses
+  the vertical centring. **Accepted:** it is cosmetic, it matches `css/style.css`,
+  whose mobile drawer uses `height: 100dvh` with no fallback, and neither `404.html`
+  nor the target changes. A render comparison in a current browser cannot see this.
 - **The bundle is 5,074 bytes, not 5,078**, one De Morgan rewrite of the Tab handler's
   guard, from `if(!(k!==`Tab`||!open))` to `if(k===`Tab`&&open)`. Behaviour identical. Still exactly one `$`.
 - CSS, fonts and the four content pages differ only by the bundle's hash.
@@ -75,8 +84,9 @@ Dependabot needs a second entry, and CI never installs it, so a green Dependabot
 
 Pin exactly (`npm install -D -E wrangler@4.158.0`, latest today, `found 0
 vulnerabilities`). Called through npm scripts, not `npx`: when `node_modules` is
-missing, `npx wrangler` silently downloads latest, which is the defect in the issue,
-while an npm script fails with "not found". `which wrangler` is empty on this machine.
+missing, `npx wrangler` falls back to fetching latest, which is the defect in the
+issue, while an npm script fails with "not found" unless a global wrangler is on
+`PATH`. `which wrangler` is empty on this machine.
 
 ## Files that change
 
@@ -95,6 +105,8 @@ while an npm script fails with "not found". `which wrangler` is empty on this ma
   `vite*`, `eslint*`, `@eslint/*`, `html-validate`; rewrite its comment; add an npm
   entry for `directory: "/worker"`, monthly, with a comment that CI does not install
   that tree.
+- `vite.config.js`: comment only. "emits byte-identical to the source" is false now
+  that the 404 inline style is minified.
 - `scripts/smoke-build.js`: comments only. Line ~1114 (5,078 bytes). Lines ~2632 and
   ~2672 ("the 404 page's inline block is not" minified). No logic change.
 - `CLAUDE.md`:
@@ -106,10 +118,11 @@ while an npm script fails with "not found". `which wrangler` is empty on this ma
     Vite 8.3 line, so the spelling difference and `--white` "live proof" no longer
     exist, and the `rgba()` caveat changes for the same reason. Keep the rule: whether
     the block is minified is a Vite default a minor bump just flipped, and flipping it
-    back must not read as eight drifts.
+    back must not read as a drift. `--white` is the only token that shortens today.
   - Comment-stripping bullet: state whether a comment can still reach the parser, per
     the negative test below (`/*! */` may survive Lightning CSS).
   - Integrations: `npx wrangler secret put INVITE_URL`.
+  - The removed `100vh` declaration, under #67: see "What the bump changes".
   - A note that `npm audit` at root does not cover `worker/`.
 
 `worker/src/index.js` is not touched. #87 owns it.
@@ -168,7 +181,7 @@ to widen its range.
 | 3 | `worker/package-lock.json` resolves wrangler to the exact `package.json` version; `npm ci` in `worker/`; `npx --no-install wrangler --version` prints it (not `npm run dev -- --version`, measured: `wrangler dev` ignores the flag and starts the server); with `node_modules` deleted, `npm run dev` fails "not found" and downloads nothing |
 | 4 | Each below goes red on the 8.3.6 build, then reverts to green |
 | 5 | `npm ls wrangler` empty at root; gate green with `worker/node_modules` deleted |
-| 6 | `git grep -n "npx wrangler"` empty. No deploy or secret commands in the run log |
+| 6 | `git grep -n "npx wrangler"` empty outside `docs/plans/`. No deploy or secret commands in the run log |
 
 Negative tests, all against a fresh 8.3.6 build:
 
