@@ -2183,6 +2183,47 @@ check('the no-script panel leaves the toggle uncovered', function () {
   });
 });
 
+// The check above this group asks whether main appears in a selector, which a
+// rule on main .hero-bg answers yes. This one asks whether the whole of main and
+// footer are out of reach and stay that way. Today the stylesheet's only other
+// pointer-events is .hero-bg, a decorative layer set to none, and it needs no
+// exemption because this only objects to none on the header and to any other
+// value on the page.
+check('the whole page behind an open popover is out of reach and the header is not', function () {
+  const rules = emittedRules().filter((rule) => cssDeclarations(rule.body).has('pointer-events'));
+  const OPEN = /:has\(\.nav-links:popover-open\)/;
+  const HEADER = /header|\bnav\b|nav-links|menu-toggle|\blogo\b/i;
+  const stopped = [];
+  rules.forEach(function (rule) {
+    const value = cssDeclarations(rule.body).get('pointer-events');
+    cssSelectors(rule.selector).forEach(function (selector) {
+      const subject = selector.replace(OPEN, '').replace(/\s+/g, ' ').trim();
+      if (value !== 'none') {
+        if (!HEADER.test(subject)) {
+          throw new Error(selector + ' sets pointer-events to ' + value + ', which puts the page back in reach');
+        }
+        return;
+      }
+      if (HEADER.test(subject)) {
+        throw new Error(selector + ' stops pointer events on the header, where the toggle is the close control');
+      }
+      if (OPEN.test(selector)) {
+        if (!inMobileBlock(rule)) {
+          throw new Error(selector + ' is outside the 768px block');
+        }
+        stopped.push(subject);
+      }
+    });
+  });
+  const expected = ['body footer', 'body main'];
+  if (JSON.stringify(stopped.sort()) !== JSON.stringify(expected)) {
+    throw new Error(
+      'the rules behind an open popover select ' + JSON.stringify(stopped) +
+        ', not exactly ' + JSON.stringify(expected)
+    );
+  }
+});
+
 // The schedule statuses are the whole point of #10: the table presented a
 // finished season, a live one and one open for registration identically.
 // They are computed from each row's dates, so they are worth pinning down
