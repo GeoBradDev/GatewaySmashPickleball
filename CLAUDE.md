@@ -602,7 +602,11 @@ These hold it up, and each looks removable:
   padding or a height on the header and a `min-height` on the nav. That is as far as
   it reaches: it reads the stylesheet rather than the rendered header, so a new element
   inside `<header>` could still push it past the token, and only a real drive would
-  show that. `404.html` does not copy the token and has no need to.
+  show that. `404.html` does not copy the token and has no need to. The check also has
+  two false reds that fail safe and are known and accepted by the owner: a `header.scrolled`
+  rule goes red though `.scrolled` is only added after the module strips the popover, and
+  a header height or padding rule that applies only above 768px goes red though no toggle
+  shows there. Neither is to be read as a real covered toggle.
 - **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
   `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
   reached, and with no script that includes the FAQ. The JS drawer clips the same way.

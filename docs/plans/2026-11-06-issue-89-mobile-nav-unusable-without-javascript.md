@@ -185,6 +185,14 @@ None of these alters limits 1, 2 or 4 or criteria 1 to 7. Limit 3 was removed, a
   the toggle under the panel, and it went red falsely on `.nav-links.open`, which never applies
   alongside `:popover-open`. Both are frozen again.
 
+- **Known false reds, the user's decision.** The user's words, relayed by the orchestrator:
+  "yes to both, document the gaps and ship". `the no-script panel leaves the toggle uncovered`
+  goes red on `header.scrolled` rules, though `.scrolled` only arrives after the module strips
+  the popover, and on header height or padding rules that apply only above 768px, where no
+  toggle shows. Both fail safe and are recorded in CLAUDE.md. No follow-up issue is being filed.
+- **Comment reworded beside the rewrite.** The comment above
+  `the page behind an open popover does not take the tap` was reworded with the rewrite, to give
+  the toggle as the reason the header stays live. No logic changed.
 - **Limit 3 removed, approved by the orchestrator.** On iOS and iPadOS an outside tap does not
   light-dismiss a popover (WebKit bug 267688, https://bugs.webkit.org/show_bug.cgi?id=267688),
   so with the toggle covered there was no working close on those devices with no script.
@@ -234,7 +242,7 @@ None of these alters limits 1, 2 or 4 or criteria 1 to 7. Limit 3 was removed, a
 | 2 | Live drive, JS on at 375px, plus the JS drawer's geometry and computed `top`, `height` and `padding-top` equal to origin/main: open, focus on Home, Tab and Shift+Tab cycle includes toggle, Escape closes and refocuses, outside tap, link tap, `inert` present when closed, absent when open and at desktop width, breakpoint crossing while open. Existing `runBundle` checks stay green |
 | 3 | Each new check broken in turn, see below |
 | 4 | Live drive with module 404 and JS on, same script as criterion 1. Also CSS and JS both 404 |
-| 5 | Live drive with module delayed 3s at 375px and 1280px: `PerformanceObserver` layout-shift sources contain no nav node, geometry before and after module equal, and equal to origin/main |
+| 5 | Live drive with module delayed 3s at 375px and 1280px: `PerformanceObserver` layout-shift sources contain no nav node, with one qualification: one 0.0012 entry on `/code-of-conduct/` at 1280 has `nav-links` among its sources, identical on origin/main. Geometry before and after module equal, and equal to origin/main |
 | 6 | Existing no-inline-script checks plus `grep` of `dist/` |
 | 7 | CLAUDE.md diff: js/app.js bullet in Project Structure, partials note under Pages, and a section under Pages recording this table, the stale HTML case and the accepted limits |
 
