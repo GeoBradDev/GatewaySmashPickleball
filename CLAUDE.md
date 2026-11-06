@@ -598,8 +598,11 @@ These hold it up, and each looks removable:
   iPadOS it does not light-dismiss a popover (WebKit bug 267688), so a panel over the
   toggle left those devices with no way to close it. `top` and `height` read
   `--header-height`, which is also what the `nav` rule reads, and which the 480px
-  `:root` override changes, so the header and the panel cannot disagree. `404.html`
-  does not copy that token and has no need to.
+  `:root` override changes, so the two move together. A smoke check also refuses
+  padding or a height on the header and a `min-height` on the nav. That is as far as
+  it reaches: it reads the stylesheet rather than the rendered header, so a new element
+  inside `<header>` could still push it past the token, and only a real drive would
+  show that. `404.html` does not copy the token and has no need to.
 - **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
   `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
   reached, and with no script that includes the FAQ. The JS drawer clips the same way.
@@ -609,8 +612,8 @@ These hold it up, and each looks removable:
   no selector list carries `:popover-open`. `::backdrop` cannot do this job. The UA
   gives a popover's backdrop `pointer-events: none !important`, which author CSS cannot
   override, so unlike the JS overlay it swallows nothing, and the tap that closed the
-  drawer also landed on the page. On the homepage that strip holds the registration
-  button. Light dismiss still fires in Chrome, and the header stays out of the rule
+  drawer also landed on the page. On the homepage the strip left of the panel holds
+  the registration button. Light dismiss still fires in Chrome, and the header stays out of the rule
   because the toggle has to stay live and the JS path leaves the logo tappable too.
 - **The button carries `Navigation menu` as `.visually-hidden` text, after the
   bars.** With JavaScript gone the text is its accessible name. With the stylesheet
@@ -959,9 +962,10 @@ and doing it in `404.html` alone drops that page under 4.5:1 by itself.
 declares the whole type, shadow, spacing and radius scale on top of a wider
 palette, so comparing the other way would demand the error page carry the entire
 design system. The subset is deliberate. `rootTokens` reads the **first**
-`:root` block, because the stylesheet reopens `:root` in two media queries to
-shrink `--section-pad` and `--container-pad`; neither is a colour and neither is
-copied, so that only decides which value wins for an overridden token.
+`:root` block, because the stylesheet reopens `:root` in media queries to shrink
+its layout tokens, such as `--section-pad` and `--header-height`; none of those is
+a colour and none is copied, so that only decides which value wins for an overridden
+token.
 
 Three things the parser has to keep doing:
 

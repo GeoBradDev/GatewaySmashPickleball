@@ -174,6 +174,17 @@ and the sitemap do not change, no page or outbound link is added.
 
 None of these alters limits 1, 2 or 4 or criteria 1 to 7. Limit 3 was removed, as follows.
 
+- **Two frozen checks rewritten, with approval.** The user's words, relayed by the
+  orchestrator: "yes, rewrite the frozen checks for #89 and #90". It covers exactly
+  `the whole page behind an open popover is out of reach and the header is not` and
+  `the no-script panel leaves the toggle uncovered`, once. Reason: review drove inputs
+  that passed both. The tap check matched names by substring, so `.section-header a`, a real
+  class inside `main`, read as the header, and it compared `none!important` as a different
+  value, so `.menu-toggle{pointer-events:none!important}` left the nav unopenable. The toggle
+  check read `nav`'s height and not the header's, so `header{padding-top:24px}` put 16px of
+  the toggle under the panel, and it went red falsely on `.nav-links.open`, which never applies
+  alongside `:popover-open`. Both are frozen again.
+
 - **Limit 3 removed, approved by the orchestrator.** On iOS and iPadOS an outside tap does not
   light-dismiss a popover (WebKit bug 267688, https://bugs.webkit.org/show_bug.cgi?id=267688),
   so with the toggle covered there was no working close on those devices with no script.
@@ -234,6 +245,50 @@ back; remove the `visually-hidden` span; delete `.nav-links:popover-open`; delet
 `display:flex` reset; merge `.nav-links.open,.nav-links:popover-open`; delete the bundle's
 `removeAttribute` lines; delete `if (wasOpen)`; break one page only by editing its built HTML,
 to prove the loop reads every page rather than the homepage.
+
+Added in review:
+
+- `the page behind an open popover does not take the tap`: delete the main rule; delete the
+  footer rule; extend it to the header.
+- `an open popover is not handed to the drawer at desktop width`: drop `mobile.matches`.
+- `an open popover scrolls on a short viewport`: drop `overflow-y`; move it to the shared rule;
+  add it to `.nav-links.open`.
+- `the bars sit where the X counts them among all the toggle children`: first child `<svg>`,
+  `<b>`, void `<img>`, and an svg with a nested path.
+- `the toggle both opens and closes its popover`: `popovertargetaction` of `hide` and `show`,
+  with `toggle` as a green control.
+- `the no-script panel leaves the toggle uncovered`: delete `top`; `top:0`; literal height on
+  `nav`; delete the 480px override, with and without `nav{height:60px}`; height not subtracting;
+  height deleted; override on `nav`; `#nav-links{top:0}`; `.nav-links{top:0!important}`; `top` on
+  the shared rule; `padding`, `padding-top`, `padding-block`, `height` and `min-height` on
+  `header`, `header nav` and `#site-header`, including inside a media query; `min-height` on
+  `nav`; `#nav-links`, `ul.nav-links`, `.nav-links.active` and `.nav-links[popover]` setting
+  `top` or `height`. Green controls: `.nav-links.open{height:100svh}`, `nav{padding:0 30px}`.
+- `the whole page behind an open popover is out of reach and the header is not`: main rule
+  narrowed to `main .hero-bg`; `main h1` plus `footer p`; `:not(main)`; `main a` or
+  `.hero-actions a` set to `auto`; `.section-header a` and `.footer-logo` set to `auto`; `none`
+  on `#site-header`, `.menu-toggle` and `[id=site-header]`; `none!important` on `.menu-toggle` and
+  `header`; `none` on `body`, `html`, `body>*` and `body:has(...)`; rule moved out of the mobile
+  block. Green controls: `#site-header{pointer-events:auto}`, `.menu-toggle{pointer-events:auto}`,
+  `.section-header a{pointer-events:none}`, `.footer-logo{pointer-events:none}`.
+
+Both rewritten checks fail at the merge base, with only them and their CSS helpers applied to
+a scratch copy of it:
+
+```
+merge base 5f6095b505193c47f3d408cb121366c2b13dab08
+exit 1
+not ok - the no-script panel leaves the toggle uncovered
+not ok - the whole page behind an open popover is out of reach and the header is not
+2 smoke check(s) failed:
+  the no-script panel leaves the toggle uncovered: a nav rule sets height to 72px rather than var(--header-height), so the header and the panel can disagree
+  the whole page behind an open popover is out of reach and the header is not: the rules behind an open popover select [], not exactly ["body footer","body main"]
+ok lines 76
+```
+
+`ok lines` counts the other checks at that commit, which pass. On HEAD every listed input goes
+red on the check named above, and every control stays green. One earlier negative test moved:
+`.nav-links.open{top:40px}` is now green by design, because that selector left the loop.
 
 Server for the module states, not committed: a small static server in the session scratch
 directory that 404s or delays `*.js`, and 404s `*.css`. Use `vite preview` for the plain JS-on

@@ -1971,8 +1971,9 @@ check('a browser without popover still gets the drawer', function () {
 // author CSS cannot override, so unlike the JS overlay it swallows nothing. A tap
 // on the strip left of the panel closed the drawer and activated whatever was
 // under it, which on the homepage is the registration button. The page has to
-// stop taking the tap itself. The header stays out because the JS path leaves the
-// logo tappable above its overlay, so these two paths should agree.
+// stop taking the tap itself. The header stays out because the toggle lives there
+// and has to stay live, and the JS path leaves the logo tappable above its overlay
+// too.
 check('the page behind an open popover does not take the tap', function () {
   const selectors = emittedRules()
     .filter(inMobileBlock)
