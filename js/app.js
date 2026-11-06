@@ -263,15 +263,25 @@ import '../css/style.css';
     return name + ' is in progress.';
   }
 
+  // The hour registration opens, stated here once for both sentences below.
+  // It is the same for every season, so it is one value rather than a per-row
+  // attribute. "Central" and never CST or CDT, because the name has to hold on
+  // both sides of daylight saving, and registration opens on either side of it.
+  var REGISTRATION_TIME = '8:00 AM Central';
+
   // nameSeason names the season the registration belongs to. The hero leaves it
   // off when nothing else in the sentence names a season, because the button
   // beside it already does, and turns it on the moment a running season has put
   // a second name in play and "Registration opens" would be ambiguous.
+  //
+  // isOpen is a calendar-day answer, true from local midnight, so the open
+  // sentence has to hold at every hour of that day. "Is open now" read at 7:00
+  // AM would contradict the opening time this page publishes.
   function registrationSentence(next, nameSeason) {
     var subject = nameSeason ? next.name + ' registration' : 'Registration';
     return next.isOpen
-      ? subject + ' is open now.'
-      : subject + ' opens ' + longDate(next.opens) + '.';
+      ? subject + ' is today, from ' + REGISTRATION_TIME + '.'
+      : subject + ' opens ' + longDate(next.opens) + ' at ' + REGISTRATION_TIME + '.';
   }
 
   function statusOf(row) {
@@ -297,7 +307,7 @@ import '../css/style.css';
       return { label: 'In progress', modifier: 'current' };
     }
     // The window is 24 hours from the moment it opens, or however long it takes
-    // to fill 56 spots, whichever comes first. So a season is joinable on its
+    // to fill 56 spots, whichever comes first. So a row reads open on its
     // registration day and not afterwards. Reading this as "open until the
     // season starts" put "Registration open" on the row, and "Join <season>" on
     // the hero, for the month in between: 214 days across the seven seasons the
