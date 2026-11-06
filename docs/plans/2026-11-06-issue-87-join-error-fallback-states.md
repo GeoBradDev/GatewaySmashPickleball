@@ -110,7 +110,7 @@ The address is one `EMAIL` constant in `index.js`.
 - `worker/package.json`: `dev` script.
 - `worker/test/defects.test.js`: new, frozen.
 - `worker/test/gate.test.js`: new, not frozen.
-- `package.json`: `"test:worker": "node --test worker/test/*.test.js"` (unquoted, so the shell expands it on every supported Node and an empty directory fails rather than passing), and `"test": "npm run lint && npm run test:worker && npm run smoke"`.
+- `package.json`: `"test:worker": "ls worker/test/*.test.js > /dev/null && node --test worker/test/*.test.js"`, and `"test": "npm run lint && npm run test:worker && npm run smoke"`. The `ls` is required: negative test (b) showed that without it an unmatched glob reaches `node --test` literally, Node reads it as a glob, runs 0 tests and exits 0, so removing `worker/test` left `npm test` green. Naming the files would also fail, but a new test file could then be missed; `ls` keeps the list derived and adds the floor.
 - `eslint.config.js`: add `console` and `AbortSignal` to the worker globals, and a `worker/test/**/*.js` block with `console`, `globalThis`, `Request`, `Response`, `FormData`, `File`, `URL` (`File` added for the File-token test).
 - Phase 8, by the coordinator: `CLAUDE.md`, `worker/README.md`, `README.md`, and the comment in `.github/workflows/ci.yml`.
 
