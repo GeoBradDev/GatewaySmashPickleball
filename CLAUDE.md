@@ -595,19 +595,21 @@ These hold it up, and each looks removable:
   from the same declarations. An unknown pseudo-class invalidates its whole selector
   list, so merging them costs a browser without popover the JS drawer.
 - **That rule also moves the panel below the header, so the toggle stays uncovered
-  and is the close control.** Outside tap is not relied on as a close path: on iOS and
-  iPadOS it does not light-dismiss a popover (WebKit bug 267688), so a panel over the
-  toggle left those devices with no way to close it. `top` and `height` read
+  and is the close control.** Outside tap is not relied on as a close path: iOS and
+  iPadOS shipped popover without light dismiss (WebKit bug 267688, reported fixed in
+  Safari 18.3 beta and reproduced before that from iOS 17), so a panel over the toggle
+  left those devices with no way to close it. They stay in use after the fix. `top` and `height` read
   `--header-height`, which is also what the `nav` rule reads, and which the 480px
   `:root` override changes, so the two move together. A smoke check also refuses
   padding or a height on the header and a `min-height` on the nav. That is as far as
   it reaches: it reads the stylesheet rather than the rendered header, so a new element
   inside `<header>` could still push it past the token, and only a real drive would
-  show that. `404.html` does not copy the token and has no need to. The check also has
-  two false reds that fail safe and are known and accepted by the owner: a `header.scrolled`
-  rule goes red though `.scrolled` is only added after the module strips the popover, and
-  a header height or padding rule that applies only above 768px goes red though no toggle
-  shows there. Neither is to be read as a real covered toggle.
+  show that. `404.html` does not copy the token and has no need to. The check also goes
+  red on rules that cannot cover the toggle, and two of those are known and accepted by
+  the owner: a `header.scrolled` rule setting height or padding, though `.scrolled` is
+  only added after the module strips the popover, and a header height or padding rule
+  that applies only above 768px, where no toggle shows. Both fail safe. Neither is to be
+  read as a real covered toggle.
 - **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
   `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
   reached, and with no script that includes the FAQ. The JS drawer clips the same way.

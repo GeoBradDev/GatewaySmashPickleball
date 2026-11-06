@@ -1003,8 +1003,8 @@ footer p {
        the JS drawer stays exactly as it was. */
     overflow-y: auto;
     /* Below the header, so the toggle stays uncovered and is the close control.
-       An outside tap does not close a popover on iOS (WebKit bug 267688), so it
-       cannot be relied on. These overrides belong to this rule alone too. */
+       An outside tap did not close a popover on iOS before Safari 18.3 (WebKit
+       bug 267688), so it cannot be relied on. These overrides belong to this rule alone too. */
     top: var(--header-height);
     height: calc(100dvh - var(--header-height));
     padding-top: 1.5rem;

@@ -188,17 +188,20 @@ None of these alters limits 1, 2 or 4 or criteria 1 to 7. Limit 3 was removed, a
 
 - **Known false reds, the user's decision.** The user's words, relayed by the orchestrator:
   "yes to both, document the gaps and ship". `the no-script panel leaves the toggle uncovered`
-  goes red on `header.scrolled` rules, though `.scrolled` only arrives after the module strips
-  the popover, and on header height or padding rules that apply only above 768px, where no
-  toggle shows. Both fail safe and are recorded in CLAUDE.md. No follow-up issue is being filed.
+  goes red on `header.scrolled` rules setting height or padding, though `.scrolled` only arrives
+  after the module strips the popover, and on header height or padding rules that apply only
+  above 768px, where no toggle shows. Both fail safe and are recorded in CLAUDE.md. They are the
+  two the owner accepted, not a full list of what the check can over-refuse. No follow-up issue
+  is being filed.
 - **Comment reworded beside the rewrite.** The comment above
   `the page behind an open popover does not take the tap` was reworded with the rewrite, to give
   the toggle as the reason the header stays live. No logic changed.
-- **Limit 3 removed, approved by the orchestrator.** On iOS and iPadOS an outside tap does not
-  light-dismiss a popover (WebKit bug 267688, https://bugs.webkit.org/show_bug.cgi?id=267688),
-  so with the toggle covered there was no working close on those devices with no script.
-  The orchestrator approved removing the limit under its earlier condition that the no-JS
-  panel leaves the toggle uncovered. `.nav-links:popover-open` now sets `top` and `height`
+- **Limit 3 removed, approved by the orchestrator.** iOS and iPadOS shipped popover without light
+  dismiss (WebKit bug 267688, https://bugs.webkit.org/show_bug.cgi?id=267688, reported fixed in
+  Safari 18.3 beta and reproduced before that from iOS 17), so with the toggle covered there was
+  no working close on those devices with no script. The orchestrator approved removing the limit
+  under its condition that a change altering the limits comes back for a decision, and chose to
+  move the panel below the header. `.nav-links:popover-open` now sets `top` and `height`
   from a new `--header-height` token, which the `nav` rule also reads and the 480px `:root`
   override changes, plus a smaller `padding-top`. The toggle is the close control and outside
   tap is not relied on. iOS Safari is not available here and stays undriven. New checks:
