@@ -7,6 +7,7 @@ const SITE_HOSTNAMES = ['gatewaysmash.com', 'www.gatewaysmash.com'];
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const SITEVERIFY_TIMEOUT_MS = 10000;
 const FORM_CONTENT_TYPE = /^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i;
+const ALLOW = { Allow: 'GET, HEAD, POST' };
 
 const EMAIL = 'info@gatewaysmash.com';
 const CONTACT = `Still stuck? Email <a href="mailto:${EMAIL}">${EMAIL}</a>.`;
@@ -21,7 +22,7 @@ export default {
       if (request.method === 'POST') {
         return await verify(request, env, allowedHostnames);
       }
-      return badRequest(405, { Allow: 'GET, HEAD, POST' });
+      return badRequest(405, ALLOW);
     } catch (error) {
       // The name only. A message can quote the response body it failed to parse,
       // and that body is not ours to log.
@@ -34,7 +35,7 @@ export default {
 async function verify(request, env, allowedHostnames) {
   const contentType = request.headers.get('Content-Type') || '';
   if (!FORM_CONTENT_TYPE.test(contentType)) {
-    return badRequest(405);
+    return badRequest(405, ALLOW);
   }
 
   let form;
@@ -137,6 +138,7 @@ function challengePage(siteKey) {
       function done() { document.getElementById('f').submit(); }
       function showHelp() { document.getElementById('help').hidden = false; }
       setTimeout(function () { if (!window.turnstile) showHelp(); }, 4000);
+      window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
     </script>`,
     '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
   );

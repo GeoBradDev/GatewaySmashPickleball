@@ -4,7 +4,7 @@ import js from '@eslint/js';
 // permissive union that would stop catching anything in either.
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: ['dist/**', 'node_modules/**', '**/.wrangler/**'],
   },
 
   // js/app.js: browser only, no bundler globals. It is deliberately written as

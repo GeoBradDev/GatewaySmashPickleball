@@ -1,7 +1,8 @@
 // Local development only, run by `npm run dev`. Cloudflare's test keys report
 // their hostname as example.com, which the production list rejects, so this adds
-// it. wrangler.toml's main and the deploy script both name src/index.js, and
-// index.js imports nothing, so no deployed bundle contains this file.
+// it. `wrangler deploy` names no entry point, so it deploys wrangler.toml's main,
+// which is src/index.js, and index.js imports nothing, so no deployed bundle
+// contains this file.
 import gate from './index.js';
 
 export default {

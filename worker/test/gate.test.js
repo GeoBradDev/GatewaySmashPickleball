@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 import { afterEach, beforeEach, test } from 'node:test';
 import worker from '../src/index.js';
 import dev from '../src/dev.js';
@@ -189,6 +190,17 @@ for (const method of ['PUT', 'DELETE', 'OPTIONS']) {
   });
 }
 
+for (const [name, init] of [
+  ['application/json', { headers: { 'Content-Type': 'application/json' }, body: '{}' }],
+  ['no content type', {}],
+]) {
+  test(`POST with ${name} gives the 405 page with Allow`, async () => {
+    const response = await worker.fetch(new Request(JOIN_URL, { method: 'POST', ...init }), ENV);
+    assert.equal(response.status, 405);
+    assert.equal(response.headers.get('Allow'), 'GET, HEAD, POST');
+  });
+}
+
 test('HEAD gives 200', async () => {
   const response = await worker.fetch(new Request(JOIN_URL, { method: 'HEAD' }), ENV);
   assert.equal(response.status, 200);
@@ -214,6 +226,46 @@ test('siteverify answering the JSON value null gives the 502 page', async () => 
   const response = await worker.fetch(tokenPost(), ENV);
   assert.equal(response.status, 502);
   assert.equal(response.headers.get('Location'), null);
+});
+
+// Runs the page's own inline script, then fires pageshow at whatever it registered.
+async function reloadsOnPageshow(event) {
+  const body = await (await worker.fetch(new Request(JOIN_URL), ENV)).text();
+  const script = body.match(/<script>([\s\S]*?)<\/script>/);
+  assert.ok(script, 'page has an inline script');
+
+  let reloads = 0;
+  const listeners = [];
+  const page = {
+    setTimeout() {},
+    location: {
+      reload() {
+        reloads += 1;
+      },
+    },
+    addEventListener(type, listener) {
+      if (type === 'pageshow') listeners.push(listener);
+    },
+  };
+  page.window = page;
+  runInNewContext(script[1], page);
+
+  assert.equal(listeners.length, 1, 'script listens for pageshow once');
+  listeners[0](event);
+  return reloads;
+}
+
+test('a page restored from the back/forward cache reloads', async () => {
+  assert.equal(await reloadsOnPageshow({ persisted: true }), 1);
+});
+
+test('a normal page load does not reload', async () => {
+  assert.equal(await reloadsOnPageshow({ persisted: false }), 0);
+});
+
+test('the challenge page uses no inline event-handler attributes', async () => {
+  const body = await (await worker.fetch(new Request(JOIN_URL), ENV)).text();
+  assert.doesNotMatch(body, /<[^>]*\son[a-z]+=/i);
 });
 
 const LEAKY = `${SECRET} ${INVITE}`;

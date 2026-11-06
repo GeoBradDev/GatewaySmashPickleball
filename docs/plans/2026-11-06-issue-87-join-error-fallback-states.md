@@ -59,7 +59,7 @@ Rejected: a `[vars]` or `.dev.vars` flag (a dashboard or config value could loos
 
 - `fetch`: whole body in `try`. GET and HEAD return the challenge. POST returns `await verify(...)`. Anything else returns the failure page at 405 with `Allow: GET, HEAD, POST`. `catch (error)`: `console.error('join-gate: request failed', error?.name)` (optional chaining, so a thrown non-object cannot throw again inside the catch) (the name only, never `error.message` and never a Response body) and return the 502 page.
 - `verify`:
-  1. Content type must match `/^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i`, else 405. A missing header is `''` and also 405.
+  1. Content type must match `/^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i`, else 405. A missing header is `''` and also 405. Both 405 sites send `Allow: GET, HEAD, POST`, from one `ALLOW` constant, because a 405 without it is what review found here.
   2. `request.formData()` in its own `try`; on a throw (malformed multipart) return the 405 page at status 400.
   3. `token = form.get('cf-turnstile-response')`. If it is not a non-empty string (a File is possible in multipart), return 403 without calling siteverify.
   4. If `env.TURNSTILE_SECRET` or `env.INVITE_URL` is unset, return 502 (otherwise the old code would send `Location: undefined`).
@@ -87,9 +87,10 @@ Rejected: a `[vars]` or `.dev.vars` flag (a dashboard or config value could loos
       function done() { document.getElementById('f').submit(); }
       function showHelp() { document.getElementById('help').hidden = false; }
       setTimeout(function () { if (!window.turnstile) showHelp(); }, 4000);
+      window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
     </script>
 
-The 4-second timer is what catches a blocked `api.js`: no callback can fire if the script never arrived, and a blocked request does not always fail fast. A late-loading script is harmless, because the help text then sits beside a working widget. `showHelp` returns nothing, so the widget keeps its own retry behaviour. No inline event-handler attributes, because #91's CSP should not have to allow them.
+The 4-second timer is what catches a blocked `api.js`: no callback can fire if the script never arrived, and a blocked request does not always fail fast. A late-loading script is harmless, because the help text then sits beside a working widget. `showHelp` returns nothing, so the widget keeps its own retry behaviour. The `pageshow` listener exists because Back after `done()` can restore `/join` from the back/forward cache with a solved widget, no way to resubmit and `#help` hidden; reloading gets a fresh widget. No inline event-handler attributes, because #91's CSP should not have to allow them.
 
 ### Copy (verbatim; Copy style: sentence case, straight quotes, no em dashes)
 
@@ -111,7 +112,7 @@ The address is one `EMAIL` constant in `index.js`.
 - `worker/test/defects.test.js`: new, frozen.
 - `worker/test/gate.test.js`: new, not frozen.
 - `package.json`: `"test:worker": "ls worker/test/*.test.js > /dev/null && node --test worker/test/*.test.js"`, and `"test": "npm run lint && npm run test:worker && npm run smoke"`. The `ls` is required: negative test (b) showed that without it an unmatched glob reaches `node --test` literally, Node reads it as a glob, runs 0 tests and exits 0, so removing `worker/test` left `npm test` green. Naming the files would also fail, but a new test file could then be missed; `ls` keeps the list derived and adds the floor.
-- `eslint.config.js`: add `console` and `AbortSignal` to the worker globals, and a `worker/test/**/*.js` block with `console`, `globalThis`, `Request`, `Response`, `FormData`, `File`, `URL` (`File` added for the File-token test).
+- `eslint.config.js`: add `**/.wrangler/**` to `ignores` (a bundle left by `npm run dev` otherwise fails root lint), add `console` and `AbortSignal` to the worker globals, and a `worker/test/**/*.js` block with `console`, `globalThis`, `Request`, `Response`, `FormData`, `File`, `URL` (`File` added for the File-token test).
 - Phase 8, by the coordinator: `CLAUDE.md`, `worker/README.md`, `README.md`, and the comment in `.github/workflows/ci.yml`.
 
 Not changed: `wrangler.toml`, `scripts/smoke-build.js`, anything under the site.
@@ -191,4 +192,4 @@ Live drive (in `worker/`, `npm ci`, `.dev.vars` with test keys and `INVITE_URL=h
 
 Never run `wrangler deploy` (with or without `--dry-run`) or `wrangler secret`.
 
-Post-deploy check for the user, stated in the PR: `npm run deploy` from `worker/`, then load `/join` with JS off and confirm the address reads `info@gatewaysmash.com` and not `[email protected]`.
+Post-deploy check for the user, stated in the PR: after `npm run deploy` from `worker/`, `curl -s https://www.gatewaysmash.com/join | grep -c email-protection` and `curl -s -X POST https://www.gatewaysmash.com/join | grep -c email-protection` must both print 0. Loading the page with JS off cannot detect obfuscation, because that shows only the `<noscript>` copy, which Cloudflare excludes anyway.
