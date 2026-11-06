@@ -321,6 +321,29 @@ missing paths answered with `404.html` and a 404 status. Load `/`, `/faq/`, `/su
 nav and the schedule status work (both need the bundle running), the 404 is styled, and
 the manifest loads. Negative control: remove `font-src` and confirm the drive reports it.
 
+## Implementation notes, from the live drive
+
+- **Tooling.** The devtools MCP has no request blocking, so step 5 used a throwaway
+  headless Chrome started with `--host-resolver-rules=MAP challenges.cloudflare.com
+  ~NOTFOUND`, cold and with `api.js` cached. Steps 5 and 7 and the `dist/` drive read
+  console output over CDP from that same kind of browser. Steps 1 to 4 used the MCP.
+- **The 404 style hash is unchanged**: `sha256-Ywg8xuaNd9SFC2I2/x418J72cFuVagQA4V5p/sX2U6w=`,
+  recomputed from `dist/404.html`.
+- **`nosniff` is not in the static recommendation because Render already sends it**, per
+  the captured production headers. It stays out of the list the user has to apply.
+- **Step 7 depends on what Cloudflare stamps.** The snippet is two scripts: the outer
+  inline tag, and an inline script it creates inside an `about:blank` iframe, which
+  inherits the policy. With a nonce on both, `main.js` runs and its beacon is allowed
+  with no violation. With a nonce on the outer tag only, the inner script is blocked and
+  logs one violation. With no nonce, the outer tag is blocked. Joining works in all
+  three. Only production can show which one Cloudflare does, so it goes on the user's
+  post-deploy check.
+- **A malformed `INVITE_URL` is unchanged on POST**, per approver condition 1: only an
+  unset one gives the 502. With a valid token, a set but malformed value still answers
+  302 with that value in `Location`, and the fallback `form-action 'self'` then stops a
+  cross-origin one in the browser, so the visitor stalls on the page with a console
+  violation rather than being sent somewhere odd.
+
 ## Risks
 
 - **The riskiest step is `form-action`** (finding 1), now designed around and pinned by a
