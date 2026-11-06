@@ -8,12 +8,22 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     groups:
-      # The toolchain moves as a unit. Ungrouped, a webpack major lands as
-      # five separate PRs that each half-upgrade the build.
-      webpack:
+      # The toolchain moves as a unit. Ungrouped, a vite or eslint major lands
+      # as separate PRs that each half-upgrade the build.
+      toolchain:
         patterns:
-          - "webpack*"
-          - "*-webpack-plugin"
+          - "vite*"
+          - "eslint*"
+          - "@eslint/*"
+          - "html-validate"
+
+  # The Worker's wrangler pin, which has its own lockfile. CI does not install
+  # this tree, so a green PR here proves only that nothing broke the site. Run
+  # npm ci and npm run dev in worker/ before merging one.
+  - package-ecosystem: npm
+    directory: "/worker"
+    schedule:
+      interval: monthly
 
   - package-ecosystem: github-actions
     directory: "/"
