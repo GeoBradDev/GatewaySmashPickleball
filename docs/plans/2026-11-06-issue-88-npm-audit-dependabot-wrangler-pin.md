@@ -178,8 +178,15 @@ Negative tests, all against a fresh 8.3.6 build:
   be dropped by the minifier first; if it is, record that.
 - `var(--undeclared)` used in the 404 block: exactness check red.
 - `/*! note */` at the start of the 404 `:root`: confirm parity still reads all eight.
+  Measured: the minifier removes it, and a drifted `--cream` beside it goes red. Only
+  a `/*! */` at the very top of the `<style>` survives, outside `:root`.
 - 404's `:root` renamed so the block empties: both floors red by name.
 - Third-party `@import` or `url()` in 404's inline style: standalone check red.
+  **Departure, measured:** neither goes red, on 8.3.6 or on 8.2.0. The check matches
+  `<link>` and `<script>` tags only, so this expectation was wrong and the bump did
+  not cause it. A third-party `<link rel="preload">` and a `<link rel="stylesheet">`
+  in the same place both go red on 8.3.6. Left open: this change edits only comments
+  in `scripts/smoke-build.js`, so the gap needs its own issue.
 
 Live drive:
 

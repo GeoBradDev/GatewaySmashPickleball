@@ -326,7 +326,7 @@ not esbuild, is what Vite 8 builds with here**, and it draws an identifier's fir
 character from a 54-character alphabet in which `$` is legal, adding digits from the
 second character on. Measured against this project's own rolldown, a `$`-then-digit
 name first appears between 3,000 and 3,100 distinct names in one scope, at about
-110 KB. **Today's bundle is 5,078 bytes and carries exactly one `$`**, the end anchor
+110 KB. **Today's bundle is about 5 KB and carries exactly one `$`**, the end anchor
 of #63's `ISO_DATE` regex; this file's previous claim that it carried none was true
 before #63 and stale after it. Narrowing the pattern to two or more digits would
 pre-empt both false positives and is deliberately not done, because it would stop the
@@ -803,20 +803,28 @@ copied, so that only decides which value wins for an overridden token.
 
 Three things the parser has to keep doing:
 
-- **`#ffffff` and `#fff` compare equal.** The stylesheet is minified and the 404
-  block is not, so the two halves of one palette arrive spelled differently, and
-  `--white` is live proof: the page ships the long form against a stylesheet
-  that ships the short one. Compare raw text and every shortened token reads as
-  a drift. Named rather than hidden: minification also rewrites `rgba()` to
-  eight-digit hex, so a token copied in longhand would fail as a spelling
-  difference. All eight are bare six-digit hex, and that failure would be red
-  with both spellings in the message, not a silent pass.
+- **`#ffffff` and `#fff` compare equal.** Whether the 404 block is minified is a
+  Vite default rather than a decision made here: 8.2.0 left it verbatim and 8.3.6
+  minifies it, so `404.html` says `--white: #ffffff`, `dist/404.html` says
+  `--white:#fff`, and today the two halves of one palette arrive spelled alike.
+  The normalising stays because a default that flipped in a minor can flip back,
+  and a flip back must not read as eight drifts. Compare raw text and it does:
+  every shortened token would be reported. Named rather than hidden: minification
+  also rewrites `rgba()` to eight-digit hex. It does so on both sides today, but
+  against an unminified block a token copied in longhand would fail as a spelling
+  difference. All eight are bare six-digit hex, and that failure would be red with
+  both spellings in the message, not a silent pass.
 - **Comments are stripped before the declarations are matched.** The only
   boundary in front of the first declaration is the start of the block, so a
   comment sitting there pushes it past the anchor and it drops out of the map,
-  leaving the check reporting `ok` over seven of eight tokens. `css/style.css`
-  opens its own `:root` with `/* Palette */`, so that is a plausible edit and
-  not a hypothetical. Review of #67 caught it in the first pass, and the
+  leaving the check reporting `ok` over seven of eight tokens. With the block
+  minified no comment reaches this parser: a plain comment and a `/*! */` one both
+  disappear from inside `:root`, and the only one that survives is a `/*! */` at
+  the very top of the `<style>`, which sits outside the block. The strip stays for
+  the same reason as the normalising above. If that default flips back, a comment
+  at the start of `:root` reaches `dist/` again, and `css/style.css` opens its own
+  `:root` with `/* Palette */`, so that is a plausible edit and not a
+  hypothetical. Review of #67 caught it in the first pass, and the
   pre-strip parser was confirmed green against a drifted `--cream`.
 - **The empty list cannot pass vacuously.** The token list is derived by reading
   a `:root` block out of an HTML file, so a rewritten `<style>` block empties it
