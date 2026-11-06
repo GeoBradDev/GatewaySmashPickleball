@@ -143,8 +143,7 @@ one is an HTML page with a link back to `/join`, a link home and
 If `/join` gets no token within 4 seconds, or Turnstile reports an error, the
 page shows why that can happen and the same address. If the browser blocks the
 redirect to the invite, the page shows that same help text, which does not name
-this cause, so check `INVITE_URL` first. With JavaScript off it shows
-that at once.
+this cause, so check `INVITE_URL` first. With JavaScript off it shows its own message and the same address at once.
 
 Logs carry the thrown error's name and nothing else. A wrong `TURNSTILE_SECRET`
 logs nothing at all, and neither does an unset one: every visitor gets the 403 or

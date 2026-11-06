@@ -983,7 +983,9 @@ The Worker has already answered a good 302 by then and logs nothing. **Any edit 
 policy, to `inviteOrigin`, to the challenge page's script, or to where `INVITE_URL`
 points must re-drive the POST-then-302 in a real browser**, against a cross-origin
 target, because `node --test` has no browser to apply it. The test keys and a local
-echo server are enough. Firefox does not enforce this, by public report, so a pass there
+echo server are enough for a policy, `inviteOrigin` or script edit. A change to where
+`INVITE_URL` points also needs one real pass through `/join` on production, because no
+local run can prove a real target. Firefox does not enforce this, by public report, so a pass there
 proves nothing.
 
 So the origin goes in `form-action`, and it is **derived from `INVITE_URL` at request
@@ -1035,7 +1037,8 @@ and a future Origin check or a Cloudflare rule keyed on it would reject every vi
 Pending the JavaScript Detections decision below, and set as one `/*` entry per header
 in Render. These were verified on every page of a locally served `dist/`, 404 included:
 no violation, with fonts, icons, the manifest, the mobile nav and the schedule status
-all working. Nothing on Render or Cloudflare has been changed.
+all working. Local serving has no Cloudflare injection, so that result does not cover
+the decision below. Nothing on Render or Cloudflare has been changed.
 
 ```
 Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'sha256-Ywg8xuaNd9SFC2I2/x418J72cFuVagQA4V5p/sX2U6w='; img-src 'self'; font-src 'self'; manifest-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
@@ -1065,8 +1068,9 @@ Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   URL.
 - `frame-ancestors 'none'`: no page here is meant to be embedded. The replacement for
   `X-Frame-Options`, which is why that header is not on the list.
-- `Referrer-Policy: strict-origin-when-cross-origin`: the value #91 asks for. Outbound
-  links such as Global Pickleball Network get the origin, not the page path. `/join` is
+- `Referrer-Policy: strict-origin-when-cross-origin`: the value #91 asks for. Every
+  outbound link in `dist/` already carries `rel="noreferrer"` and sends no referrer, so
+  this is only the default for a link that omits it: the origin, not the page path. `/join` is
   stricter, because a redirect to the invite has no use for a referrer at all.
 - `Permissions-Policy`: the bundle uses none of those features, so a script that ever
   landed here could not ask for them.
@@ -1096,9 +1100,10 @@ the docs make it a separate setting, which changes what the first option costs.
    the CSP is for. Cloudflare discourages it.
 
 A constant nonce in a fixed header is not offered: a nonce that never changes is a
-password in the page source. Cloudflare's docs were reported to say `Cache-Control:
-no-transform` stops the injection. That was not measured, it may also switch off Email
-Obfuscation, and it is not one of the options above.
+password in the page source. Cloudflare's JavaScript Detections page also says it does
+not inject when the origin sends `Cache-Control: no-transform`. That was not measured,
+its docs list the same directive as switching off Email Obfuscation, and it is not one of
+the options above.
 
 **The 404 hash can go stale, and nothing in this repo can see it.** Editing that
 `<style>` changes the hash, the dashboard keeps the old one, and the error page goes
