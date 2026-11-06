@@ -59,6 +59,9 @@ Run these from this `worker/` directory.
    `npm audit` is here because the one at the repo root cannot see this
    directory's tree, and CI never installs it.
 
+   Merging a change to this directory does not deploy it. The Worker in
+   production stays as it was until someone runs `npm run deploy` here.
+
    This registers both routes in the `gatewaysmash.com` zone. The routes only
    apply while the DNS records are proxied (orange cloud).
 
@@ -70,13 +73,66 @@ takes effect right away. No site change or deploy is needed.
 
 ## Local development
 
-`npm run dev` reads secrets from a `.dev.vars` file in this directory:
+`npm run dev` reads a `.dev.vars` file in this directory, which also overrides
+the site key in `wrangler.toml`:
 
 ```
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+TURNSTILE_SITEKEY=1x00000000000000000000AA
 INVITE_URL=https://example.com/
 ```
 
-Those are Cloudflare's always-pass test secret and a placeholder URL. For the
-site key, use the matching test key `1x00000000000000000000AA`. `.dev.vars`
-and `.wrangler/` are gitignored.
+Those are Cloudflare's always-pass test keys and a placeholder URL. `.dev.vars`
+and `.wrangler/` are gitignored. Never put a real invite in `.dev.vars`.
+
+`npm run dev` runs `src/dev.js`, not `src/index.js`. The test secret reports its
+hostname as `example.com`, and the Worker only accepts tokens from
+`gatewaysmash.com` and `www.gatewaysmash.com`, so `dev.js` adds that one host.
+The production list is a constant in `src/index.js`, and no variable, secret or
+dashboard value can widen it. `npm run deploy` always ships `src/index.js`,
+because `main` in `wrangler.toml` names it and it imports nothing. Do not add a
+hostname setting, and do not deploy `src/dev.js`.
+
+To see the production check reject a test token, run the real entry point:
+
+```sh
+./node_modules/.bin/wrangler dev src/index.js
+```
+
+A plain `wrangler dev` does the same, so if every local check ends on "That check
+didn't pass", check which entry point is running.
+
+## Tests
+
+From the repo root, with no install in this directory:
+
+```sh
+npm run test:worker
+```
+
+`npm test` runs them too, so CI does. They run in Node with `fetch` stubbed. They
+do not run the page's Turnstile widget, so a change to the challenge page also
+needs a look in a real browser, with `challenges.cloudflare.com` blocked, both
+cold and with `api.js` already cached, and with JavaScript off.
+
+## When something fails
+
+No failure inside the Worker reaches a visitor as a Cloudflare error page. Each
+one is an HTML page with a link back to `/join`, a link home and
+`info@gatewaysmash.com`:
+
+| Status | When |
+| --- | --- |
+| 403 | The token is missing, rejected, or was minted on another hostname |
+| 502 | siteverify is unreachable, hangs for 10 seconds or returns something that is not JSON, or `TURNSTILE_SECRET` or `INVITE_URL` is unset |
+| 405 | The method is not GET, HEAD or POST, or the POST is not a form |
+| 400 | The form body cannot be parsed |
+
+If `/join` gets no token within 4 seconds, or Turnstile reports an error, the
+page shows why that can happen and the same address. With JavaScript off it shows
+that at once.
+
+Logs carry the thrown error's name and nothing else. A wrong `TURNSTILE_SECRET`
+logs nothing at all, and neither does an unset one: every visitor gets the 403 or
+502 page. If everyone is suddenly
+being rejected after a rotation, check that secret first.

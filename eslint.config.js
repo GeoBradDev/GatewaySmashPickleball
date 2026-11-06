@@ -4,7 +4,7 @@ import js from '@eslint/js';
 // permissive union that would stop catching anything in either.
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: ['dist/**', 'node_modules/**', '**/.wrangler/**'],
   },
 
   // js/app.js: browser only, no bundler globals. It is deliberately written as
@@ -69,11 +69,30 @@ export default [
         fetch: 'readonly',
         Response: 'readonly',
         URLSearchParams: 'readonly',
+        console: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
     rules: {
       ...js.configs.recommended.rules,
       eqeqeq: ['error', 'always'],
+    },
+  },
+
+  // worker/test/: run by node --test, so the handler's globals plus what a test
+  // needs to build a request.
+  {
+    files: ['worker/test/**/*.js'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        globalThis: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
+        FormData: 'readonly',
+        File: 'readonly',
+        URL: 'readonly',
+      },
     },
   },
 ];

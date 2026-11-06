@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev src/dev.js",
     "deploy": "wrangler deploy",
     "secret:put": "wrangler secret put"
   },

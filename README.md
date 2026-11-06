@@ -34,13 +34,14 @@ Welcome to the Gateway Smash Pickleball club website! This is a grassroots, volu
 
 ## Checks
 
-`npm test` is the one to run before pushing. It is `npm run lint` followed by
-`npm run smoke`, and it is exactly what CI runs.
+`npm test` is the one to run before pushing. It is `npm run lint`, then
+`npm run test:worker`, then `npm run smoke`, and it is exactly what CI runs.
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Lint, then build, then assert against `dist/` |
-| `npm run lint` | ESLint over `js/` and `scripts/` |
+| `npm test` | Lint, then the Worker tests, then build and assert against `dist/` |
+| `npm run lint` | ESLint over `js/`, `scripts/` and `worker/` |
+| `npm run test:worker` | `node --test` over `worker/test/`, with no install in `worker/` |
 | `npm run smoke` | Production build, then html-validate and `scripts/smoke-build.js` against `dist/` |
 | `npm run check-links` | Fetches every outbound link on the site |
 
@@ -151,7 +152,7 @@ not in this repo. Moving the site to a different host means changing them there 
 updating this section to match.
 
 Because a push to `main` reaches production without review, the CI workflow in
-`.github/workflows/ci.yml` runs `npm ci` and `npm run smoke` on every pull request
+`.github/workflows/ci.yml` runs `npm ci` and `npm test` on every pull request
 targeting `main`. Keep it green before merging. The check reports its result but does
 not block merges, since `main` has no branch protection rule requiring it.
 
