@@ -2090,6 +2090,99 @@ check('the toggle both opens and closes its popover', function () {
   });
 });
 
+// The toggle is the close control on this path, so the panel has to leave it
+// uncovered. WebKit bug 267688: on iOS and iPadOS an outside tap does not
+// light-dismiss a popover, so a panel over the toggle left no way to close it at
+// all. Everything here reads the one token the header itself reads, so the panel
+// and the header cannot disagree at any width, and no pixel value appears in
+// this file. The shared rules stay as they were, because they are the JS drawer.
+check('the no-script panel leaves the toggle uncovered', function () {
+  const rules = emittedRules();
+  const named = (selector) => rules.filter((rule) => cssSelectors(rule.selector).includes(selector));
+  const declares = (rule, property) => cssDeclarations(rule.body).has(property);
+  const reads = 'var(--header-height)';
+
+  const navHeights = named('nav').filter((rule) => declares(rule, 'height'));
+  if (!navHeights.some((rule) => rule.within.length === 0)) {
+    throw new Error('the base nav rule sets no height for the panel to clear');
+  }
+  navHeights.forEach(function (rule) {
+    if (cssDeclarations(rule.body).get('height') !== reads) {
+      throw new Error(
+        'a nav rule sets height to ' + cssDeclarations(rule.body).get('height') +
+          ' rather than ' + reads + ', so the header and the panel can disagree'
+      );
+    }
+  });
+
+  const tokens = rules.filter((rule) => declares(rule, '--header-height'));
+  tokens.forEach(function (rule) {
+    if (!cssSelectors(rule.selector).includes(':root')) {
+      throw new Error(rule.selector + ' sets --header-height, which the panel in the top layer would not see');
+    }
+  });
+  const base = tokens.filter((rule) => rule.within.length === 0);
+  const narrower = tokens.filter((rule) => rule.within.length > 0);
+  if (base.length === 0) {
+    throw new Error('no base :root rule declares --header-height');
+  }
+  if (narrower.length === 0) {
+    throw new Error('no breakpoint overrides --header-height, so the header has lost its narrow height');
+  }
+  const baseValue = cssDeclarations(base[0].body).get('--header-height');
+  narrower.forEach(function (rule) {
+    if (cssDeclarations(rule.body).get('--header-height') === baseValue) {
+      throw new Error('the override in ' + rule.within.join(' ') + ' restates the base header height');
+    }
+  });
+
+  const panel = named('.nav-links:popover-open');
+  if (!panel.some((rule) => inMobileBlock(rule) && declares(rule, 'top'))) {
+    throw new Error('.nav-links:popover-open sets no top, so the shared top:0 puts the panel over the toggle');
+  }
+  panel.forEach(function (rule) {
+    const declarations = cssDeclarations(rule.body);
+    if (declarations.has('inset')) {
+      throw new Error('.nav-links:popover-open sets inset, which this check cannot resolve');
+    }
+    if (declarations.has('top') && declarations.get('top') !== reads) {
+      throw new Error('.nav-links:popover-open top is ' + declarations.get('top') + ', not ' + reads);
+    }
+    const height = declarations.get('height');
+    if (height !== undefined && !/^calc\(100dvh - var\(--header-height\)\)$/.test(height)) {
+      throw new Error('.nav-links:popover-open height is ' + height + ', which does not subtract the header');
+    }
+  });
+  if (!panel.some((rule) => inMobileBlock(rule) && declares(rule, 'height'))) {
+    throw new Error('.nav-links:popover-open sets no height, so the panel runs off the bottom of the screen');
+  }
+
+  // The shared rule is the JS drawer, which sits at the top of the viewport. A
+  // top on any other selector for this list can beat the one above, at equal
+  // specificity by order or outright with an id.
+  const drawer = named('.nav-links').filter(inMobileBlock);
+  if (!drawer.some((rule) => /^0(px)?$/.test(cssDeclarations(rule.body).get('top') ?? ''))) {
+    throw new Error('the shared .nav-links rule no longer sets top:0, which moves the JS drawer');
+  }
+  const targetsList = /(?:^|[\s>+~])(?:ul)?(?:#nav-links|\.nav-links)(?:\.[\w-]+|\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*$/;
+  rules.forEach(function (rule) {
+    cssSelectors(rule.selector)
+      .filter((selector) => targetsList.test(selector) && selector !== '.nav-links:popover-open')
+      .forEach(function (selector) {
+        const declarations = cssDeclarations(rule.body);
+        ['top', 'inset', 'height'].forEach(function (property) {
+          const value = declarations.get(property);
+          if (value === undefined) {
+            return;
+          }
+          if (selector !== '.nav-links' || /!\s*important/.test(value)) {
+            throw new Error(selector + ' sets ' + property + ' ' + value + ', which covers the toggle');
+          }
+        });
+      });
+  });
+});
+
 // The schedule statuses are the whole point of #10: the table presented a
 // finished season, a live one and one open for registration identically.
 // They are computed from each row's dates, so they are worth pinning down
