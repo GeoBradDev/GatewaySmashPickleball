@@ -63,6 +63,13 @@
       text-align: center;
     }
 
+    /* Links are underlined by default here too, matching css/style.css. The
+       two this page ships, .logo and .btn, opt out. */
+    a {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     /* The wrapper is what puts the eyebrow on its own line. Both .logo and
        .eyebrow are inline-level, so without it they share a line. */
     .brand {
