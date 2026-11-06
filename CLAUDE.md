@@ -703,7 +703,7 @@ write would take the `/subs/` link inside it with it. The same trap is why the
 one inside `#hero-join` would be wiped by the label rewrite, so it has to hang
 off a second `aria-describedby` id instead.
 
-Six rules that are easy to break by accident:
+Seven rules that are easy to break by accident:
 
 - **A row whose dates the bundle cannot read gets no status at all**, and
   **`parseDate` is the only place a string becomes a date.** The two halves are
@@ -746,10 +746,10 @@ Six rules that are easy to break by accident:
   season on its own closing night, in the league's own timezone. A smoke check
   pins both boundaries at 19:30 Central by setting `process.env.TZ`.
 - **Registration is a 24-hour window, not the month before the season.** It
-  closes a day after it opens or as soon as 56 players sign up, whichever comes
-  first, so `data-registration` names the single day a season is joinable.
-  `statusOf` reads `today === registration` for open and `today > registration`
-  for **Full**, and treating it as `today >= registration` is the bug that was
+  closes 24 hours after it opens or as soon as 56 players sign up, whichever
+  comes first, so `data-registration` names the one date a window opens, and that
+  is the only day a row reads open. `statusOf` reads `today === registration` for
+  open and `today > registration` for **Full**, and treating it as `today >= registration` is the bug that was
   there: 214 days of "Registration open" across the seven seasons the table
   ships, against seven that are real, with the hero reading "Join Fall 2026" for
   a month after Fall 2026 had filled. That is #10's defect class pointing the
@@ -758,6 +758,34 @@ Six rules that are easy to break by accident:
   label for a window that closed the usual way. The hero needs no branch for it,
   because the next season is picked from the rows still `open` or `upcoming` and
   a filled one drops out of that set on its own.
+
+  **The page works in days and the window does not, and two limits follow.** The
+  window runs from 8:00 AM Central to 8:00 AM Central the next day, while
+  `statusOf` compares calendar days. So the row reads "Registration open" from
+  local midnight, before the window has opened, and flips to Full at the next
+  local midnight. That second one means a row can read Full for up to 8 hours
+  while an unfilled window is still open, and for longer to a visitor east of
+  Central, whose midnight comes first. It is more than the row: Full drops the
+  season out of the next-season selection, so for those same hours the hero button,
+  the note and the callout have moved on to the following season, if the table has
+  one, or stopped naming a season, and the subs offer can come back. Both were kept on purpose in #92 rather
+  than reading the clock in `America/Chicago`, which would reopen the
+  local-calendar-day rule above. Both go away only if this rule stops being about
+  days.
+- **The opening time is one value, and the registration day sentence holds at
+  every hour.** `REGISTRATION_TIME` in `js/app.js` is the one place the sentence
+  gets the time. It is fixed for every season, so there is no per-row attribute;
+  if the time ever differs between seasons, that is the moment to add one. It
+  says "Central", never CST or CDT, because seasons fall on both sides of daylight
+  saving. League Info and the FAQ, visible and JSON-LD, state it as static copy,
+  and a smoke check derives the time from the bundle's own hero and callout
+  sentences and requires all of those to agree, so moving the hour is an edit in
+  each place plus the pinned sentences, and missing one goes red. On the day
+  itself the sentence is "Registration is today, from 8:00 AM Central.", not "is
+  open now": `isOpen` is true from local midnight, so "open now" would contradict
+  the published time at 7:00 AM. A second smoke check keeps "open" out of the hero
+  and callout on that day. "Is today" assumes the opening falls on the visitor's
+  own date, which stops holding from about UTC+10 eastward.
 - **The next season is the soonest one**, chosen by comparing start dates, not
   the first matching row. The rows are hand-maintained and nothing orders them.
 - **The hero and the callout say the running season in one shared string.**
@@ -769,7 +797,7 @@ Six rules that are easy to break by accident:
 - **The hero names the next season only when it also names a running one.**
   `registrationSentence(next, Boolean(current))`. With nothing running the button
   beside the note already says "Join Fall 2026", so "Registration opens August
-  13, 2026." is unambiguous and stays as it is; once a running season puts a
+  13, 2026 at 8:00 AM Central." is unambiguous and stays as it is; once a running season puts a
   second name in the sentence, the next one gets named too. A smoke check pins
   both halves, because a version that always names the season also passes every
   in-season check.
@@ -840,9 +868,8 @@ can see, because every row they reject carries dates that are impeccable:
   own cell and falls before its start. A Winter 2028 row carrying Winter 2027's
   `data-registration` reads Full forever.
   **Neither half hardcodes an interval**, and that is the point: the one-month
-  practice is recorded under Maintenance Notes as deliberately unchecked, because
-  Winter 2027 would fail it. The first half is strictly weaker than that rule and
-  Winter 2027 clears it; the second asks only which `data-start` the date is
+  practice is recorded under Maintenance Notes as deliberately unchecked. The first
+  half is strictly weaker than that rule; the second asks only which `data-start` the date is
   **nearest**, which the table already answers. The league can change how far
   ahead it opens registration without editing this check.
 - **Every season name states the year its own dates fall in, and no two rows name
@@ -905,7 +932,7 @@ That is the same defect class this section exists for, one level up.
 
 ## Colour contrast
 
-`--amber-dark` means "you can act on this now": the hero note and the
+`--amber-dark` means "you can act on this today": the hero note and the
 Registration open row. It is text at 14px, so it needs 4.5:1 against both
 `--cream` and `--white`, and `npm run smoke` computes the ratios from the built
 stylesheet and fails below that. It shipped at 3.5:1, which made the single most
@@ -1401,8 +1428,8 @@ The most frequently edited part of the site is the **League Schedule**.
 Each row's `data-start`, `data-end` and `data-registration` attributes are the
 **single source of truth for four separate things**: the row's own status label,
 the callout above the table, the hero at the top of the page, which names the next
-joinable season and states both which season is being played and whether
-registration is open, and whether the hero offers a sub spot at all. A row edited
+joinable season and states both which season is being played and when
+registration opens, and whether the hero offers a sub spot at all. A row edited
 here changes the button a visitor sees before they have scrolled at all. Keep the
 `data-*` dates and the human-readable dates in the same row in step; only the
 `data-*` ones are read by code.
@@ -1427,12 +1454,12 @@ The rows do not have to be in chronological order, and `js/app.js` picks the nex
 season by comparing start dates rather than by taking the first row. Adding a
 season at the top is safe.
 
-Registration has opened one month before the season starts on every row except
-Winter 2027, which is Dec 11, 2026 against a Jan 10, 2027 start. **That rule is
-still unchecked, precisely because that row would fail it**, and adding one means
-settling Winter 2027 first.
+Registration has opened one month before the season starts on every row, Winter
+2027 included now that it reads Dec 10, 2026 against a Jan 10, 2027 start. **That
+rule is still unchecked, deliberately**, for the reason at the end of the next
+paragraph.
 
-What #63 added instead are two weaker rules that Winter 2027 satisfies: a window
+What #63 added instead are two weaker rules: a window
 opens **before** its own first night, and it is **nearer to its own start than to
 any other row's**. Between them they catch the two ways this actually goes wrong,
 a window opening after the season has begun and a date left behind from the row

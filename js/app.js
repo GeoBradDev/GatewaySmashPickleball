@@ -307,7 +307,7 @@ import '../css/style.css';
       return { label: 'In progress', modifier: 'current' };
     }
     // The window is 24 hours from the moment it opens, or however long it takes
-    // to fill 56 spots, whichever comes first. So a season is joinable on its
+    // to fill 56 spots, whichever comes first. So a row reads open on its
     // registration day and not afterwards. Reading this as "open until the
     // season starts" put "Registration open" on the row, and "Join <season>" on
     // the hero, for the month in between: 214 days across the seven seasons the

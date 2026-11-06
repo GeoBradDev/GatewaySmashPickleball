@@ -31,7 +31,7 @@ It stays correct at 7:00 AM and 3:00 PM, carries the time, and keeps `isOpen`, t
 
 Rejected: reading the current time in `America/Chicago`. It needs `Intl` in the bundle, reopens the "compare local calendar days" rule, would also have to model the morning of the following day, and is well past the size of this issue.
 
-Left alone, and to be stated in the PR: the row's Status cell still reads "Registration open" all of that day, including before 8:00 AM (a day-level label beside a dated column, pinned widely), and the row flips to Full at midnight after registration day although a window that did not fill runs until 8:00 AM. Both are the existing day-granularity behavior.
+Left alone, and to be stated in the PR: the row's Status cell still reads "Registration open" all of that day, including before 8:00 AM (a day-level label beside a dated column, pinned widely), and the row flips to Full at midnight after registration day although a window that did not fill runs until 8:00 AM, and at the same moment the hero button, note and callout move to the following season, if the table has one, or stop naming a season, and the subs offer can come back. Both are the existing day-granularity behavior.
 
 ## Approval
 

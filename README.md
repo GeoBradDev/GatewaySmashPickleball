@@ -100,8 +100,8 @@ Updating the schedule is the most common recurring maintenance task.
 Each row carries `data-start`, `data-end` and `data-registration`. Those dates are
 read by `js/app.js` and decide the row's status label, the callout above the table,
 and the whole hero at the top of the page: the "Join" button names the next joinable
-season, the line under it says which season is being played and whether registration
-is open, and a "Play as a sub" offer appears while a season is running that cannot be
+season, the line under it says which season is being played and when registration
+opens, and a "Play as a sub" offer appears while a season is running that cannot be
 joined yet. Editing a row changes what a visitor sees before scrolling, so keep the
 `data-*` dates and the dates written in the cells in step. The rows do not need to be
 in date order.

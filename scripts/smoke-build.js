@@ -2967,8 +2967,7 @@ check('every registration window belongs to the season beside it', function () {
     // row runs Upcoming straight into In progress and "Registration open" is
     // unreachable: the hero can never announce the one season a visitor could
     // join. This is deliberately weaker than the "one month before" practice
-    // CLAUDE.md declines to check, and Winter 2027, the row that would fail
-    // that rule, satisfies this one comfortably.
+    // CLAUDE.md declines to check.
     if (opens >= start) {
       problems.push(
         row.season + ' registration opens ' + row.registration + ', on or after its own start ' +
