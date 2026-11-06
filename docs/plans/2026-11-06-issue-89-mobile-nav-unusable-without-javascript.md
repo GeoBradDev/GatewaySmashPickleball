@@ -23,8 +23,9 @@ decision to approve.
 | **`popover` + `popovertarget`** | **Yes, measured** | **Yes, no script at all** | **Yes** | **Yes, with button text** | **Chosen** |
 
 `<button popovertarget="nav-links">` toggling `<ul id="nav-links" popover>` is browser
-behaviour with no script: it opens and closes, Escape closes and returns focus, outside tap
-light-dismisses, and the toggle exposes expanded state natively. With JavaScript, the
+behaviour with no script: it opens and closes, Escape closes and returns focus, and the
+toggle exposes expanded state natively. Outside tap light-dismisses in Chrome but is not
+relied on, see "Changes after approval". With JavaScript, the
 module's first act strips both attributes, so the DOM the existing drawer code runs against
 is the one it runs against today, and none of that code changes. It is the same path for
 JS off and module failed, because neither involves any script.
@@ -61,8 +62,9 @@ From the orchestrator:
 
 Approved by the orchestrator with these conditions, which are binding on the work below:
 
-- Limits 1 to 4 under Risks are accepted, and CLAUDE.md must record them as deliberately
-  accepted.
+- Limits 1, 2 and 4 under Risks are accepted, and CLAUDE.md must record them as deliberately
+  accepted. Limit 3 was accepted here at first and has since been removed, with the
+  orchestrator's approval, see "Changes after approval".
 - Every prototype result is repeated on the real build across all four content pages, plus
   the two not yet run: a real JS-disabled context, and the mobile layout-shift comparison
   against origin/main.
@@ -70,7 +72,7 @@ Approved by the orchestrator with these conditions, which are binding on the wor
   when only one half goes (`popover` without `popovertarget`, the reverse, or a mismatched id).
 - The JS-side stripping must be proved through `runBundle()`, because a popover left in place
   alongside the JS drawer is the regression to guard.
-- A mid-implementation change that alters limits 1 to 4 or criteria 1 to 7 returns BLOCKED.
+- A mid-implementation change that alters limits 1, 2 or 4 or criteria 1 to 7 returns BLOCKED.
 
 ## Files that change
 
@@ -129,7 +131,8 @@ and the sitemap do not change, no page or outbound link is added.
    declarations as `.nav-links.open`, plus `overflow-y: auto` (see "Changes after approval"),
    with a comment that it must stay separate, and
    `.nav-links::backdrop { background: rgba(28, 28, 28, 0.3); }` matching the JS overlay. Do
-   not add a popover version of the hamburger X, the panel covers the toggle in the top layer.
+   not add a popover version of the hamburger X: the toggle is visible while open, dimmed by
+   the backdrop, and staying a hamburger with no script is a known, accepted detail.
 4. **`js/app.js`.** Immediately after the null guard:
    ```js
    var wasOpen = 'popover' in nav && nav.matches(':popover-open');
@@ -154,12 +157,11 @@ and the sitemap do not change, no page or outbound link is added.
    regression, named:** in this state the list was on the page and is now one tap away. The
    only way back is an inline style, which constraint 2's reasoning rules out.
 2. **Same-page links with no JS.** `/#about` on the homepage scrolls behind an open drawer,
-   because nothing closes a popover on an in-page link. Tap outside or Escape closes it.
+   because nothing closes a popover on an in-page link. The toggle or Escape closes it.
    Accepted: the link works, `popovertargetaction` does not exist on anchors, and CSS cannot
    close it. Links to other pages are unaffected. Documented in CLAUDE.md.
-3. **Toggle is covered while the no-JS drawer is open**, because the popover is in the top
-   layer. Close is by outside tap (the 95px strip at 375px, 40px at 320px) or Escape. The JS
-   path is unchanged. Accepted.
+3. Removed. This limit accepted the panel covering the toggle, with outside tap as the close.
+   See "Changes after approval". The number stays so limit 4 keeps its name.
 4. **Browsers without popover** (before Chrome 114, Safari 17, Firefox 125) with no working
    module keep today's dead button. Not a regression: `'popover' in nav` keeps the JS path
    intact for them. Stated in CLAUDE.md as a floor.
@@ -170,7 +172,18 @@ and the sitemap do not change, no page or outbound link is added.
 
 ## Changes after approval
 
-None of these alters limits 1 to 4 or criteria 1 to 7.
+None of these alters limits 1, 2 or 4 or criteria 1 to 7. Limit 3 was removed, as follows.
+
+- **Limit 3 removed, approved by the orchestrator.** On iOS and iPadOS an outside tap does not
+  light-dismiss a popover (WebKit bug 267688, https://bugs.webkit.org/show_bug.cgi?id=267688),
+  so with the toggle covered there was no working close on those devices with no script.
+  The orchestrator approved removing the limit under its earlier condition that the no-JS
+  panel leaves the toggle uncovered. `.nav-links:popover-open` now sets `top` and `height`
+  from a new `--header-height` token, which the `nav` rule also reads and the 480px `:root`
+  override changes, plus a smaller `padding-top`. The toggle is the close control and outside
+  tap is not relied on. iOS Safari is not available here and stays undriven. New checks:
+  `the no-script panel leaves the toggle uncovered` and
+  `the whole page behind an open popover is out of reach and the header is not`.
 
 - **`tagAttributes` refactor.** `linkAttributes` now calls a shared `tagAttributes`, used by
   the header checks too. One parser rather than two, and its value pattern follows the
@@ -196,8 +209,8 @@ None of these alters limits 1 to 4 or criteria 1 to 7.
 
 ## What this deliberately does not do
 
-- No hamburger X in the no-JS state and no scroll lock, the JS drawer has neither reason to
-  change and no-JS has no way to add one without `:has()`.
+- No hamburger X in the no-JS state, a known and accepted detail, see step 3. No scroll lock:
+  the JS drawer has none either, and limit 2's same-page links need the page to scroll.
 - No `@supports` fallback for old browsers. It cannot tell whether JS ran, so it would show
   the expanded list to JS users, which is the flash this plan exists to avoid.
 - No change to the drawer's open, close, trap, Escape or outside-click code.
@@ -207,7 +220,7 @@ None of these alters limits 1 to 4 or criteria 1 to 7.
 | Criterion | Proof |
 | --- | --- |
 | 1 | Live drive, JS off via a real JS-disabled context at 375x812 on `/`, `/faq/`, `/subs/`, `/code-of-conduct/`: touch open, 6 of 6 links hit-tested, one followed; keyboard Enter, Tab through all six, Escape. Smoke check 1 for all four pages |
-| 2 | Live drive, JS on at 375px: open, focus on Home, Tab and Shift+Tab cycle includes toggle, Escape closes and refocuses, outside tap, link tap, `inert` present when closed, absent when open and at desktop width, breakpoint crossing while open. Existing `runBundle` checks stay green |
+| 2 | Live drive, JS on at 375px, plus the JS drawer's geometry and computed `top`, `height` and `padding-top` equal to origin/main: open, focus on Home, Tab and Shift+Tab cycle includes toggle, Escape closes and refocuses, outside tap, link tap, `inert` present when closed, absent when open and at desktop width, breakpoint crossing while open. Existing `runBundle` checks stay green |
 | 3 | Each new check broken in turn, see below |
 | 4 | Live drive with module 404 and JS on, same script as criterion 1. Also CSS and JS both 404 |
 | 5 | Live drive with module delayed 3s at 375px and 1280px: `PerformanceObserver` layout-shift sources contain no nav node, geometry before and after module equal, and equal to origin/main |

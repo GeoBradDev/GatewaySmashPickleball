@@ -1016,8 +1016,9 @@ footer p {
 
   /* The UA forces pointer-events:none !important on a popover's ::backdrop, so
      unlike the JS overlay it swallows nothing, and the tap that closes the drawer
-     would also land on the page. Light dismiss still fires. Two rules rather than
-     a list for the reason above. The header stays live, as it does in the JS path. */
+     would also land on the page. Light dismiss still fires in Chrome. Two rules
+     rather than a list for the reason above. The header stays live: the toggle is
+     the close control here, and the JS path leaves the logo tappable too. */
   body:has(.nav-links:popover-open) main {
     pointer-events: none;
   }

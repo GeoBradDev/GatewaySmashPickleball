@@ -560,10 +560,10 @@ because the first cannot see the difference:
 
 The hamburger used to do nothing until `js/app.js` ran, so a phone with JavaScript
 off, or with a module that failed to load, had no nav at all, and the homepage had no
-path to the FAQ. #89 wired it natively: `popovertarget` on the button,
-`popover` on the list in `partials/header.html`. The browser opens it, closes it on
-Escape and outside tap, returns focus and exposes the expanded state, with no script
-involved, so JavaScript off and a failed module are one code path. The module's first
+direct link to the FAQ. #89 wired it natively: `popovertarget` on the button,
+`popover` on the list in `partials/header.html`. The browser opens it, closes it from
+the same button and on Escape, returns focus and exposes the expanded state, with no
+script involved, so JavaScript off and a failed module are one code path. The module's first
 act is to remove both attributes and write the toggle's `aria-label` and
 `aria-expanded`, so every line of drawer code runs against the DOM it always did. A
 popover left in place would have the browser and the drawer both claiming one list.
@@ -593,6 +593,13 @@ These hold it up, and each looks removable:
 - **`.nav-links:popover-open` is a separate rule from `.nav-links.open`**, and starts
   from the same declarations. An unknown pseudo-class invalidates its whole selector
   list, so merging them costs a browser without popover the JS drawer.
+- **That rule also moves the panel below the header, so the toggle stays uncovered
+  and is the close control.** Outside tap is not relied on as a close path: on iOS and
+  iPadOS it does not light-dismiss a popover (WebKit bug 267688), so a panel over the
+  toggle left those devices with no way to close it. `top` and `height` read
+  `--header-height`, which is also what the `nav` rule reads, and which the 480px
+  `:root` override changes, so the header and the panel cannot disagree. `404.html`
+  does not copy that token and has no need to.
 - **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
   `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
   reached, and with no script that includes the FAQ. The JS drawer clips the same way.
@@ -603,8 +610,8 @@ These hold it up, and each looks removable:
   gives a popover's backdrop `pointer-events: none !important`, which author CSS cannot
   override, so unlike the JS overlay it swallows nothing, and the tap that closed the
   drawer also landed on the page. On the homepage that strip holds the registration
-  button. Light dismiss still fires, and the header stays out of the rule because the
-  JS path leaves the logo tappable too.
+  button. Light dismiss still fires in Chrome, and the header stays out of the rule
+  because the toggle has to stay live and the JS path leaves the logo tappable too.
 - **The button carries `Navigation menu` as `.visually-hidden` text, after the
   bars.** With JavaScript gone the text is its accessible name. With the stylesheet
   gone as well, the bars are empty spans and the text is the whole button. It goes
@@ -624,12 +631,8 @@ Accepted, deliberately, and each of these is a decision rather than a gap:
   be on the unstyled page and is now one tap away, behind a plain button that opens a
   UA-styled popover. The only way back is an inline style.
 - **With no script, a same-page link does not close the drawer.** `/#about` on the
-  homepage scrolls behind it, and Escape or an outside tap closes it. Nothing on an
-  anchor can close a popover, and CSS cannot either. Links to other pages are
-  unaffected.
-- **The toggle is covered while the no-script drawer is open**, because the popover is
-  in the top layer. It closes by Escape or by tapping the strip left of the panel, and
-  that strip narrows with the viewport. The JS drawer is unchanged.
+  homepage scrolls behind it, and the toggle or Escape closes it. Nothing on an anchor
+  can close a popover, and CSS cannot either. Links to other pages are unaffected.
 - **A browser without popover and without a working module keeps today's dead button.**
   That is the floor, and it is not a regression. With a working module such a browser
   gets the drawer as it always did. An `@supports` fallback cannot tell whether
@@ -640,6 +643,12 @@ Also recorded, because the popover has no handler for it: crossing the breakpoin
 with the no-script drawer open leaves the popover open in the top layer on the desktop
 rules, so the links sit in a row across the top-left of the page over the header.
 They still work, and Escape puts the nav back where it belongs.
+
+The toggle is visible while the no-script drawer is open, dimmed by the backdrop, and
+it does not animate to an X, because nothing sets `.active` with no script. That is a
+known detail, and there is deliberately no popover version of the X rule. A tap before
+the module lands moves the panel to the top of the viewport in one frame when the
+drawer takes over, because the two layouts differ by the header height.
 
 There is no focus trap on this path either. Tab walks out of the open popover to the
 content behind it. That is how a native popover behaves, not a limit chosen here, and

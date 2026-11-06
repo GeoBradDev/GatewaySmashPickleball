@@ -1637,7 +1637,7 @@ check('the desktop nav is never inert', function () {
 });
 
 // The hamburger has no job until js/app.js arrives, so a module that never runs
-// left phones with a dead button and, from the homepage, no way to the FAQ. The fix is native: the
+// left phones with a dead button and, on the homepage, no direct link to the FAQ. The fix is native: the
 // button names a popover and the browser does the rest with no script at all.
 // Everything from here to the schedule fixtures guards that, and each of these
 // reads built output, because the wiring is split across a partial, a stylesheet
@@ -1841,7 +1841,7 @@ check('the stylesheet opens the drawer for a popover', function () {
 // a browser with no popover support throws away .nav-links.open as well, which
 // is the JS drawer, for the sake of a state it can never be in. This reads the
 // built file because the minifier joins adjacent rules with equal bodies when it
-// judges that safe, and the two rules here have equal bodies.
+// judges that safe.
 check(':popover-open never shares a selector list with .nav-links.open', function () {
   const rules = emittedRules();
   const popoverRules = rules.filter((rule) => rule.selector.includes(':popover-open'));
