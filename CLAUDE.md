@@ -959,12 +959,13 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
 ### Security headers: which is set where
 
 None of this is visible from `dist/`, and only the Worker half is in this repo. #91
-split it in two: the Worker half shipped in code, and the rest needs the dashboards.
+split it in two: the Worker half is in code and reaches production only through `npm
+run deploy` in `worker/`, and the rest needs the dashboards.
 
 | Header | Static site | `/join` |
 | --- | --- | --- |
-| `Strict-Transport-Security` | **Not yet applied.** Cloudflare, SSL/TLS > Edge Certificates | Same zone setting. The Worker must not send it |
-| `Content-Security-Policy` | **Not yet applied.** Render, Settings > Headers | `worker/src/index.js` |
+| `Strict-Transport-Security` | **Not yet applied.** Cloudflare, SSL/TLS > Edge Certificates, `max-age=31536000; includeSubDomains`. No `preload` until every subdomain is confirmed on HTTPS | Same zone setting. The Worker must not send it |
+| `Content-Security-Policy` | **Not yet applied.** The Render dashboard, the static site's headers | `html()` in `worker/src/index.js`. The 302 sends none: nothing renders from it |
 | `Referrer-Policy` | **Not yet applied.** Render | `COMMON_HEADERS`, `no-referrer` |
 | `Permissions-Policy` | **Not yet applied.** Render | Not sent. Turnstile's needs are undocumented |
 | `X-Content-Type-Options` | Already sent from behind Cloudflare on pages and the 404. Whether Render does this by default or a dashboard entry does it is not visible from here | `COMMON_HEADERS` |
@@ -988,16 +989,19 @@ proves nothing.
 So the origin goes in `form-action`, and it is **derived from `INVITE_URL` at request
 time**, not written down: `gate.test.js` bans the host from `worker/src`, and a rotated
 invite on another origin needs no code change. Only the origin: the invite code stays
-out of every header. `new URL(...).origin` is not validation, because the parser passes
+out of the policy, and only the `Location` of a passed POST carries it.
+`new URL(...).origin` is not validation, because the parser passes
 `;`, `'`, `"` and `,` through from a host into `.origin`, so a shaped secret could write
-a new directive. `SAFE_ORIGIN` holds the result to a plain host, and anything else falls
-back to `form-action 'self'`. `inviteOrigin` must never throw, because `GET /join` is
+a new directive. `SAFE_ORIGIN` holds the result to a plain host and `SAFE_PROTOCOL` holds
+the scheme, which is a separate check because `blob:https://x.example/a` reports a clean
+`https` origin. Anything else falls back to `form-action 'self'`. `inviteOrigin` must
+never throw, because `GET /join` is
 built inside the outer `try` and a throw would turn a bad secret into a 502 on the page
 itself.
 
 **One origin is what the design covers.** A target that redirects again, such as a
-`wa.me` link or a shortener, has its second hop blocked, and so does an `INVITE_URL` that
-falls back. The page's `securitypolicyviolation` listener is what stops that being
+`wa.me` link or a shortener, has its second hop blocked, and an `INVITE_URL` that falls
+back has the 302 itself blocked when it points at another origin. The page's `securitypolicyviolation` listener is what stops that being
 silent: it shows the help text on `form-action` and only on `form-action`, because a
 blocked Cloudflare script on a healthy page must not. If the join flow stalls, check
 that first. The timer cannot do this job, since `done()` has already set `solved`.
@@ -1018,9 +1022,11 @@ ran clean with the nonce on both the outer and the iframe's inner script, and a 
 script cost one console error with the join still working.
 
 Turnstile's own requirement is `https://challenges.cloudflare.com` in `script-src` and
-`frame-src`. `no-referrer` does not disturb it, which needed measuring because the test
-keys skip hostname checks: with the real site key, a mapped allowed host reached the
-same state with and without a Referer, and an unlisted host got `110200` both ways.
+`frame-src`. `no-referrer` did not change the state the widget reached, which needed
+measuring because the test keys skip hostname checks: with the real site key, a mapped
+allowed host reached `before-interactive` with and without a Referer, and an unlisted
+host got `110200` both ways. Headless Chrome stops there, so a real-key solve is unproven
+and is a production check.
 `no-referrer` also makes the form POST send `Origin: null`. Nothing reads that today,
 and a future Origin check or a Cloudflare rule keyed on it would reject every visitor.
 
@@ -1049,13 +1055,21 @@ Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   it a looser policy.
 - `img-src`, `font-src`, `manifest-src`: the icons, the self-hosted woff2, and
   `site.webmanifest`. All same-origin, per the no-third-party rule under Build.
-- `connect-src 'self'`: the bundle's module-preload polyfill calls `fetch`, and
-  Cloudflare's path needs it.
+- `connect-src 'self'`: nothing on these pages needs it today. The bundle's
+  module-preload polyfill calls `fetch` only in a browser without modulepreload support
+  and only for such a link, and no page has one. Cloudflare's injected script needs it if
+  that script is allowed to run. `'self'` is the value verified, and it opens nothing
+  off-site.
 - `form-action 'none'`: no page has a form. The Join links are plain links to `/join`.
 - `base-uri 'none'`: no page has a `<base>`, and a stray one would repoint every relative
   URL.
-- `frame-ancestors 'none'`: nothing embeds this site. The replacement for
+- `frame-ancestors 'none'`: no page here is meant to be embedded. The replacement for
   `X-Frame-Options`, which is why that header is not on the list.
+- `Referrer-Policy: strict-origin-when-cross-origin`: the value #91 asks for. Outbound
+  links such as Global Pickleball Network get the origin, not the page path. `/join` is
+  stricter, because a redirect to the invite has no use for a referrer at all.
+- `Permissions-Policy`: the bundle uses none of those features, so a script that ever
+  landed here could not ask for them.
 
 **Render, not a Cloudflare Transform Rule**, because Render's headers apply only to what
 Render serves, so `/join` keeps its own policy. Cloudflare's docs read for #91 do not
@@ -1067,10 +1081,13 @@ in this repo can see, so confirm them with `curl -sSI` on a page and on a missin
 **The JavaScript Detections decision.** A fixed header has no per-response nonce, and
 the injected script cannot be hashed, so this policy logs one violation per page while
 the zone injects it, and #91's "no console CSP violations" cannot be met until one of
-these is chosen. Under Bot Fight Mode the docs say it cannot be turned off separately or
-scoped by path.
+these is chosen. Which product injects it on this zone is a dashboard fact not visible
+from here. Under Bot Fight Mode the docs say it cannot be disabled and describe no way to
+scope it by path, and they do not say that turning Bot Fight Mode off removes it, so
+confirm with `curl` afterwards. Under Super Bot Fight Mode or Enterprise Bot Management
+the docs make it a separate setting, which changes what the first option costs.
 
-1. **Turn off what injects it (recommended).** For Bot Fight Mode that is the whole
+1. **Turn off what injects it (recommended).** For Bot Fight Mode that means the whole
    feature. A clean console and the strictest policy, on a site with no login and no
    payment form. Turnstile still gates `/join`.
 2. **Keep it and accept the console error.** The script is blocked, so the feature stays
@@ -1079,7 +1096,9 @@ scoped by path.
    the CSP is for. Cloudflare discourages it.
 
 A constant nonce in a fixed header is not offered: a nonce that never changes is a
-password in the page source.
+password in the page source. Cloudflare's docs were reported to say `Cache-Control:
+no-transform` stops the injection. That was not measured, it may also switch off Email
+Obfuscation, and it is not one of the options above.
 
 **The 404 hash can go stale, and nothing in this repo can see it.** Editing that
 `<style>` changes the hash, the dashboard keeps the old one, and the error page goes

@@ -71,10 +71,11 @@ If the invite is revoked or regenerated in WhatsApp, run
 `npm run secret:put -- INVITE_URL` again with the new link. The new value
 takes effect right away. No site change or deploy is needed, as long as the link
 is a plain `https` URL that lands on its own origin. The challenge page's
-`form-action` is built from that origin on each request, and browsers apply it to
+`form-action` is built from that origin on each request, and Chrome applies it to
 the redirect, so a link that redirects again to another origin, such as a `wa.me`
 link or a shortener, is blocked and the visitor sees the help text instead of the
-group. Use the final `chat.whatsapp.com` link.
+group. Use the final `chat.whatsapp.com` link, then do one real pass through
+`/join` on production to the group, since no local run can prove a real target.
 
 ## Local development
 
@@ -139,9 +140,10 @@ one is an HTML page with a link back to `/join`, a link home and
 | 405 | The method is not GET, HEAD or POST, or the POST is not a form |
 | 400 | The form body cannot be parsed |
 
-If `/join` gets no token within 4 seconds, Turnstile reports an error, or the
-browser blocks the redirect to the invite, the page shows why that can happen
-and the same address. With JavaScript off it shows
+If `/join` gets no token within 4 seconds, or Turnstile reports an error, the
+page shows why that can happen and the same address. If the browser blocks the
+redirect to the invite, the page shows that same help text, which does not name
+this cause, so check `INVITE_URL` first. With JavaScript off it shows
 that at once.
 
 Logs carry the thrown error's name and nothing else. A wrong `TURNSTILE_SECRET`
