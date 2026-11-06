@@ -31,8 +31,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         // 404.html is an entry rather than a public/ passthrough so it stays in
-        // the pipeline. It imports no assets today, so it emits byte-identical
-        // to the source, but restyling it in #12 will not need a config change.
+        // the pipeline. It imports no assets today, so the build changes only
+        // its inline style, which it minifies, and restyling it in #12 will not
+        // need a config change.
         main: resolve(import.meta.dirname, 'index.html'),
         // faq/index.html rather than faq.html, so the URL is /faq/ on any
         // static host without needing a clean-URL rewrite rule.

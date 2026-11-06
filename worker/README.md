@@ -18,28 +18,46 @@ also true.
 
 Run these from this `worker/` directory.
 
-1. **Create the Turnstile widget.** In the Cloudflare dashboard, go to
+1. **Install wrangler.**
+
+   ```sh
+   npm ci
+   ```
+
+   wrangler is pinned to an exact version in this directory's `package.json`
+   and `package-lock.json`, and it is not a dependency of the site, so the
+   repo root's `npm ci` does not install it. Call it through the npm scripts
+   below rather than through `npx`: when `node_modules` is missing, `npx`
+   falls back to fetching the latest version, while a script stops with "not
+   found", unless a global wrangler is on your `PATH`, which would run instead.
+   Node 22 or later is required.
+
+2. **Create the Turnstile widget.** In the Cloudflare dashboard, go to
    Turnstile, add a widget, and add `gatewaysmash.com` and
    `www.gatewaysmash.com` as hostnames. Managed mode is fine. Copy the
    **site key** into `TURNSTILE_SITEKEY` under `[vars]` in `wrangler.toml`.
    The site key is public. Keep the **secret key** for the next step.
 
-2. **Set the secrets.** Each command prompts for the value, so nothing lands
+3. **Set the secrets.** Each command prompts for the value, so nothing lands
    in your shell history:
 
    ```sh
-   npx wrangler secret put TURNSTILE_SECRET
-   npx wrangler secret put INVITE_URL
+   npm run secret:put -- TURNSTILE_SECRET
+   npm run secret:put -- INVITE_URL
    ```
 
    `TURNSTILE_SECRET` is the widget's secret key. `INVITE_URL` is the full
    WhatsApp invite link.
 
-3. **Deploy.**
+4. **Deploy.**
 
    ```sh
-   npx wrangler deploy
+   npm audit
+   npm run deploy
    ```
+
+   `npm audit` is here because the one at the repo root cannot see this
+   directory's tree, and CI never installs it.
 
    This registers both routes in the `gatewaysmash.com` zone. The routes only
    apply while the DNS records are proxied (orange cloud).
@@ -47,12 +65,12 @@ Run these from this `worker/` directory.
 ## Rotating the invite
 
 If the invite is revoked or regenerated in WhatsApp, run
-`npx wrangler secret put INVITE_URL` again with the new link. The new value
+`npm run secret:put -- INVITE_URL` again with the new link. The new value
 takes effect right away. No site change or deploy is needed.
 
 ## Local development
 
-`npx wrangler dev` reads secrets from a `.dev.vars` file in this directory:
+`npm run dev` reads secrets from a `.dev.vars` file in this directory:
 
 ```
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA

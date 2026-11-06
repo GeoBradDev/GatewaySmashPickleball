@@ -22,11 +22,21 @@ This file provides architectural context for AI assistants working on this codeb
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
 - `.github/workflows/ci.yml` - CI check. Runs `npm ci` and `npm test` on pull requests to `main` and on pushes to `main`. It does not deploy.
 - `.github/workflows/links.yml` - Weekly outbound link check, kept out of CI on purpose.
-- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Deployed separately with wrangler; see `worker/README.md`.
+- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Has its own `package.json` and lockfile, which pin wrangler to an exact version, and is deployed separately through their npm scripts; see `worker/README.md`.
 
 ## Build
 
-Vite. One config, `vite.config.js`, and one devDependency.
+Vite. One config, `vite.config.js`. The root `package.json` holds the site's
+toolchain and nothing else.
+
+wrangler is **not** a root devDependency and `worker/` is **not** an npm workspace:
+either would put workerd and esbuild into every `npm ci` in CI and on Render, for a
+tool neither uses, and a Cloudflare runtime's advisories into the site's audit. Root
+`npm ci` installs no wrangler, and `npm test` must keep passing with
+`worker/node_modules` absent. wrangler is called through npm scripts and never through
+`npx`, because `npx` falls back to fetching the latest version when `node_modules` is
+missing, which is the unpinned deploy the lockfile exists to prevent. A script stops
+with "not found" instead, unless a global wrangler is on `PATH`, which would win.
 
 Asset paths in `dist/` are content-hashed, so **never hardcode a built filename**.
 `css/style.css` becomes something like `assets/main-tEWbBYpj.css` and the hash changes
@@ -146,6 +156,12 @@ line is the point.
 `npm run check-links` is deliberately outside `npm test`. Third-party hosts can
 rate-limit a CI runner, and a pull request that goes red for that reason teaches
 people to ignore red.
+
+**`npm audit` at the root does not cover `worker/`.** Its tree has its own lockfile,
+so run `npm audit` in that directory before a deploy. CI does not install that tree
+either, so a green Dependabot PR on `worker/` proves only that nothing broke the site.
+`npm audit` is outside CI for the same reason `check-links` is: a new advisory would
+turn unrelated pull requests red.
 
 Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
 stylesheet that has produced no defects, and **prettier** would reformat every file
@@ -326,7 +342,7 @@ not esbuild, is what Vite 8 builds with here**, and it draws an identifier's fir
 character from a 54-character alphabet in which `$` is legal, adding digits from the
 second character on. Measured against this project's own rolldown, a `$`-then-digit
 name first appears between 3,000 and 3,100 distinct names in one scope, at about
-110 KB. **Today's bundle is 5,078 bytes and carries exactly one `$`**, the end anchor
+110 KB. **Today's bundle is about 5 KB and carries exactly one `$`**, the end anchor
 of #63's `ISO_DATE` regex; this file's previous claim that it carried none was true
 before #63 and stale after it. Narrowing the pattern to two or more digits would
 pre-empt both false positives and is deliberately not done, because it would stop the
@@ -803,25 +819,45 @@ copied, so that only decides which value wins for an overridden token.
 
 Three things the parser has to keep doing:
 
-- **`#ffffff` and `#fff` compare equal.** The stylesheet is minified and the 404
-  block is not, so the two halves of one palette arrive spelled differently, and
-  `--white` is live proof: the page ships the long form against a stylesheet
-  that ships the short one. Compare raw text and every shortened token reads as
-  a drift. Named rather than hidden: minification also rewrites `rgba()` to
-  eight-digit hex, so a token copied in longhand would fail as a spelling
-  difference. All eight are bare six-digit hex, and that failure would be red
-  with both spellings in the message, not a silent pass.
+- **`#ffffff` and `#fff` compare equal.** Whether the 404 block is minified is
+  Vite's behaviour rather than a decision made here: Vite 8.3.0 added minification
+  of inline `<style>` blocks, which 8.2.0 left verbatim, so `404.html` says
+  `--white: #ffffff`, `dist/404.html` says `--white:#fff`, and today the two halves
+  of one palette arrive spelled alike. The normalising stays in case that behaviour
+  changes, because a block back to verbatim must not read as a drift. `--white` is
+  the only token that shortens today, so comparing raw text would report that one, and any token added
+  later with a short form would join it. Named rather than hidden: minification
+  also rewrites `rgba()` to eight-digit hex. It does so on both sides today, but
+  against an unminified block a token copied in longhand would fail as a spelling
+  difference. All eight are bare six-digit hex, and that failure would be red with
+  both spellings in the message, not a silent pass.
 - **Comments are stripped before the declarations are matched.** The only
   boundary in front of the first declaration is the start of the block, so a
   comment sitting there pushes it past the anchor and it drops out of the map,
-  leaving the check reporting `ok` over seven of eight tokens. `css/style.css`
-  opens its own `:root` with `/* Palette */`, so that is a plausible edit and
-  not a hypothetical. Review of #67 caught it in the first pass, and the
+  leaving the check reporting `ok` over seven of eight tokens. With the block
+  minified no comment reaches this parser: a plain comment and a `/*! */` one both
+  disappear from inside `:root`, and the only one that survives is a `/*! */` at
+  the very top of the `<style>`, which sits outside the block. The strip stays for
+  the same reason as the normalising above. If that behaviour changes, a comment
+  at the start of `:root` reaches `dist/` again, and `css/style.css` opens its own
+  `:root` with `/* Palette */`, so that is a plausible edit and not a
+  hypothetical. Review of #67 caught it in the first pass, and the
   pre-strip parser was confirmed green against a drifted `--cream`.
 - **The empty list cannot pass vacuously.** The token list is derived by reading
   a `:root` block out of an HTML file, so a rewritten `<style>` block empties it
   and a `forEach` over nothing pushes no problems. The check asserts its own
   floor before looping.
+
+**The minifier can remove a declaration, not only respell one.** `404.html` writes
+`min-height: 100vh` and then `min-height: 100dvh`, and `dist/404.html` ships only
+`100dvh`. Vite's default `build.target`, `baseline-widely-available`, is chrome111,
+edge111, firefox114, safari16.4 and ios16.4, and `cssTarget` inherits it. Lightning
+CSS drops the `100vh` fallback under those targets and also with no targets at all,
+and keeps both lines if one browser older than `dvh` is in the target set. A browser without `dvh` therefore loses
+the page's vertical centring, which is cosmetic and accepted, and matches
+`css/style.css`, whose mobile drawer already uses `height: 100dvh` with no fallback.
+A render comparison in a current browser cannot see this, because that browser uses
+the `dvh` line either way.
 
 A second check requires `404.html` to declare **exactly** the tokens it uses.
 #60 removed `--amber` from that block when the eyebrow stopped using it, and
@@ -892,7 +928,8 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   `robots.txt` disallows `/join`. Nothing in the site may claim `/join`: no
   `join` file or directory, and no Render redirect or rewrite rule for it.
   Because the invite is no longer an outbound link, `npm run check-links` cannot
-  see a revoked one; rotating it is `npx wrangler secret put INVITE_URL`.
+  see a revoked one; rotating it is `npm run secret:put -- INVITE_URL` from
+  `worker/`.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.

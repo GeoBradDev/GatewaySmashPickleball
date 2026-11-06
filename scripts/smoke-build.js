@@ -1111,7 +1111,7 @@ check('every price on the site states the same amount', function () {
 // identifier's first character from a 54-character alphabet in which $ is legal
 // and adds digits from the second character on. Measured against this project's
 // own rolldown, a $-then-digit name first appears between 3,000 and 3,100
-// distinct names in one scope, at about 110 KB. Today's bundle is 5,078 bytes
+// distinct names in one scope, at about 110 KB. Today's bundle is about 5 KB
 // with roughly thirty, and its only $ is the end anchor of #63's ISO_DATE
 // regex. Requiring two or more digits would pre-empt both and is deliberately
 // not done: it would stop the check seeing a genuine $5, which is the
@@ -2629,19 +2629,23 @@ function inlineStyles(file) {
   return style[1];
 }
 
-// #ffffff and #fff are the same colour and a different string. The built
-// stylesheet is minified and the 404 page's inline block is not, so the two
-// halves of the palette reach a comparison spelled differently, and comparing
-// the raw text would report every shortened token as a drift. Anything that is
-// not a bare hex is compared on its collapsed whitespace instead, which is the
-// other thing minification changes, so this stays honest for a non-colour
-// token without pretending to understand it.
+// #ffffff and #fff are the same colour and a different string. Whether the 404
+// page's inline block is minified is Vite's behaviour rather than a decision
+// made here: Vite 8.3.0 added minification of inline <style> blocks, which
+// 8.2.0 left verbatim, so today the two halves of the palette arrive spelled
+// alike. This stays in case that behaviour changes, because comparing the raw
+// text against a verbatim block would report --white, the only token that
+// shortens today, as a drift. Anything that is not a bare hex is
+// compared on its collapsed whitespace instead, which is the other thing
+// minification changes, so this stays honest for a non-colour token without
+// pretending to understand it.
 //
 // What that leaves, named rather than hidden: the minifier also rewrites
-// rgba() to eight-digit hex, so a token copied in the longhand form would read
-// as a drift against a stylesheet that had shortened it. The eight tokens the
-// 404 page copies are all bare six-digit hex, and the failure would be a red
-// build with a message naming both spellings, not a silent pass.
+// rgba() to eight-digit hex. It does so on both sides today, but against an
+// unminified block a token copied in the longhand form would read as a drift.
+// The eight tokens the 404 page copies are all bare six-digit hex, and the
+// failure would be a red build with a message naming both spellings, not a
+// silent pass.
 function normaliseCssValue(value) {
   const collapsed = value.trim().replace(/\s+/g, ' ');
   const hex = collapsed.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
@@ -2668,8 +2672,10 @@ function normaliseCssValue(value) {
 // rule. The only boundary in front of the first declaration is the start of
 // the block, so a comment sitting there pushes it past the anchor and it drops
 // out of the map: the check goes on reporting ok over seven of the eight
-// tokens. css/style.css opens its own :root with `/* Palette */`, and the 404
-// block is not minified, so that is a plausible edit and not a hypothetical.
+// tokens. The minifier removes any comment inside :root today, a /*! */ one
+// included, so this is what holds if that behaviour changes: css/style.css
+// opens its own :root with `/* Palette */`, so that is a plausible edit and not
+// a hypothetical.
 function rootTokens(css, source) {
   const block = css.match(/:root\s*\{([^}]*)\}/);
   if (!block) {
