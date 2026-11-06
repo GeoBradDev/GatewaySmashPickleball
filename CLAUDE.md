@@ -33,7 +33,7 @@ wrangler is **not** a root devDependency and `worker/` is **not** an npm workspa
 either would put workerd and esbuild into every `npm ci` in CI and on Render, for a
 tool neither uses, and a Cloudflare runtime's advisories into the site's audit. Root
 `npm ci` installs no wrangler, and `npm test` must keep passing with
-`worker/node_modules` absent. It is called through npm scripts and never through
+`worker/node_modules` absent. wrangler is called through npm scripts and never through
 `npx`, because `npx` falls back to fetching the latest version when `node_modules` is
 missing, which is the unpinned deploy the lockfile exists to prevent. A script stops
 with "not found" instead, unless a global wrangler is on `PATH`, which would win.
@@ -819,13 +819,13 @@ copied, so that only decides which value wins for an overridden token.
 
 Three things the parser has to keep doing:
 
-- **`#ffffff` and `#fff` compare equal.** Whether the 404 block is minified is a
-  Vite default rather than a decision made here: 8.2.0 left it verbatim and 8.3.6
-  minifies it, so `404.html` says `--white: #ffffff`, `dist/404.html` says
-  `--white:#fff`, and today the two halves of one palette arrive spelled alike.
-  The normalising stays because a default that flipped in a minor can flip back,
-  and a flip back must not read as a drift. `--white` is the only token that
-  shortens today, so comparing raw text would report that one, and any token added
+- **`#ffffff` and `#fff` compare equal.** Whether the 404 block is minified is
+  Vite's behaviour rather than a decision made here: Vite 8.3.0 added minification
+  of inline `<style>` blocks, which 8.2.0 left verbatim, so `404.html` says
+  `--white: #ffffff`, `dist/404.html` says `--white:#fff`, and today the two halves
+  of one palette arrive spelled alike. The normalising stays in case that behaviour
+  changes, because a block back to verbatim must not read as a drift. `--white` is
+  the only token that shortens today, so comparing raw text would report that one, and any token added
   later with a short form would join it. Named rather than hidden: minification
   also rewrites `rgba()` to eight-digit hex. It does so on both sides today, but
   against an unminified block a token copied in longhand would fail as a spelling
@@ -838,7 +838,7 @@ Three things the parser has to keep doing:
   minified no comment reaches this parser: a plain comment and a `/*! */` one both
   disappear from inside `:root`, and the only one that survives is a `/*! */` at
   the very top of the `<style>`, which sits outside the block. The strip stays for
-  the same reason as the normalising above. If that default flips back, a comment
+  the same reason as the normalising above. If that behaviour changes, a comment
   at the start of `:root` reaches `dist/` again, and `css/style.css` opens its own
   `:root` with `/* Palette */`, so that is a plausible edit and not a
   hypothetical. Review of #67 caught it in the first pass, and the
@@ -852,8 +852,8 @@ Three things the parser has to keep doing:
 `min-height: 100vh` and then `min-height: 100dvh`, and `dist/404.html` ships only
 `100dvh`. Vite's default `build.target`, `baseline-widely-available`, is chrome111,
 edge111, firefox114, safari16.4 and ios16.4, and `cssTarget` inherits it. Lightning
-CSS drops the `100vh` fallback because every one of those supports `dvh`; given a
-target older than `dvh` it keeps both lines. A browser without `dvh` therefore loses
+CSS drops the `100vh` fallback under those targets and also with no targets at all,
+and keeps both lines if one browser older than `dvh` is in the target set. A browser without `dvh` therefore loses
 the page's vertical centring, which is cosmetic and accepted, and matches
 `css/style.css`, whose mobile drawer already uses `height: 100dvh` with no fallback.
 A render comparison in a current browser cannot see this, because that browser uses

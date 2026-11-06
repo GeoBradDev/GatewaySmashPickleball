@@ -43,6 +43,8 @@ html-validate 11.18.0.
 Comparing `dist/` from 8.2.0 and 8.3.6:
 
 - **`dist/404.html`'s inline `<style>` is now minified.** Vite 8.2.0 left it verbatim.
+  No default changed: `build.cssMinify` resolves the same way in both, and Vite 8.3.0
+  added a `minifyCSS` call on the html-proxy path that inline `<style>` takes.
   Tokens now reach the parity check as `--white:#fff`, the same spelling as the
   stylesheet, and the block arrives on one line. Every check is green, which is
   exactly why this needs negative tests rather than trust: the 404 parsers were
@@ -117,8 +119,8 @@ issue, while an npm script fails with "not found" unless a global wrangler is on
   - "`#ffffff` and `#fff` compare equal" under #67: the 404 block is minified since the
     Vite 8.3 line, so the spelling difference and `--white` "live proof" no longer
     exist, and the `rgba()` caveat changes for the same reason. Keep the rule: whether
-    the block is minified is a Vite default a minor bump just flipped, and flipping it
-    back must not read as a drift. `--white` is the only token that shortens today.
+    the block is minified is Vite behaviour added in 8.3.0, and if that behaviour
+    changes a block back to verbatim must not read as a drift. `--white` is the only token that shortens today.
   - Comment-stripping bullet: state whether a comment can still reach the parser, per
     the negative test below (`/*! */` may survive Lightning CSS).
   - Integrations: `npx wrangler secret put INVITE_URL`.
@@ -140,8 +142,10 @@ issue, while an npm script fails with "not found" unless a global wrangler is on
 
 - Riskiest: the 404 parsers passing vacuously on minified CSS. Green is not evidence
   here. Covered by negative tests.
-- Lightning CSS changing what the 404 page renders. Covered by a before and after
-  render. A failure here is fatal to the bump and goes back to the orchestrator.
+- Lightning CSS changing what the 404 page renders. The before and after render
+  covers current browsers, where a difference is fatal to the bump and goes back to
+  the orchestrator. It cannot see a browser without `dvh`: that case is the accepted
+  `100vh` removal under "What the bump changes".
 - `npm run` picking up a global wrangler. None is installed here; on another machine
   an unpinned global would win only if `worker/node_modules` were absent. README says
   run `npm ci` first.

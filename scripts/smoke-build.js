@@ -2630,11 +2630,12 @@ function inlineStyles(file) {
 }
 
 // #ffffff and #fff are the same colour and a different string. Whether the 404
-// page's inline block is minified is a Vite default rather than a decision made
-// here: 8.2.0 left it verbatim and 8.3.6 minifies it, so today the two halves
-// of the palette arrive spelled alike. This stays because a default that
-// flipped in a minor can flip back, and comparing the raw text would then
-// report every shortened token as a drift. Anything that is not a bare hex is
+// page's inline block is minified is Vite's behaviour rather than a decision
+// made here: Vite 8.3.0 added minification of inline <style> blocks, which
+// 8.2.0 left verbatim, so today the two halves of the palette arrive spelled
+// alike. This stays in case that behaviour changes, because comparing the raw
+// text against a verbatim block would report --white, the only token that
+// shortens today, as a drift. Anything that is not a bare hex is
 // compared on its collapsed whitespace instead, which is the other thing
 // minification changes, so this stays honest for a non-colour token without
 // pretending to understand it.
@@ -2672,7 +2673,7 @@ function normaliseCssValue(value) {
 // the block, so a comment sitting there pushes it past the anchor and it drops
 // out of the map: the check goes on reporting ok over seven of the eight
 // tokens. The minifier removes any comment inside :root today, a /*! */ one
-// included, so this is what holds if that default flips back: css/style.css
+// included, so this is what holds if that behaviour changes: css/style.css
 // opens its own :root with `/* Palette */`, so that is a plausible edit and not
 // a hypothetical.
 function rootTokens(css, source) {
