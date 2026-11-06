@@ -28,9 +28,10 @@ From the orchestrator:
   and remove the copy from `.nav-links:popover-open`, with the comment that explains it.
 - `scripts/smoke-build.js`: rewrite the check `an open popover scrolls on a short viewport`
   and rename it `the mobile nav scrolls on a short viewport`. It requires `overflow-y: auto`
-  on the shared mobile `.nav-links` rule, and fails if `.nav-links:popover-open` or
-  `.nav-links.open` sets `overflow` or `overflow-y` to anything else, so both states stay
-  scrollable. Correct its comment.
+  on the shared mobile `.nav-links` rule, and fails if that rule, `.nav-links:popover-open`
+  or `.nav-links.open` sets `overflow` or `overflow-y` to anything else, so both states stay
+  scrollable. The shared rule is in that loop too, since a second `.nav-links` rule in the
+  block could otherwise undo the first. Correct its comment.
 - `CLAUDE.md`, the "That rule alone sets `overflow-y: auto`" bullet: correct it, since the
   declaration now sits on the shared rule.
 
