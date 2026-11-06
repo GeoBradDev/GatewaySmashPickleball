@@ -327,14 +327,24 @@ function builtPages() {
 // uses; this makes it the only form in the file.
 function linkAttributes(html) {
   return [...html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<link\b[^>]*>/g)].map(function (match) {
-    const attrs = new Map();
-    for (const attr of match[0]
-      .slice('<link'.length)
-      .matchAll(/([a-zA-Z][a-zA-Z0-9-]*)(?:\s*=\s*["']([^"']*)["'])?/g)) {
-      attrs.set(attr[1].toLowerCase(), attr[2] === undefined ? '' : attr[2]);
-    }
-    return attrs;
+    return tagAttributes(match[0]);
   });
+}
+
+// The attributes of one opening tag, as a Map with lower-cased names. A bare
+// attribute reads as '', which is what `popover` looks like when it is doing
+// its job, and an absent one is simply not in the Map. The value alternatives
+// follow the opening delimiter rather than a [^"'] class, for the reason
+// metaContent() gives.
+function tagAttributes(tag) {
+  const attrs = new Map();
+  const body = tag.replace(/^<[a-zA-Z][a-zA-Z0-9-]*/, '').replace(/\/?>$/, '');
+  for (const attr of body.matchAll(
+    /([a-zA-Z][a-zA-Z0-9-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g
+  )) {
+    attrs.set(attr[1].toLowerCase(), attr[2] ?? attr[3] ?? attr[4] ?? '');
+  }
+  return attrs;
 }
 
 // og:image, read the same order-independent way, so a content= written ahead of
@@ -1499,11 +1509,58 @@ check('the bundle survives a page with no menu elements', function () {
   runBundle(null, true);
 });
 
-// Builds the header trio and runs the bundle against it.
-function mountHeader(isMobile) {
+// The one element with this id in a built page, comments gone, with its tag
+// name, parsed attributes and inner markup. Null when the page has none, and
+// `count` says how many there were so a check can report a duplicated id rather
+// than judging whichever copy came first. The inner markup runs to the first
+// closing tag of that name, which is all the header needs: neither the button
+// nor the list nests its own kind.
+function builtElement(html, id) {
+  const source = html.replace(/<!--[\s\S]*?-->/g, '');
+  const found = [...source.matchAll(/<([a-zA-Z][a-zA-Z0-9-]*)\b(?:"[^"]*"|'[^']*'|[^>"'])*>/g)]
+    .filter((match) => tagAttributes(match[0]).get('id') === id);
+  if (found.length === 0) {
+    return { count: 0, element: null };
+  }
+  const start = found[0].index + found[0][0].length;
+  return {
+    count: found.length,
+    element: {
+      name: found[0][1].toLowerCase(),
+      attrs: tagAttributes(found[0][0]),
+      inner: source.slice(start, source.indexOf('</' + found[0][1] + '>', start)),
+    },
+  };
+}
+
+// Builds the header trio and runs the bundle against it. The toggle and the nav
+// start with the attributes the built homepage really ships, so a check that
+// the bundle removes one can fail: a stub with no attributes has nothing to
+// remove, and would report that as success.
+//
+// support models the browser. Left out, the elements carry no popover property,
+// which is every browser the feature has not reached. { open } adds the property
+// and an honest matches(): the state lives on the attribute, so a bundle that
+// strips first and asks afterwards reads false, as it would in a real browser.
+// { unsupported: true } is the older browser in full: no property, and
+// :popover-open is a SyntaxError out of matches().
+function mountHeader(isMobile, support) {
   const links = [createElementStub(), createElementStub()];
   const toggle = createElementStub();
   const nav = createElementStub(links);
+  Object.assign(toggle.attributes, Object.fromEntries(builtElement(indexHtml, 'menu-toggle').element?.attrs ?? []));
+  Object.assign(nav.attributes, Object.fromEntries(builtElement(indexHtml, 'nav-links').element?.attrs ?? []));
+
+  if (support?.unsupported) {
+    nav.matches = function (selector) {
+      throw new SyntaxError('unknown selector ' + selector);
+    };
+  } else if (support) {
+    nav.popover = 'auto';
+    nav.matches = function (selector) {
+      return selector === ':popover-open' && support.open && nav.hasAttribute('popover');
+    };
+  }
 
   runBundle(
     {
@@ -1576,6 +1633,334 @@ check('the desktop nav is never inert', function () {
   const header = mountHeader(false);
   if (header.nav.hasAttribute('inert')) {
     throw new Error('#nav-links is inert above the mobile breakpoint');
+  }
+});
+
+// The hamburger has no job until js/app.js arrives, so a module that never runs
+// left phones with a dead button and no way to the FAQ. The fix is native: the
+// button names a popover and the browser does the rest with no script at all.
+// Everything from here to the schedule fixtures guards that, and each of these
+// reads built output, because the wiring is split across a partial, a stylesheet
+// and a bundle that only meet in dist/.
+//
+// Runs fn over each content page's two header elements, after confirming both
+// exist exactly once. CONTENT_PAGES is derived from dist/, so an empty list has
+// to be refused here or every check below reports ok against nothing.
+function eachPageHeader(fn) {
+  if (CONTENT_PAGES.length === 0) {
+    throw new Error('no content pages were found in dist/');
+  }
+  const problems = [];
+  CONTENT_PAGES.forEach(function (page) {
+    const html = pageHtml(page);
+    const toggle = builtElement(html, 'menu-toggle');
+    const nav = builtElement(html, 'nav-links');
+    if (toggle.count !== 1 || nav.count !== 1) {
+      problems.push(
+        page.file + ': expected one #menu-toggle and one #nav-links, found ' +
+          toggle.count + ' and ' + nav.count
+      );
+      return;
+    }
+    fn(page.file, toggle.element, nav.element, problems);
+  });
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+}
+
+check('every content page opens the mobile nav without JavaScript', function () {
+  eachPageHeader(function (file, toggle, nav, problems) {
+    if (toggle.name !== 'button') {
+      problems.push(file + ': #menu-toggle is a <' + toggle.name + '>, and popovertarget only works on a button');
+    }
+    if (!toggle.attrs.has('popovertarget')) {
+      problems.push(file + ': #menu-toggle has no popovertarget, so it does nothing without JavaScript');
+    } else if (toggle.attrs.get('popovertarget') !== nav.attrs.get('id')) {
+      problems.push(
+        file + ': #menu-toggle popovertarget is ' + JSON.stringify(toggle.attrs.get('popovertarget')) +
+          ', not the id of the nav, ' + JSON.stringify(nav.attrs.get('id'))
+      );
+    }
+    // Allowed rather than denied, because a browser reads any other value as
+    // manual, and manual has neither Escape nor light dismiss.
+    if (!nav.attrs.has('popover')) {
+      problems.push(file + ': #nav-links has no popover attribute, so the button has nothing to open');
+    } else if (!['', 'auto'].includes(nav.attrs.get('popover').toLowerCase())) {
+      problems.push(
+        file + ': #nav-links popover is ' + JSON.stringify(nav.attrs.get('popover')) +
+          ', which loses Escape and outside tap'
+      );
+    }
+    ['hidden', 'inert'].forEach(function (attr) {
+      if (nav.attrs.has(attr)) {
+        problems.push(file + ': #nav-links ships ' + attr + ', which no script is there to lift');
+      }
+    });
+    const hrefs = [...nav.inner.matchAll(/<a\b[^>]*>/g)].map((link) => tagAttributes(link[0]).get('href'));
+    if (!hrefs.includes('/faq/')) {
+      problems.push(file + ': #nav-links has no link to /faq/, the page this exists to keep reachable');
+    }
+  });
+});
+
+check('the menu toggle is usable before any script runs', function () {
+  eachPageHeader(function (file, toggle, nav, problems) {
+    // The stale-HTML case: with the stylesheet gone too, the three bars are empty
+    // spans and this text is all the button has. It is also the accessible name
+    // until the bundle writes one.
+    if (toggle.inner.replace(/<[^>]*>/g, '').trim() === '') {
+      problems.push(file + ': #menu-toggle has no text, so with no stylesheet it renders empty');
+    }
+    // Both are written by js/app.js. A static aria-expanded overrides the state
+    // the browser exposes natively, so it would announce collapsed over an open
+    // menu; a static aria-label would pre-empt the text above.
+    ['aria-expanded', 'aria-label'].forEach(function (attr) {
+      if (toggle.attrs.has(attr)) {
+        problems.push(file + ': #menu-toggle ships ' + attr + ', which is wrong before the bundle runs');
+      }
+    });
+    ['hidden', 'disabled'].forEach(function (attr) {
+      if (toggle.attrs.has(attr)) {
+        problems.push(file + ': #menu-toggle ships ' + attr + ', which no script is there to lift');
+      }
+    });
+  });
+});
+
+// The X is drawn with :nth-child, so it counts every child of the button, not
+// only the bars. Anything added ahead of them moves the count and the X comes
+// apart with the markup valid and every state check green. The positions are
+// read out of the stylesheet so this holds if the animation is redrawn, and the
+// minifier spells position one :first-child.
+check('the hamburger X still lands on the bars', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const positions = [
+    ...css.matchAll(/\.menu-toggle\.active \.menu-bar:(?:first-child|nth-child\((\d+)\))/g),
+  ].map((match) => Number(match[1] ?? 1));
+  if (positions.length === 0) {
+    throw new Error('no .menu-toggle.active .menu-bar:nth-child rule in the emitted css');
+  }
+  eachPageHeader(function (file, toggle, nav, problems) {
+    const children = [...toggle.inner.matchAll(/<span\b[^>]*>/g)].map(
+      (span) => tagAttributes(span[0]).get('class') ?? ''
+    );
+    positions.forEach(function (position) {
+      if (children[position - 1] !== 'menu-bar') {
+        problems.push(
+          file + ': child ' + position + ' of #menu-toggle is ' +
+            JSON.stringify(children[position - 1]) + ', not a .menu-bar'
+        );
+      }
+    });
+  });
+});
+
+// Every rule in a stylesheet, flattened, each carrying the at-rules around it.
+// Brace counting rather than a regex, because a pattern cannot tell the base
+// .nav-links rule from the one inside the mobile block, and this file needs
+// exactly that difference.
+function cssRules(css, within = []) {
+  const rules = [];
+  let at = 0;
+  while (at < css.length) {
+    const open = css.indexOf('{', at);
+    if (open === -1) {
+      break;
+    }
+    const prelude = css.slice(at, open);
+    const selector = prelude.slice(prelude.lastIndexOf(';') + 1).trim();
+    let depth = 1;
+    let end = open + 1;
+    while (end < css.length && depth > 0) {
+      depth += css[end] === '{' ? 1 : css[end] === '}' ? -1 : 0;
+      end += 1;
+    }
+    const body = css.slice(open + 1, end - 1);
+    if (/^@(media|supports|layer|container)\b/.test(selector)) {
+      rules.push(...cssRules(body, [...within, selector]));
+    } else {
+      rules.push({ selector, body, within });
+    }
+    at = end;
+  }
+  return rules;
+}
+
+// The declarations of a rule body as a Map. The last one wins, as in a browser.
+function cssDeclarations(body) {
+  const declarations = new Map();
+  body.split(';').forEach(function (declaration) {
+    const colon = declaration.indexOf(':');
+    if (colon !== -1) {
+      declarations.set(declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim());
+    }
+  });
+  return declarations;
+}
+
+// The selectors in a list, split on commas outside parentheses only.
+function cssSelectors(selector) {
+  return selector.split(/,(?![^(]*\))/).map((part) => part.trim());
+}
+
+function emittedRules() {
+  return cssRules(fs.readFileSync(path.join(distDir, styleRef), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+}
+
+// The minifier rewrites max-width:768px as width<=768px, and either spelling is
+// the same breakpoint.
+function inMobileBlock(rule) {
+  return rule.within.some((at) => /max-width:\s*768px|width\s*<=\s*768px/.test(at));
+}
+
+check('the stylesheet opens the drawer for a popover', function () {
+  const rules = emittedRules().filter(inMobileBlock);
+  const open = rules.find((rule) => cssSelectors(rule.selector).includes('.nav-links:popover-open'));
+  if (!open) {
+    throw new Error('no .nav-links:popover-open rule in the 768px block, so an open popover stays off-canvas');
+  }
+  const declarations = cssDeclarations(open.body);
+  if (declarations.get('visibility') !== 'visible') {
+    throw new Error(
+      '.nav-links:popover-open sets visibility to ' + declarations.get('visibility') +
+        ', so the open drawer is invisible'
+    );
+  }
+  const transform = declarations.get('transform');
+  if (!/^(none|translate(X|Y|3d)?\(0(px|%)?(,\s*0(px|%)?)*\))$/.test(transform ?? '')) {
+    throw new Error('.nav-links:popover-open transform is ' + transform + ', which is not on-canvas');
+  }
+  const backdrop = rules.find((rule) => cssSelectors(rule.selector).includes('.nav-links::backdrop'));
+  if (!backdrop || !cssDeclarations(backdrop.body).has('background')) {
+    throw new Error('no .nav-links::backdrop rule with a background in the 768px block');
+  }
+});
+
+// An unknown pseudo-class invalidates its whole rule. Sharing a list would mean
+// a browser with no popover support throws away .nav-links.open as well, which
+// is the JS drawer, for the sake of a state it can never be in. This reads the
+// built file because the minifier joins adjacent rules with equal bodies when it
+// judges that safe, and the two rules here have equal bodies.
+check(':popover-open never shares a selector list with .nav-links.open', function () {
+  const rules = emittedRules();
+  const popoverRules = rules.filter((rule) => rule.selector.includes(':popover-open'));
+  if (popoverRules.length === 0) {
+    throw new Error('no :popover-open rule in the emitted css');
+  }
+  popoverRules.forEach(function (rule) {
+    if (cssSelectors(rule.selector).length > 1) {
+      throw new Error(rule.selector + ' shares a list, which is one unknown pseudo-class from losing the drawer');
+    }
+  });
+  if (!rules.some((rule) => cssSelectors(rule.selector).includes('.nav-links.open'))) {
+    throw new Error('no .nav-links.open rule in the emitted css');
+  }
+});
+
+// The UA sheet hides a closed popover and restyles an open one as a centred box.
+// The base rule has to undo all of it, because before the module runs the list
+// is still a popover, on desktop too: this is what keeps a JS visitor's nav
+// exactly where it was instead of vanishing until the bundle arrives. The mobile
+// block overrides most of these again, which is why they live outside it.
+check('the desktop nav overrides the popover user-agent styles', function () {
+  const base = new Map();
+  emittedRules()
+    .filter((rule) => rule.within.length === 0 && cssSelectors(rule.selector).includes('.nav-links'))
+    .forEach(function (rule) {
+      cssDeclarations(rule.body).forEach((value, property) => base.set(property, value));
+    });
+  const resets = {
+    display: /^flex$/,
+    position: /^static$/,
+    inset: /^auto$/,
+    width: /^auto$/,
+    height: /^auto$/,
+    margin: /^0(px)?$/,
+    padding: /^0(px)?$/,
+    border: /^(0(px)?|none)$/,
+    overflow: /^visible$/,
+    color: /^inherit$/,
+    background: /^(none|transparent|0 0)$/,
+  };
+  const wrong = Object.keys(resets).filter((property) => !resets[property].test(base.get(property) ?? ''));
+  if (wrong.length > 0) {
+    throw new Error(
+      'the base .nav-links rule does not reset ' +
+        wrong.map((property) => property + ' (' + base.get(property) + ')').join(', ')
+    );
+  }
+});
+
+// The regression a popover left in place would be: the browser and the drawer
+// both claiming the same list, with Escape and outside tap handled twice.
+check('the bundle removes the popover attributes before the drawer takes over', function () {
+  [true, false].forEach(function (isMobile) {
+    const shipped = mountHeader(isMobile, { open: false });
+    const width = isMobile ? 'at mobile width' : 'at desktop width';
+    const seeded = {
+      popover: builtElement(indexHtml, 'nav-links').element?.attrs.has('popover'),
+      popovertarget: builtElement(indexHtml, 'menu-toggle').element?.attrs.has('popovertarget'),
+    };
+    // Without this the assertions below pass on a header that never had them.
+    if (!seeded.popover || !seeded.popovertarget) {
+      throw new Error('the built homepage header carries no popover wiring for the bundle to remove');
+    }
+    if (shipped.nav.hasAttribute('popover')) {
+      throw new Error('#nav-links kept popover ' + width);
+    }
+    if (shipped.toggle.hasAttribute('popovertarget')) {
+      throw new Error('#menu-toggle kept popovertarget ' + width);
+    }
+  });
+});
+
+check("the bundle sets the toggle's label and expanded state", function () {
+  const header = mountHeader(true, { open: false });
+  const state = () =>
+    header.toggle.getAttribute('aria-label') + ' / ' + header.toggle.getAttribute('aria-expanded');
+  const expectState = function (when, expected) {
+    if (state() !== expected) {
+      throw new Error(when + ', #menu-toggle reads ' + state() + ', not ' + expected);
+    }
+  };
+  expectState('after the bundle runs', 'Open navigation menu / false');
+  header.toggle.listeners.click();
+  expectState('after opening', 'Close navigation menu / true');
+  header.toggle.listeners.click();
+  expectState('after closing', 'Open navigation menu / false');
+});
+
+// A slow module loses this race to anyone who taps early. Whatever they opened
+// has to survive the bundle arriving, with the drawer's state and focus.
+check('an open popover hands off to the drawer', function () {
+  const opened = mountHeader(true, { open: true });
+  if (!opened.nav.classList.contains('open')) {
+    throw new Error('a popover open when the bundle ran did not become the open drawer');
+  }
+  if (opened.toggle.getAttribute('aria-expanded') !== 'true') {
+    throw new Error('the handed-off drawer left aria-expanded as ' + opened.toggle.getAttribute('aria-expanded'));
+  }
+  if (opened.nav.hasAttribute('inert')) {
+    throw new Error('the handed-off drawer is inert');
+  }
+  if (opened.links[0].focused !== 1) {
+    throw new Error('the handed-off drawer did not focus the first link');
+  }
+
+  const closed = mountHeader(true, { open: false });
+  if (closed.nav.classList.contains('open')) {
+    throw new Error('a closed popover opened the drawer when the bundle ran');
+  }
+});
+
+// matches(':popover-open') is a SyntaxError where the selector is unknown, and
+// one thrown here would stop the IIFE with the drawer half wired.
+check('a browser without popover still gets the drawer', function () {
+  const header = mountHeader(true, { unsupported: true });
+  header.toggle.listeners.click();
+  if (!header.nav.classList.contains('open')) {
+    throw new Error('one click did not open the drawer in a browser without popover');
   }
 });
 
