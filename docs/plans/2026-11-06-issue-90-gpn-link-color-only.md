@@ -192,6 +192,11 @@ source and run `npm run smoke`.
 | N12 | Delete `.feature p a` and `.feature p a:hover` | Green, and that is correct: the base rule is what distinguishes the link and `.feature p a` only tints it. Confirm by computed style |
 | N13 | New in-prose link in an uncovered context: a sentence with a link in a `<td>` or `<div>` | Green and correct: the base rule underlines it. Confirm by computed style, and record this as the design working |
 | N14 | Prose link with `.btn` wrapped in an HTML comment | Green, comments are not links |
+| N15 | F1. In the script, narrow the prose regex `(p\|li)` to `(li)` | Red: the floor counts `<main>` only, so it names `index.html` and `code-of-conduct/index.html`, the two pages with no `<li>` link in `<main>`. FAQ and subs have some, so the mutant does not trip them |
+| N16 | F2. Respell `.btn` as `a.btn` in both stylesheets and in `UNDERLINE_OPT_OUTS`, and put `class="btn"` on the GPN link in its `<p>` | Red, names `index.html` and the href |
+| N17 | F3. `@media print, (max-width: 768px) { .feature p a { text-decoration: none; } }` | Red, names `.feature p a`: only a print-only query is dropped |
+| N18 | F4. `.x a { text-decoration: var(--no-underline); }` | Red, names `.x a`: a `var()` name is not the word underline |
+| N19 | F5. `<a aria-label="Fall > Spring" class="btn" href="/x">` in the GPN link's `<p>` | Red, names `index.html` and `/x`. Also fails the sameAs check, because the href moved |
 
 ## Live drive (Medium: drive the changed path)
 
@@ -216,6 +221,21 @@ widths, on `index.html`. Any other change is a defect in this plan.
   the repair obvious.
 - The check's blind spots, listed under "What this check does not see".
 
+## Unfreeze record
+
+The check `links keep their underline unless a named rule opts out` in
+`scripts/smoke-build.js` was frozen when it went in red. Review found five defects in the
+check itself (F1 to F5, negative tests N15 to N19), so fixing them meant editing it.
+
+- Approval: given by the user and relayed by the orchestrator through the issue
+  coordinator. The implementer did not see the user's message itself. Quoted as relayed:
+  "yes, rewrite the frozen checks for #89 and #90".
+- Scope: this one check and the five fixes F1 to F5, nothing wider.
+- Reason: each defect let a colour-only link or a removed underline pass, shown green on
+  the old check and red on the new one. The rewrite only tightens: no assertion was
+  removed, and the red the check was frozen on is unchanged, as the proof below shows.
+- The rewritten check is frozen again from this commit.
+
 ## Proof
 
 | Criterion | Evidence |
@@ -224,3 +244,16 @@ widths, on `index.html`. Any other change is a defect in this plan.
 | 2 | axe output for five pages at two widths |
 | 3 | The check, red on the unchanged CSS, plus N1 to N14 |
 | 4 | Before/after computed-style diff, one change only |
+
+Rewritten check at the merge base `5f6095b505193c47f3d408cb121366c2b13dab08` (`git merge-base origin/main HEAD`), in a
+scratch worktree with `npm ci`, with only the check applied: `npm run smoke` exits 1, 76
+checks ok and this one not ok. It still fails on the base rule of both stylesheets:
+
+```
+not ok - links keep their underline unless a named rule opts out
+
+1 smoke check(s) failed:
+  links keep their underline unless a named rule opts out: assets/app-CtMUz08-.css: the base a rule does not set an underline; 404.html: the base a rule does not set an underline; assets/app-CtMUz08-.css: "a" removes the underline and is not in UNDERLINE_OPT_OUTS in scripts/smoke-build.js. A link whose only cue is colour fails WCAG 1.4.1, so keep the underline, or add the selector there by hand with its reason if it really is not a link in text
+```
+
+The scratch worktree was removed afterwards.

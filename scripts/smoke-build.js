@@ -3434,7 +3434,7 @@ const UNDERLINE_OPT_OUTS = {
 // block is a,a:visited{text-decoration:underline}, so left in, a print rule
 // satisfies a screen check. Width queries stay, so a mobile-only removal is seen.
 function withoutPrintBlocks(css) {
-  const opening = /@media\s+(?:only\s+)?print\b[^{]*\{/;
+  const opening = /@media\s+(?:only\s+)?print\b[^{,]*\{/;
   let rest = css;
   let kept = '';
   for (let found = rest.match(opening); found; found = rest.match(opening)) {
@@ -3487,7 +3487,7 @@ function underlineRules(css) {
     }
     return [{
       selectors: rule[1].split(',').map((selector) => selector.trim()),
-      underlines: /\bunderline\b/.test(values[values.length - 1]),
+      underlines: /\bunderline\b/.test(values[values.length - 1].replace(/var\([^)]*\)/g, '')),
     }];
   });
 }
@@ -3497,6 +3497,14 @@ function underlineRules(css) {
 function anchorAttribute(attributes, name) {
   const match = attributes.match(new RegExp('(?:^|\\s)' + name + '\\s*=\\s*(["\'])([\\s\\S]*?)\\1'));
   return match ? match[2] : '';
+}
+
+// Every <a> attribute string inside a <p> or <li>. Quoted values are read as
+// units, because a > inside one would otherwise end the tag and hide its class.
+function proseAnchors(html) {
+  return [...html.matchAll(/<(p|li)\b[^>]*>([\s\S]*?)<\/\1>/g)].flatMap(
+    (block) => [...block[2].matchAll(/<a\b((?:"[^"]*"|'[^']*'|[^'">])*)>/g)].map((anchor) => anchor[1])
+  );
 }
 
 check('links keep their underline unless a named rule opts out', function () {
@@ -3552,16 +3560,21 @@ check('links keep their underline unless a named rule opts out', function () {
   // every rule above stays allowlisted. Only single-class entries can be read off
   // a tag; the rest opt out by ancestor, which this does not model.
   const classOptOuts = Object.keys(UNDERLINE_OPT_OUTS)
-    .filter((selector) => /^\.[\w-]+$/.test(selector))
-    .map((selector) => selector.slice(1));
+    .flatMap((selector) => selector.match(/^[a-z]*\.([\w-]+)$/)?.[1] ?? []);
+  if (classOptOuts.length === 0) {
+    problems.push('UNDERLINE_OPT_OUTS names no single class, so the prose half compares nothing');
+  }
   const pages = walk(distDir).filter((rel) => rel.endsWith('.html'));
   pages.forEach(function (rel) {
     const html = fs.readFileSync(path.join(distDir, rel), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
-    const anchors = [...html.matchAll(/<(p|li)\b[^>]*>([\s\S]*?)<\/\1>/g)].flatMap(
-      (block) => [...block[2].matchAll(/<a\b([^>]*)>/g)].map((anchor) => anchor[1])
-    );
-    if (anchors.length === 0 && CONTENT_PAGES.some((page) => page.file === rel)) {
-      problems.push(rel + ': found no link in any <p> or <li>, so the prose half read nothing');
+    const anchors = proseAnchors(html);
+    // Inside <main> only: the nav's <li> links and the footer's <p> link are on
+    // every page through the partials, so counted here they make this floor
+    // impossible to trip.
+    const main = html.match(/<main\b[\s\S]*?<\/main>/);
+    const isContentPage = CONTENT_PAGES.some((page) => page.file === rel);
+    if (isContentPage && (!main || proseAnchors(main[0]).length === 0)) {
+      problems.push(rel + ': found no link in any <p> or <li> in <main>, so the prose half read nothing');
     }
     anchors.forEach(function (attributes) {
       const classes = anchorAttribute(attributes, 'class').split(/\s+/);
