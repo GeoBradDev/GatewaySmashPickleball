@@ -14,7 +14,7 @@ Domain skills: frontend-design: not applicable because no new UI, only copy in e
 
 1. The homepage hero, the schedule callout, League Info and the FAQ (visible text and its JSON-LD) all state the registration opening time with a time zone.
 2. A smoke check requires the stated time to agree across those places, reading the time from bundle output rather than from a third hardcoded copy.
-3. No wording shown on registration day or afterwards claims something that may be false at that hour: nothing says registration is open before 8:00 AM Central, and nothing implies a window that has passed.
+3. No hero or callout wording shown on registration day or afterwards claims something that may be false at that hour: nothing in the hero or callout says registration is open before 8:00 AM Central, and nothing there implies a window that has passed. The row's Status cell is excluded, as recorded under "Left alone" and Approval: it reads "Registration open" all of that day.
 4. The page without JavaScript stays season-neutral: `#hero-note` and `#season-callout` still ship empty and hidden, and the static copy added names no season.
 5. The hero note reads well and does not wrap badly at 375px, in the longest realistic state.
 

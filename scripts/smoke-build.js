@@ -4058,8 +4058,15 @@ check('the registration opening time agrees everywhere it is stated', function (
     problems.push('expected one FAQ JSON-LD question asking when registration opens, found ' + entries.length);
   }
 
+  const registrationLine = leagueInfo('Registration');
+  if (registrationLine === null) {
+    problems.push('League Info has no Registration line to state the opening time');
+  }
+
+  // A location the lookups above could not find is already a named problem, so
+  // it is skipped here rather than reported a second time.
   const locations = [
-    ['League Info', leagueInfo('Registration')],
+    ['League Info', registrationLine],
     ['the visible FAQ answer', sections.length === 1 ? plainText(sections[0][2]) : null],
     ['the FAQ JSON-LD answer', entries.length === 1 ? entries[0].acceptedAnswer.text : null],
   ];
@@ -4087,16 +4094,34 @@ check('the registration opening time agrees everywhere it is stated', function (
 // statusOf works in calendar days, so the open branch runs from local midnight
 // on the registration date, and the site now publishes the hour the window
 // actually opens. "Registration is open now" at 7:00 AM would be contradicted by
-// its own page. The sentence has to hold at every hour of that day, so nothing
-// shown on the day may claim the window is already open.
-check('the registration day sentence never claims the window is already open', function () {
-  ['2026-08-13', '2026-12-11'].forEach(function (day) {
+// its own page, so the hero note and the callout have to hold at every hour of
+// that day. The row's Status cell is not covered: it reads "Registration open"
+// all day by decision, as a day-level label beside a dated column.
+//
+// The label is asserted first because a moved fixture would otherwise have this
+// scanning a pending sentence, which can never trip it. The text is required
+// for the same reason: a missing note has nothing in it to object to. \bopen\b
+// does not match "opens", which is the word the pending sentence uses.
+check('the hero and callout never claim registration is already open on its day', function () {
+  [
+    ['2026-08-13', 2],
+    ['2026-12-11', 3],
+  ].forEach(function ([day, row]) {
     const result = statusesOn(day);
+    if (result.labels[row] !== 'Registration open') {
+      throw new Error(
+        day + ' is not a registration day in the fixture, row ' + row + ' read ' +
+          JSON.stringify(result.labels[row])
+      );
+    }
     [
       ['hero note', result.note],
       ['callout', result.callout],
     ].forEach(function ([where, text]) {
-      if (/\bopen now\b|\bis open\b/i.test(text || '')) {
+      if (typeof text !== 'string') {
+        throw new Error('the ' + where + ' on ' + day + ' has no text to check');
+      }
+      if (/\bopen(ed)?\b/i.test(text)) {
         throw new Error(where + ' on registration day claims it is open already: ' + JSON.stringify(text));
       }
     });
