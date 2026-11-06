@@ -164,6 +164,10 @@ either, so a green Dependabot PR on `worker/` proves only that nothing broke the
 `npm audit` is outside CI for the same reason `check-links` is: a new advisory would
 turn unrelated pull requests red.
 
+Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
+stylesheet that has produced no defects, and **prettier** would reformat every file
+in the repo for a formatting problem `.editorconfig` already covers.
+
 ### The Worker's tests, and why merging proves less than it looks like
 
 `npm run test:worker` runs `node --test` over `worker/test/*.test.js` from the root.
@@ -187,15 +191,15 @@ and production must never accept it. A `[vars]` flag would make that a setting a
 could change, so there is no setting: `src/dev.js` passes a longer list through the
 handler's fourth parameter, the runtime only ever passes three arguments, and
 `src/index.js` imports nothing, so `dev.js` is in no deployed bundle. Two wiring tests
-pin `main` in `wrangler.toml` and the `deploy` script, because those two lines are all
-that keep it that way.
+pin `main` in `wrangler.toml` and the `deploy` script. Nothing pins `src/index.js`
+importing nothing.
 
 **The fallback timer asks whether a token arrived, not whether Turnstile loaded.**
 `window.turnstile` being set proves only that `api.js` came from somewhere. With the
 script in the browser cache and `challenges.cloudflare.com` blocked, the first version
 of #87 kept the help text hidden for 43 seconds, until Turnstile's own timeout, on
 exactly the school or work network the text is written for. A cold-cache block does
-not show this, so that is not the case to drive by hand. The cost is that help can sit
+not show this, so a hand check has to drive the cached case as well. The cost is that help can sit
 beside a slow but working widget, which is why it opens with "Still waiting?" rather
 than saying the check failed.
 
@@ -204,10 +208,6 @@ Cloudflare can reach a visitor, and the price is that a wrong `TURNSTILE_SECRET`
 siteverify `internal-error` with a JSON body shows every visitor the 403 page with
 nothing in the logs. The only log line is the thrown error's name. Reading the codes
 to log them is reasonable; rendering them is not.
-
-Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
-stylesheet that has produced no defects, and **prettier** would reformat every file
-in the repo for a formatting problem `.editorconfig` already covers.
 
 ### The icon block was four hand-copied blocks, and two checks watched one
 

@@ -83,7 +83,7 @@ INVITE_URL=https://example.com/
 ```
 
 Those are Cloudflare's always-pass test keys and a placeholder URL. `.dev.vars`
-and `.wrangler/` are gitignored. Never put a real invite in it.
+and `.wrangler/` are gitignored. Never put a real invite in `.dev.vars`.
 
 `npm run dev` runs `src/dev.js`, not `src/index.js`. The test secret reports its
 hostname as `example.com`, and the Worker only accepts tokens from
@@ -112,13 +112,14 @@ npm run test:worker
 
 `npm test` runs them too, so CI does. They run in Node with `fetch` stubbed. They
 do not run the page's Turnstile widget, so a change to the challenge page also
-needs a look in a real browser, with `challenges.cloudflare.com` blocked and with
-JavaScript off.
+needs a look in a real browser, with `challenges.cloudflare.com` blocked, both
+cold and with `api.js` already cached, and with JavaScript off.
 
 ## When something fails
 
-Visitors never see a Cloudflare error page. Every failure is an HTML page with a
-link back to `/join`, a link home and `info@gatewaysmash.com`:
+No failure inside the Worker reaches a visitor as a Cloudflare error page. Each
+one is an HTML page with a link back to `/join`, a link home and
+`info@gatewaysmash.com`:
 
 | Status | When |
 | --- | --- |
@@ -132,5 +133,6 @@ page shows why that can happen and the same address. With JavaScript off it show
 that at once.
 
 Logs carry the thrown error's name and nothing else. A wrong `TURNSTILE_SECRET`
-logs nothing at all: every visitor gets the 403 page. If everyone is suddenly
+logs nothing at all, and neither does an unset one: every visitor gets the 403 or
+502 page. If everyone is suddenly
 being rejected after a rotation, check that secret first.
