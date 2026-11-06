@@ -1964,6 +1964,68 @@ check('a browser without popover still gets the drawer', function () {
   }
 });
 
+// Round two: each of these is a defect a real browser showed and the checks
+// above could not see. They sit beside those checks rather than inside them.
+
+// The UA sheet gives a popover's ::backdrop pointer-events:none !important, which
+// author CSS cannot override, so unlike the JS overlay it swallows nothing. A tap
+// on the strip left of the panel closed the drawer and activated whatever was
+// under it, which on the homepage is the registration button. The page has to
+// stop taking the tap itself. The header stays out because the JS path leaves the
+// logo tappable above its overlay, so these two paths should agree.
+check('the page behind an open popover does not take the tap', function () {
+  const selectors = emittedRules()
+    .filter(inMobileBlock)
+    .filter((rule) => cssDeclarations(rule.body).get('pointer-events') === 'none')
+    .flatMap((rule) => cssSelectors(rule.selector))
+    .filter((selector) => /:has\(\.nav-links:popover-open\)/.test(selector))
+    .map((selector) => selector.replace(/:has\(\.nav-links:popover-open\)/, ' '));
+  const covers = (name) =>
+    selectors.some((selector) => new RegExp('(?:^|[\\s>(,])' + name + '(?:$|[\\s,)])').test(selector));
+  const missing = ['main', 'footer'].filter((name) => !covers(name));
+  if (missing.length > 0) {
+    throw new Error(
+      'nothing stops pointer events on ' + missing.join(' and ') +
+        ' behind an open popover, so a tap to close the drawer also lands on the page'
+    );
+  }
+  if (covers('header')) {
+    throw new Error('the rule that stops pointer events also covers the header, which the JS path leaves live');
+  }
+});
+
+// The breakpoint listener is not registered when a slow module arrives, so a
+// popover opened on a narrow window and carried past the breakpoint would land as
+// drawer state on the desktop nav: menu-open on the body, and a Tab trap whose
+// wrap target is a toggle that is display:none, which holds focus on the last link.
+check('an open popover is not handed to the drawer at desktop width', function () {
+  const header = mountHeader(false, { open: true });
+  if (header.nav.classList.contains('open')) {
+    throw new Error('a popover open at desktop width became the drawer when the bundle ran');
+  }
+  if (header.toggle.getAttribute('aria-expanded') !== 'false') {
+    throw new Error('at desktop width aria-expanded reads ' + header.toggle.getAttribute('aria-expanded'));
+  }
+});
+
+// A short viewport is shorter than the panel. The base reset removes the UA's
+// overflow:auto, so without this the links past the fold cannot be reached by any
+// means, and with no script there is no other way to them. It belongs to the
+// popover state alone: the JS drawer clips the same way, and that is its own issue.
+check('an open popover scrolls on a short viewport', function () {
+  const rules = emittedRules().filter(inMobileBlock);
+  const named = (selector) => rules.filter((rule) => cssSelectors(rule.selector).includes(selector));
+  const open = named('.nav-links:popover-open');
+  if (!open.some((rule) => cssDeclarations(rule.body).get('overflow-y') === 'auto')) {
+    throw new Error('.nav-links:popover-open does not set overflow-y:auto, so links below a short viewport are unreachable');
+  }
+  [...named('.nav-links'), ...named('.nav-links.open')].forEach(function (rule) {
+    if ([...cssDeclarations(rule.body).keys()].some((property) => property.startsWith('overflow'))) {
+      throw new Error(rule.selector + ' sets overflow, which changes the JS drawer');
+    }
+  });
+});
+
 // The schedule statuses are the whole point of #10: the table presented a
 // finished season, a live one and one open for registration identically.
 // They are computed from each row's dates, so they are worth pinning down
