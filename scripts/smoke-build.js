@@ -2010,20 +2010,24 @@ check('an open popover is not handed to the drawer at desktop width', function (
 });
 
 // A short viewport is shorter than the panel. The base reset removes the UA's
-// overflow:auto, so without this the links past the fold cannot be reached by any
-// means, and with no script there is no other way to them. It belongs to the
-// popover state alone: the JS drawer clips the same way, and that is its own issue.
-check('an open popover scrolls on a short viewport', function () {
+// overflow:auto, so without this the links past the fold cannot be reached by
+// touch, and with no script there is no other way to them at all. It sits on the
+// shared mobile rule so the JS drawer and the popover both inherit it, which means
+// a state rule can take it away: overflow is a shorthand, so both spellings are read.
+check('the mobile nav scrolls on a short viewport', function () {
   const rules = emittedRules().filter(inMobileBlock);
   const named = (selector) => rules.filter((rule) => cssSelectors(rule.selector).includes(selector));
-  const open = named('.nav-links:popover-open');
-  if (!open.some((rule) => cssDeclarations(rule.body).get('overflow-y') === 'auto')) {
-    throw new Error('.nav-links:popover-open does not set overflow-y:auto, so links below a short viewport are unreachable');
+  const shared = named('.nav-links');
+  if (!shared.some((rule) => cssDeclarations(rule.body).get('overflow-y') === 'auto')) {
+    throw new Error('.nav-links in the 768px block does not set overflow-y:auto, so links below a short viewport are unreachable');
   }
-  [...named('.nav-links'), ...named('.nav-links.open')].forEach(function (rule) {
-    if ([...cssDeclarations(rule.body).keys()].some((property) => property.startsWith('overflow'))) {
-      throw new Error(rule.selector + ' sets overflow, which changes the JS drawer');
-    }
+  [...shared, ...named('.nav-links.open'), ...named('.nav-links:popover-open')].forEach(function (rule) {
+    const declarations = cssDeclarations(rule.body);
+    ['overflow', 'overflow-y'].forEach(function (property) {
+      if (declarations.has(property) && declarations.get(property) !== 'auto') {
+        throw new Error(rule.selector + ' sets ' + property + ' to ' + declarations.get(property) + ', so that state stops scrolling');
+      }
+    });
   });
 });
 
