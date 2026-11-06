@@ -2,8 +2,8 @@
 # on success, 302s to the WhatsApp invite. See README.md in this directory.
 #
 # The invite URL and the Turnstile secret are Worker secrets, set with
-# `npx wrangler secret put`. Never put either in this file or anywhere else in
-# the repo.
+# `npm run secret:put -- <NAME>`. Never put either in this file or anywhere else
+# in the repo.
 name = "join-gate"
 main = "src/index.js"
 compatibility_date = "2026-10-01"

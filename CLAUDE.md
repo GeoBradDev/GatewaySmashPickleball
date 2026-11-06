@@ -22,11 +22,21 @@ This file provides architectural context for AI assistants working on this codeb
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
 - `.github/workflows/ci.yml` - CI check. Runs `npm ci` and `npm test` on pull requests to `main` and on pushes to `main`. It does not deploy.
 - `.github/workflows/links.yml` - Weekly outbound link check, kept out of CI on purpose.
-- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Deployed separately with wrangler; see `worker/README.md`.
+- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Has its own `package.json` and lockfile, which pin wrangler to an exact version, and is deployed separately through their npm scripts; see `worker/README.md`.
 
 ## Build
 
-Vite. One config, `vite.config.js`, and one devDependency.
+Vite. One config, `vite.config.js`. The root `package.json` holds the site's
+toolchain and nothing else.
+
+wrangler is **not** a root devDependency and `worker/` is **not** an npm workspace:
+either would put workerd and esbuild into every `npm ci` in CI and on Render, for a
+tool neither uses, and a Cloudflare runtime's advisories into the site's audit. Root
+`npm ci` installs no wrangler, and `npm test` must keep passing with
+`worker/node_modules` absent. It is called through npm scripts and never through
+`npx`, because `npx` silently downloads the latest version when `node_modules` is
+missing, which is the unpinned deploy the lockfile exists to prevent. A script stops
+with "not found" instead.
 
 Asset paths in `dist/` are content-hashed, so **never hardcode a built filename**.
 `css/style.css` becomes something like `assets/main-tEWbBYpj.css` and the hash changes
@@ -146,6 +156,12 @@ line is the point.
 `npm run check-links` is deliberately outside `npm test`. Third-party hosts can
 rate-limit a CI runner, and a pull request that goes red for that reason teaches
 people to ignore red.
+
+**`npm audit` at the root does not cover `worker/`.** Its tree has its own lockfile,
+so run `npm audit` in that directory before a deploy. CI does not install that tree
+either, so a green Dependabot PR on `worker/` proves only that nothing broke the site.
+`npm audit` is outside CI for the same reason `check-links` is: a new advisory would
+turn unrelated pull requests red.
 
 Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
 stylesheet that has produced no defects, and **prettier** would reformat every file
@@ -900,7 +916,8 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   `robots.txt` disallows `/join`. Nothing in the site may claim `/join`: no
   `join` file or directory, and no Render redirect or rewrite rule for it.
   Because the invite is no longer an outbound link, `npm run check-links` cannot
-  see a revoked one; rotating it is `npx wrangler secret put INVITE_URL`.
+  see a revoked one; rotating it is `npm run secret:put -- INVITE_URL` from
+  `worker/`.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.

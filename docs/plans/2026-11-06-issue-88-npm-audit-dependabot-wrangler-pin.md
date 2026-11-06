@@ -165,7 +165,7 @@ to widen its range.
 | --- | --- |
 | 1 | `npm audit --json` metadata after step 1: 0 critical, 0 high |
 | 2 | Script listing each group pattern with the `package.json` deps it matches; none empty. YAML parses |
-| 3 | `worker/package-lock.json` resolves wrangler to the exact `package.json` version; `npm ci` in `worker/`; `npm run --silent dev -- --version` or equivalent prints it; with `node_modules` deleted, `npm run dev` fails "not found" and downloads nothing |
+| 3 | `worker/package-lock.json` resolves wrangler to the exact `package.json` version; `npm ci` in `worker/`; `npx --no-install wrangler --version` prints it (not `npm run dev -- --version`, measured: `wrangler dev` ignores the flag and starts the server); with `node_modules` deleted, `npm run dev` fails "not found" and downloads nothing |
 | 4 | Each below goes red on the 8.3.6 build, then reverts to green |
 | 5 | `npm ls wrangler` empty at root; gate green with `worker/node_modules` deleted |
 | 6 | `git grep -n "npx wrangler"` empty. No deploy or secret commands in the run log |
