@@ -3413,6 +3413,187 @@ check('the footer link meets AA on the footer background', function () {
   }
 });
 
+// A link inside a sentence needs a cue other than colour (WCAG 1.4.1). #90 found
+// the base `a` rule stripping the underline and every prose context having to
+// remember to put it back, and one did not. The underline is now the default, so
+// a new prose context is right with no CSS at all, and all this check has to hold
+// is that default plus the short list of rules allowed to take it away.
+//
+// This is a hand-kept list on purpose, the MINIMUM_EXPECTED lesson: having to
+// edit this const is what puts a new opt-out in front of a reviewer. A selector
+// nobody can name a reason for does not belong here.
+const UNDERLINE_OPT_OUTS = {
+  '.btn': 'a button: its pill shape is the cue',
+  '.logo': 'the wordmark, which reads as a brand and not a sentence',
+  '.nav-links a': 'navigation: a list of nothing but links has no text to blend into',
+  '.skip-link': 'a keyboard-only control with its own solid background',
+  '.page-actions a': 'holds .btn links, and has to outrank the .page-section a underline',
+};
+
+// Brace counting rather than a regex, because the block nests rules. The print
+// block is a,a:visited{text-decoration:underline}, so left in, a print rule
+// satisfies a screen check. Width queries stay, so a mobile-only removal is seen.
+function withoutPrintBlocks(css) {
+  const opening = /@media\s+(?:only\s+)?print\b[^{,]*\{/;
+  let rest = css;
+  let kept = '';
+  for (let found = rest.match(opening); found; found = rest.match(opening)) {
+    kept += rest.slice(0, found.index);
+    let index = found.index + found[0].length;
+    for (let depth = 1; index < rest.length && depth > 0; index += 1) {
+      if (rest[index] === '{') {
+        depth += 1;
+      } else if (rest[index] === '}') {
+        depth -= 1;
+      }
+    }
+    rest = rest.slice(index);
+  }
+  return kept + rest;
+}
+
+// The stylesheets a visitor's browser applies: every emitted *.css, plus the
+// inline <style> of every page, which is where 404.html keeps its own rules.
+function underlineSources() {
+  const files = walk(distDir);
+  const stylesheets = files
+    .filter((rel) => rel.endsWith('.css'))
+    .map((rel) => ({ name: rel, css: fs.readFileSync(path.join(distDir, rel), 'utf8') }));
+  const inline = files
+    .filter((rel) => rel.endsWith('.html'))
+    .map(function (rel) {
+      const html = fs.readFileSync(path.join(distDir, rel), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+      const blocks = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+      return { name: rel, css: blocks.join('\n') };
+    })
+    .filter((source) => source.css !== '');
+  return [...stylesheets, ...inline];
+}
+
+// One entry per rule that sets the underline at all, carrying the LAST such
+// declaration. Never text-decoration-color: the minifier merges a colour into the
+// shorthand and adds the prefix (-webkit-text-decoration:underline #1a7a5c4d), so
+// a value underlines when it contains the word, and any other value, a bare
+// colour included, resets the line to nothing.
+function underlineRules(css) {
+  const plain = withoutPrintBlocks(css.replace(/\/\*[\s\S]*?\*\//g, ''));
+  return [...plain.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(function (rule) {
+    const values = rule[2].split(';').flatMap(function (declaration) {
+      const line = declaration.match(/^\s*(?:-webkit-)?text-decoration(?:-line)?\s*:([\s\S]*)$/i);
+      return line ? [line[1].trim()] : [];
+    });
+    if (values.length === 0) {
+      return [];
+    }
+    return [{
+      selectors: rule[1].split(',').map((selector) => selector.trim()),
+      underlines: /\bunderline\b/.test(values[values.length - 1].replace(/var\([^)]*\)/g, '')),
+    }];
+  });
+}
+
+// The value is read to its own closing delimiter, the metaContent() rule, because
+// a [^"']* class stops dead at an apostrophe inside a double-quoted value.
+function anchorAttribute(attributes, name) {
+  const match = attributes.match(new RegExp('(?:^|\\s)' + name + '\\s*=\\s*(["\'])([\\s\\S]*?)\\1'));
+  return match ? match[2] : '';
+}
+
+// Every <a> attribute string inside a <p> or <li>. Quoted values are read as
+// units, because a > inside one would otherwise end the tag and hide its class.
+function proseAnchors(html) {
+  return [...html.matchAll(/<(p|li)\b[^>]*>([\s\S]*?)<\/\1>/g)].flatMap(
+    (block) => [...block[2].matchAll(/<a\b((?:"[^"]*"|'[^']*'|[^'">])*)>/g)].map((anchor) => anchor[1])
+  );
+}
+
+check('links keep their underline unless a named rule opts out', function () {
+  const problems = [];
+  const sources = underlineSources();
+  if (sources.length === 0) {
+    throw new Error('found no css in dist/ at all, so there is nothing to vouch for');
+  }
+  if (!sources.some((source) => source.name === '404.html')) {
+    problems.push('404.html has no inline <style> to read');
+  }
+
+  // The base rule is the fix. Missing is a failure, not a pass.
+  const removals = sources.flatMap(function (source) {
+    const rules = underlineRules(source.css);
+    const hasBase = rules.some((rule) => rule.underlines && rule.selectors.includes('a'));
+    if (!hasBase && (source.name.endsWith('.css') || source.name === '404.html')) {
+      problems.push(source.name + ': the base a rule does not set an underline');
+    }
+    return rules
+      .filter((rule) => !rule.underlines)
+      .map((rule) => ({ source: source.name, selectors: rule.selectors }));
+  });
+
+  removals.forEach(function (removal) {
+    removal.selectors
+      .filter((selector) => !Object.hasOwn(UNDERLINE_OPT_OUTS, selector))
+      .forEach(function (selector) {
+        problems.push(
+          removal.source + ': "' + selector + '" removes the underline and is not in ' +
+            'UNDERLINE_OPT_OUTS in scripts/smoke-build.js. A link whose only cue is colour ' +
+            'fails WCAG 1.4.1, so keep the underline, or add the selector there by hand ' +
+            'with its reason if it really is not a link in text'
+        );
+      });
+  });
+
+  // The list has to describe the stylesheet, or it is permission nobody is using.
+  if (removals.length === 0) {
+    problems.push('no rule removes an underline, but the buttons and the nav have to');
+  }
+  const removed = new Set(removals.flatMap((removal) => removal.selectors));
+  Object.keys(UNDERLINE_OPT_OUTS)
+    .filter((selector) => !removed.has(selector))
+    .forEach(function (selector) {
+      problems.push(
+        'stale entry "' + selector + '" in UNDERLINE_OPT_OUTS: no rule removes the underline ' +
+          'with it any more, so delete it from scripts/smoke-build.js'
+      );
+    });
+
+  // A .btn-style opt-out on a link inside a sentence puts the defect back while
+  // every rule above stays allowlisted. Only single-class entries can be read off
+  // a tag; the rest opt out by ancestor, which this does not model.
+  const classOptOuts = Object.keys(UNDERLINE_OPT_OUTS)
+    .flatMap((selector) => selector.match(/^[a-z]*\.([\w-]+)$/)?.[1] ?? []);
+  if (classOptOuts.length === 0) {
+    problems.push('UNDERLINE_OPT_OUTS names no single class, so the prose half compares nothing');
+  }
+  const pages = walk(distDir).filter((rel) => rel.endsWith('.html'));
+  pages.forEach(function (rel) {
+    const html = fs.readFileSync(path.join(distDir, rel), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    const anchors = proseAnchors(html);
+    // Inside <main> only: the nav's <li> links and the footer's <p> link are on
+    // every page through the partials, so counted here they make this floor
+    // impossible to trip.
+    const main = html.match(/<main\b[\s\S]*?<\/main>/);
+    const isContentPage = CONTENT_PAGES.some((page) => page.file === rel);
+    if (isContentPage && (!main || proseAnchors(main[0]).length === 0)) {
+      problems.push(rel + ': found no link in any <p> or <li> in <main>, so the prose half read nothing');
+    }
+    anchors.forEach(function (attributes) {
+      const classes = anchorAttribute(attributes, 'class').split(/\s+/);
+      classes
+        .filter((name) => classOptOuts.includes(name))
+        .forEach(function (name) {
+          problems.push(
+            rel + ': link to ' + anchorAttribute(attributes, 'href') + ' sits in a <p> or <li> ' +
+              'with class "' + name + '", which removes its underline'
+          );
+        });
+    });
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 if (failures.length > 0) {
   console.error('\n' + failures.length + ' smoke check(s) failed:');
   failures.forEach(function (failure) {
