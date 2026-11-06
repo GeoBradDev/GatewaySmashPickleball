@@ -969,6 +969,11 @@ footer p {
     padding: 100px 2rem 2rem;
     gap: 0;
     box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1);
+    /* The panel is taller than a short viewport, and the base reset removes the
+       UA's overflow:auto. Here so the JS drawer and the popover both scroll: a
+       link past the fold is otherwise out of reach, and focus trapped in the
+       drawer lands on links nobody can see. */
+    overflow-y: auto;
     transform: translateX(100%);
     /* Hidden, not merely moved. A transform leaves the links focusable and in
        the accessibility tree, so a keyboard user tabs through five invisible
@@ -998,13 +1003,9 @@ footer p {
     transform: translateX(0);
     visibility: visible;
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
-    /* The panel is taller than a short viewport, and with no script there is no
-       other way to the links past its fold. Here and not on the shared rule, so
-       the JS drawer stays exactly as it was. */
-    overflow-y: auto;
     /* Below the header, so the toggle stays uncovered and is the close control.
        An outside tap did not close a popover on iOS before Safari 18.3 (WebKit
-       bug 267688), so it cannot be relied on. These overrides belong to this rule alone too. */
+       bug 267688), so it cannot be relied on. These overrides belong to this rule alone. */
     top: var(--header-height);
     height: calc(100dvh - var(--header-height));
     padding-top: 1.5rem;
