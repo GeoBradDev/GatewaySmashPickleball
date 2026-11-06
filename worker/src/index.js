@@ -13,11 +13,25 @@ const EMAIL = 'info@gatewaysmash.com';
 const CONTACT = `Still stuck? Email <a href="mailto:${EMAIL}">${EMAIL}</a>.`;
 const HOME_LINK = '<a href="/">Back to Gateway Smash</a>';
 
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
+// Constants rather than a digest at request time: crypto.subtle is async, and html()
+// is a synchronous exit that the catch in fetch() depends on. headers.test.js
+// recomputes both from the rendered page and prints the right value when one goes
+// stale, which is what stops a page shipping with its own script blocked.
+const SCRIPT_HASH = "'sha256-6gCum6/Q//jm9vxUVm4H1V0CzCAG5WVdVmMhT+VXVRQ='";
+const STYLE_HASH = "'sha256-Mk3op4wsHDDHexktnPWzL3a7ZSEYE0HJhaurhWZPQJ4='";
+// A strict shape for the parsed origin, because parsing is not validation: new URL()
+// accepts ; ' " and , in a host and hands them back in .origin, and any of them
+// would write a new directive or a broken token into the header.
+const SAFE_ORIGIN = /^https?:\/\/[a-z0-9]+(?:(?:\.|-+)[a-z0-9]+)*(?::\d+)?$/;
+const SAFE_PROTOCOL = /^https?:$/;
+const COMMON_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+
 export default {
   async fetch(request, env, ctx, allowedHostnames = SITE_HOSTNAMES) {
     try {
       if (request.method === 'GET' || request.method === 'HEAD') {
-        return html(challengePage(env.TURNSTILE_SITEKEY));
+        return html(challengePage(env.TURNSTILE_SITEKEY), 200, {}, challengePolicy(env));
       }
       if (request.method === 'POST') {
         return await verify(request, env, allowedHostnames);
@@ -73,7 +87,7 @@ async function verify(request, env, allowedHostnames) {
   if (result.success === true && allowedHostnames.includes(result.hostname)) {
     return new Response(null, {
       status: 302,
-      headers: { Location: env.INVITE_URL, 'Cache-Control': 'no-store' },
+      headers: { Location: env.INVITE_URL, 'Cache-Control': 'no-store', ...COMMON_HEADERS },
     });
   }
   return rejected();
@@ -95,16 +109,71 @@ function badRequest(status, headers) {
   return failure(status, "That request didn't work", 'Start again from the join page.', headers);
 }
 
-// The single exit for every HTML response.
-function html(body, status = 200, headers = {}) {
+// The single exit for every HTML response. The policy defaults to the narrow one,
+// so a caller that forgets the argument fails closed.
+function html(body, status = 200, headers = {}, policy = failurePolicy()) {
   return new Response(body, {
     status,
     headers: {
       'Content-Type': 'text/html;charset=UTF-8',
       'Cache-Control': 'no-store',
+      'Content-Security-Policy': policy,
+      ...COMMON_HEADERS,
       ...headers,
     },
   });
+}
+
+// The nonce is for Cloudflare, not for us. It reads the nonce from this header and
+// applies it to the script it injects into every HTML response, which differs per
+// response and so can never be hashed. No element of ours carries it.
+function nonceSource() {
+  return `'nonce-${crypto.randomUUID()}'`;
+}
+
+function challengePolicy(env) {
+  return [
+    "default-src 'none'",
+    `script-src ${nonceSource()} ${SCRIPT_HASH} 'self' ${TURNSTILE_ORIGIN}`,
+    `style-src ${STYLE_HASH}`,
+    `frame-src ${TURNSTILE_ORIGIN}`,
+    "connect-src 'self'",
+    // Browsers apply form-action to the redirect after the POST, so the 302 to the
+    // invite is blocked unless its origin is here. Only the origin, or the invite
+    // code would be in a public header. With no usable origin this stays at 'self'
+    // so the page still renders. The POST's 302 to a cross-origin one is then blocked
+    // in the browser, and the page's form-action listener shows the help text. The
+    // same goes for a redirect from the invite to an origin not listed here.
+    `form-action ${["'self'", inviteOrigin(env)].filter(Boolean).join(' ')}`,
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+// A failure page has no script of ours. It still needs a script-src, or Cloudflare's
+// injected script logs a violation on every 403 and 502.
+function failurePolicy() {
+  return [
+    "default-src 'none'",
+    `script-src ${nonceSource()} 'self'`,
+    `style-src ${STYLE_HASH}`,
+    "connect-src 'self'",
+    "form-action 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+// Must never throw: GET /join is served from inside the outer try, so a throw here
+// would turn a bad secret into a 502 on the challenge page itself. blob: is why the
+// scheme is checked too, since it reports its inner https origin.
+function inviteOrigin(env) {
+  try {
+    const { protocol, origin } = new URL(env.INVITE_URL);
+    return SAFE_PROTOCOL.test(protocol) && SAFE_ORIGIN.test(origin) ? origin : '';
+  } catch {
+    return '';
+  }
 }
 
 function failure(status, heading, message, headers) {
@@ -138,6 +207,7 @@ function challengePage(siteKey) {
       var solved = false;
       function done() { solved = true; document.getElementById('f').submit(); }
       function showHelp() { document.getElementById('help').hidden = false; }
+      window.addEventListener('securitypolicyviolation', function (event) { if (event.effectiveDirective === 'form-action') showHelp(); });
       setTimeout(function () { if (!solved) showHelp(); }, 4000);
       window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
     </script>`,
