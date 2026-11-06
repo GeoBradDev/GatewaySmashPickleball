@@ -2093,9 +2093,12 @@ check('the toggle both opens and closes its popover', function () {
 // The toggle is the close control on this path, so the panel has to leave it
 // uncovered. WebKit bug 267688: on iOS and iPadOS an outside tap does not
 // light-dismiss a popover, so a panel over the toggle left no way to close it at
-// all. Everything here reads the one token the header itself reads, so the panel
-// and the header cannot disagree at any width, and no pixel value appears in
-// this file. The shared rules stay as they were, because they are the JS drawer.
+// all. The panel reads the token the nav reads, and this check holds the other
+// ways the header could grow: padding or a height on the header, and a min-height
+// on the nav. A new element inside <header> is out of its reach, since nothing
+// here measures the rendered header, so that would need a real drive. No pixel
+// value appears in this check. The shared rules stay as they were, because they
+// are the JS drawer.
 check('the no-script panel leaves the toggle uncovered', function () {
   const rules = emittedRules();
   const named = (selector) => rules.filter((rule) => cssSelectors(rule.selector).includes(selector));
@@ -2118,9 +2121,33 @@ check('the no-script panel leaves the toggle uncovered', function () {
   const tokens = rules.filter((rule) => declares(rule, '--header-height'));
   tokens.forEach(function (rule) {
     if (!cssSelectors(rule.selector).includes(':root')) {
-      throw new Error(rule.selector + ' sets --header-height, which the panel in the top layer would not see');
+      throw new Error(
+        rule.selector + ' sets --header-height, which then holds for that subtree alone, ' +
+          'and this check can only compare one value per breakpoint'
+      );
     }
   });
+  // Nothing the stylesheet ships today sets any of these, so nothing is exempt. The
+  // nav's own horizontal padding is not listed: its box-sizing keeps the height.
+  const headerSelectors = new Set([
+    'header', 'header.scrolled', '#site-header', 'header nav', 'header>nav', '#site-header nav', '#site-header>nav',
+  ]);
+  const grows = ['padding', 'padding-top', 'padding-block', 'padding-block-start', 'height', 'min-height'];
+  rules.forEach(function (rule) {
+    cssSelectors(rule.selector).forEach(function (selector) {
+      const normal = selector.replace(/\s*>\s*/g, '>').replace(/\s+/g, ' ');
+      const banned = headerSelectors.has(normal) ? grows : normal === 'nav' ? ['min-height'] : [];
+      banned.forEach(function (property) {
+        if (declares(rule, property)) {
+          throw new Error(
+            selector + ' sets ' + property + ', which grows the header past --header-height ' +
+              'and puts the panel over the toggle'
+          );
+        }
+      });
+    });
+  });
+
   const base = tokens.filter((rule) => rule.within.length === 0);
   const narrower = tokens.filter((rule) => rule.within.length > 0);
   if (base.length === 0) {
@@ -2159,7 +2186,9 @@ check('the no-script panel leaves the toggle uncovered', function () {
 
   // The shared rule is the JS drawer, which sits at the top of the viewport. A
   // top on any other selector for this list can beat the one above, at equal
-  // specificity by order or outright with an id.
+  // specificity by order or outright with an id. .nav-links.open is left out,
+  // because it never applies alongside :popover-open: the module strips the popover
+  // before it sets that class.
   const drawer = named('.nav-links').filter(inMobileBlock);
   if (!drawer.some((rule) => /^0(px)?$/.test(cssDeclarations(rule.body).get('top') ?? ''))) {
     throw new Error('the shared .nav-links rule no longer sets top:0, which moves the JS drawer');
@@ -2167,7 +2196,12 @@ check('the no-script panel leaves the toggle uncovered', function () {
   const targetsList = /(?:^|[\s>+~])(?:ul)?(?:#nav-links|\.nav-links)(?:\.[\w-]+|\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*$/;
   rules.forEach(function (rule) {
     cssSelectors(rule.selector)
-      .filter((selector) => targetsList.test(selector) && selector !== '.nav-links:popover-open')
+      .filter(
+        (selector) =>
+          targetsList.test(selector) &&
+          selector !== '.nav-links:popover-open' &&
+          selector !== '.nav-links.open'
+      )
       .forEach(function (selector) {
         const declarations = cssDeclarations(rule.body);
         ['top', 'inset', 'height'].forEach(function (property) {
@@ -2185,26 +2219,40 @@ check('the no-script panel leaves the toggle uncovered', function () {
 
 // The check above this group asks whether main appears in a selector, which a
 // rule on main .hero-bg answers yes. This one asks whether the whole of main and
-// footer are out of reach and stay that way. Today the stylesheet's only other
-// pointer-events is .hero-bg, a decorative layer set to none, and it needs no
-// exemption because this only objects to none on the header and to any other
-// value on the page.
+// footer are out of reach and stay that way. Selectors are compared whole or by
+// exact token, never by substring, because .section-header is a real class inside
+// main and a name pattern reads it as the header. .hero-bg, a decorative layer set
+// to none, is the stylesheet's only other pointer-events and needs no exemption:
+// none is only refused on the header and on the page as a whole.
 check('the whole page behind an open popover is out of reach and the header is not', function () {
   const rules = emittedRules().filter((rule) => cssDeclarations(rule.body).has('pointer-events'));
   const OPEN = /:has\(\.nav-links:popover-open\)/;
-  const HEADER = /header|\bnav\b|nav-links|menu-toggle|\blogo\b/i;
+  // What may set a value other than none: selectors that are the header, whole.
+  const HEADER_SELECTORS = new Set([
+    'header', '#site-header', 'header nav', '#site-header nav', 'nav', '.logo', '.logo-icon', '.logo-text',
+    '.menu-toggle', '#menu-toggle', '.menu-bar', '.nav-links', '#nav-links', '.nav-links li', '.nav-links a',
+  ]);
+  // What may never take none, in a selector of any shape.
+  const HEADER_TOKENS = new Set([
+    'header', '#site-header', 'site-header', 'nav', '.logo', '.logo-icon', '.logo-text', '.menu-toggle',
+    '#menu-toggle', 'menu-toggle', '.menu-bar', '.nav-links', '#nav-links', 'nav-links',
+  ]);
+  const PAGE_WIDE = /^(?:html|body|:root|\*)(?: ?> ?\*| \*)?$/;
   const stopped = [];
   rules.forEach(function (rule) {
-    const value = cssDeclarations(rule.body).get('pointer-events');
+    const value = cssDeclarations(rule.body).get('pointer-events').replace(/\s*!\s*important\s*$/i, '').trim();
     cssSelectors(rule.selector).forEach(function (selector) {
       const subject = selector.replace(OPEN, '').replace(/\s+/g, ' ').trim();
       if (value !== 'none') {
-        if (!HEADER.test(subject)) {
+        if (!HEADER_SELECTORS.has(subject)) {
           throw new Error(selector + ' sets pointer-events to ' + value + ', which puts the page back in reach');
         }
         return;
       }
-      if (HEADER.test(subject)) {
+      if (PAGE_WIDE.test(subject)) {
+        throw new Error(selector + ' stops pointer events on the whole page, the toggle included');
+      }
+      if ([...subject.matchAll(/[#.]?[a-zA-Z_][\w-]*/g)].some((token) => HEADER_TOKENS.has(token[0]))) {
         throw new Error(selector + ' stops pointer events on the header, where the toggle is the close control');
       }
       if (OPEN.test(selector)) {
