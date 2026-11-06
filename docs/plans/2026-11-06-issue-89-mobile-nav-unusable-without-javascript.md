@@ -16,7 +16,7 @@ decision to approve.
 
 | Option | JS users pay nothing | No inline script | Module fails | Stale HTML (CSS and JS 404) | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `no-js` class removed by the module | No. Expanded nav until the deferred module runs, a flash and layout shift on every mobile load | Only with an inline script, which #91's CSP forbids | Yes | Yes | Rejected |
+| `no-js` class removed by the module | No. Expanded nav until the deferred module runs, a flash and layout shift on every mobile load | Only with an inline script, which the CSP proposed in #91 would forbid | Yes | Yes | Rejected |
 | `<noscript>` only | Yes | Yes | No | No | Rejected, misses the case the issue calls most common |
 | `<details>`/`<summary>` | Partly | Yes | Yes | Yes | Rejected. A closed `<details>` hides its contents on desktop too. Showing them needs `::details-content`, a recent feature, so an older browser loses the desktop nav. Also replaces the real button |
 | CSS timed reveal, cancelled by a class from the module | No on slow links | Yes | Yes, after a delay | Yes | Rejected, a guessed timeout |
@@ -125,8 +125,9 @@ and the sitemap do not change, no page or outbound link is added.
    Rewrite the comment to say what JS writes and why the markup omits it.
 3. **`css/style.css`.** Base `.nav-links`: add the resets listed above, with a comment that
    these override the UA `[popover]` rules for the page before the module runs. In the 768px
-   block: add `.nav-links:popover-open` as a **separate** rule with the same three
-   declarations as `.nav-links.open`, with a comment that it must stay separate, and
+   block: add `.nav-links:popover-open` as a **separate** rule starting from the same three
+   declarations as `.nav-links.open`, plus `overflow-y: auto` (see "Changes after approval"),
+   with a comment that it must stay separate, and
    `.nav-links::backdrop { background: rgba(28, 28, 28, 0.3); }` matching the JS overlay. Do
    not add a popover version of the hamburger X, the panel covers the toggle in the top layer.
 4. **`js/app.js`.** Immediately after the null guard:
@@ -137,7 +138,8 @@ and the sitemap do not change, no page or outbound link is added.
    toggle.setAttribute('aria-label', 'Open navigation menu');
    toggle.setAttribute('aria-expanded', 'false');
    ```
-   and after the existing final `syncInert()`: `if (wasOpen) { openMenu(); }`. The `in` guard
+   and after the existing final `syncInert()`: `if (wasOpen && mobile.matches) { openMenu(); }`
+   (`mobile.matches` added after review, see "Changes after approval"). The `in` guard
    is required: `matches(':popover-open')` throws a SyntaxError where the selector is unknown,
    which would stop this IIFE. Comment why. No other drawer code changes.
 5. Gate, negative tests, live drive, CLAUDE.md.
@@ -165,6 +167,32 @@ and the sitemap do not change, no page or outbound link is added.
    this and the popover path cannot. Drive it and record what happens, Escape must still close.
 6. **Interaction with #90 or #91.** This adds no `text-decoration: none`, inline script or
    inline style, so neither's new rule fires. If #90 lands first, this rebases cleanly.
+
+## Changes after approval
+
+None of these alters limits 1 to 4 or criteria 1 to 7.
+
+- **`tagAttributes` refactor.** `linkAttributes` now calls a shared `tagAttributes`, used by
+  the header checks too. One parser rather than two, and its value pattern follows the
+  opening delimiter, because the old one was the `[^"']*` class CLAUDE.md rules out for new
+  reads.
+- **Checks added in the first pass:** `the hamburger X still lands on the bars` and
+  `a browser without popover still gets the drawer`.
+- **Checks added from review**, beside the ten frozen ones, none of which changed:
+  `the page behind an open popover does not take the tap`,
+  `an open popover is not handed to the drawer at desktop width`,
+  `an open popover scrolls on a short viewport`,
+  `the bars sit where the X counts them among all the toggle children` and
+  `the toggle both opens and closes its popover`.
+- **`:has()` rules.** `body:has(.nav-links:popover-open) main` and `... footer`, one rule each,
+  set `pointer-events: none` in the 768px block. The UA forces `pointer-events: none` on a
+  popover's `::backdrop`, so a tap on the strip closed the drawer and activated the page.
+- **`overflow-y: auto` on `.nav-links:popover-open` only.** The base reset removed the UA's
+  overflow, so a short viewport could not reach the lower links. That rule is therefore no
+  longer the same three declarations as `.nav-links.open`. The JS drawer has the same clip,
+  which predates this and stays as it is.
+- **`wasOpen` handoff requires `mobile.matches`.** A popover carried past the breakpoint
+  before the module landed became drawer state on the desktop nav.
 
 ## What this deliberately does not do
 

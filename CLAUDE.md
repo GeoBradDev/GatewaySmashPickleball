@@ -559,8 +559,8 @@ because the first cannot see the difference:
 ### The mobile nav opens with no script, and the module takes it over
 
 The hamburger used to do nothing until `js/app.js` ran, so a phone with JavaScript
-off, or with a module that failed to load, had no nav at all and no path to the FAQ.
-#89 wired it natively: `popovertarget` on the button,
+off, or with a module that failed to load, had no nav at all, and the homepage had no
+path to the FAQ. #89 wired it natively: `popovertarget` on the button,
 `popover` on the list in `partials/header.html`. The browser opens it, closes it on
 Escape and outside tap, returns focus and exposes the expanded state, with no script
 involved, so JavaScript off and a failed module are one code path. The module's first
@@ -568,28 +568,43 @@ act is to remove both attributes and write the toggle's `aria-label` and
 `aria-expanded`, so every line of drawer code runs against the DOM it always did. A
 popover left in place would have the browser and the drawer both claiming one list.
 Anything a visitor opened before the module arrived is read off `:popover-open`
-first and handed to `openMenu()`. That read sits behind `'popover' in nav`, because
+first and, below the breakpoint, handed to `openMenu()`. Above it the popover is
+simply dropped: the `change` listener is not there yet to clear drawer state, and
+that state on the desktop nav leaves the Tab trap wrapping to a `display:none` toggle,
+which holds focus on the last link. The read sits behind `'popover' in nav`, because
 `matches()` throws on a selector the browser does not know and that would stop the
 IIFE.
 
 **Neither fix the issue offered was used.** A `no-js` class removed by the module
 makes every JavaScript visitor pay: the nav sits expanded until a deferred module
 runs, which is a flash and a layout shift on every mobile load, and removing it early
-takes an inline script, which the CSP in #91 rules out. `<noscript>` costs nothing and misses
-the failed module, which the issue itself calls the common case. `<details>` was
+takes an inline script, which the CSP proposed in #91 would rule out. `<noscript>`
+costs nothing and misses the failed module, which the issue itself calls the common case. `<details>` was
 rejected too, because a closed one hides its contents on desktop and showing them
 needs `::details-content`, so an older browser loses the desktop nav. A timed CSS
 reveal is a guessed timeout. Popover is the only option that charges a JavaScript
 visitor nothing and needs no script for anyone else.
 
-Four things hold it up, and each looks removable:
+These hold it up, and each looks removable:
 
 - **The base `.nav-links` rule resets the user-agent `[popover]` styles**, outside
   any media query. The list is a popover until the module runs, on desktop too, and
   the UA sheet would hide it and restyle it as a centred box.
-- **`.nav-links:popover-open` is a separate rule from `.nav-links.open`**, with the
-  same declarations. An unknown pseudo-class invalidates its whole selector list, so
-  merging them costs a browser without popover the JS drawer.
+- **`.nav-links:popover-open` is a separate rule from `.nav-links.open`**, and starts
+  from the same declarations. An unknown pseudo-class invalidates its whole selector
+  list, so merging them costs a browser without popover the JS drawer.
+- **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
+  `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
+  reached, and with no script that includes the FAQ. The JS drawer clips the same way.
+  That predates this and is its own issue, so the shared rule stays as it was.
+- **The page stops taking pointer events while the popover is open**, through
+  `body:has(.nav-links:popover-open)` rules on `main` and `footer`, one rule each so
+  no selector list carries `:popover-open`. `::backdrop` cannot do this job. The UA
+  gives a popover's backdrop `pointer-events: none !important`, which author CSS cannot
+  override, so unlike the JS overlay it swallows nothing, and the tap that closed the
+  drawer also landed on the page. On the homepage that strip holds the registration
+  button. Light dismiss still fires, and the header stays out of the rule because the
+  JS path leaves the logo tappable too.
 - **The button carries `Navigation menu` as `.visually-hidden` text, after the
   bars.** With JavaScript gone the text is its accessible name. With the stylesheet
   gone as well, the bars are empty spans and the text is the whole button. It goes
@@ -625,6 +640,10 @@ Also recorded, because the popover has no handler for it: crossing the breakpoin
 with the no-script drawer open leaves the popover open in the top layer on the desktop
 rules, so the links sit in a row across the top-left of the page over the header.
 They still work, and Escape puts the nav back where it belongs.
+
+There is no focus trap on this path either. Tab walks out of the open popover to the
+content behind it. That is how a native popover behaves, not a limit chosen here, and
+the trap in `js/app.js` applies from the moment the module runs.
 
 The checks prove the wiring, not the behaviour. Nothing in `npm test` opens a browser,
 so a change to this header still needs a real drive with JavaScript off and with the

@@ -1637,7 +1637,7 @@ check('the desktop nav is never inert', function () {
 });
 
 // The hamburger has no job until js/app.js arrives, so a module that never runs
-// left phones with a dead button and no way to the FAQ. The fix is native: the
+// left phones with a dead button and, from the homepage, no way to the FAQ. The fix is native: the
 // button names a popover and the browser does the rest with no script at all.
 // Everything from here to the schedule fixtures guards that, and each of these
 // reads built output, because the wiring is split across a partial, a stylesheet
