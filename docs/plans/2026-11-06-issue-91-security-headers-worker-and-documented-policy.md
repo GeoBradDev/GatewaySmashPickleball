@@ -341,8 +341,27 @@ the manifest loads. Negative control: remove `font-src` and confirm the drive re
 - **A malformed `INVITE_URL` is unchanged on POST**, per approver condition 1: only an
   unset one gives the 502. With a valid token, a set but malformed value still answers
   302 with that value in `Location`, and the fallback `form-action 'self'` then stops a
-  cross-origin one in the browser, so the visitor stalls on the page with a console
-  violation rather than being sent somewhere odd.
+  cross-origin one in the browser. The visitor stays on the page and the listener
+  below shows the help text. A test pins the 302.
+- **Departure: the inline script gains a `securitypolicyviolation` listener.** Finding 4
+  said the markup would not change. Review found a defect this change introduced: an
+  invite whose target redirects to an unlisted origin, or a valid URL that fails the
+  allowlist such as `https://my_host.example/x`, is blocked after `done()` has set
+  `solved`, so the 4-second timer never fires, the Worker has answered a good 302 and
+  logged nothing, and the visitor sees nothing. `main` works in those cases. The listener
+  is on `window` because frozen `help-timer.test.js` has a fake document with only
+  `getElementById`, and it filters on `form-action` so that a blocked Cloudflare script
+  does not reveal help on a healthy page. The timer is not re-armed in `done()`, which
+  frozen `help-timer.test.js` forbids. Frozen: `worker/test/form-action-help.test.js`.
+- **Live drive step 8, added: a blocked second hop.** `INVITE_URL` at
+  `http://127.0.0.1:8942/hop`, which 302s to `http://localhost:8943/`, an origin not
+  listed. Measured before relying on it: the event reaches `window` with
+  `effectiveDirective` `form-action`, the first hop is requested, the second is not, and
+  the visitor stays on `/join`.
+- **Hand negative tests, the three this plan asks for.** Each ran against `npm run
+  test:worker`, was reverted, and went red: invite origin removed from `form-action`
+  (the HEAD test and every `form-action reads the origin` row), one character of the
+  inline script changed (the hash test, 1 failure), `nosniff` removed (7 failures).
 
 ## Risks
 

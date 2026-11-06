@@ -18,12 +18,12 @@ const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 // is a synchronous exit that the catch in fetch() depends on. headers.test.js
 // recomputes both from the rendered page and prints the right value when one goes
 // stale, which is what stops a page shipping with its own script blocked.
-const SCRIPT_HASH = "'sha256-dtEkGtuiIaCJ/oSbyAb6UQHHOauVFLXjRyCVuwuQeCQ='";
+const SCRIPT_HASH = "'sha256-6gCum6/Q//jm9vxUVm4H1V0CzCAG5WVdVmMhT+VXVRQ='";
 const STYLE_HASH = "'sha256-Mk3op4wsHDDHexktnPWzL3a7ZSEYE0HJhaurhWZPQJ4='";
 // A strict shape for the parsed origin, because parsing is not validation: new URL()
 // accepts ; ' " and , in a host and hands them back in .origin, and any of them
 // would write a new directive or a broken token into the header.
-const SAFE_ORIGIN = /^https?:\/\/[a-z0-9]+(?:[.-]+[a-z0-9]+)*(?::\d+)?$/;
+const SAFE_ORIGIN = /^https?:\/\/[a-z0-9]+(?:(?:\.|-+)[a-z0-9]+)*(?::\d+)?$/;
 const SAFE_PROTOCOL = /^https?:$/;
 const COMMON_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 
@@ -140,8 +140,10 @@ function challengePolicy(env) {
     "connect-src 'self'",
     // Browsers apply form-action to the redirect after the POST, so the 302 to the
     // invite is blocked unless its origin is here. Only the origin, or the invite
-    // code would be in a public header. With no usable origin the POST has no
-    // redirect worth allowing, so this stays at 'self' and the page still renders.
+    // code would be in a public header. With no usable origin this stays at 'self'
+    // so the page still renders. The POST's 302 is then blocked in the browser, and
+    // the page's form-action listener shows the help text. The same goes for a
+    // redirect from the invite to an origin not listed here.
     `form-action ${["'self'", inviteOrigin(env)].filter(Boolean).join(' ')}`,
     "base-uri 'none'",
     "frame-ancestors 'none'",
@@ -205,6 +207,7 @@ function challengePage(siteKey) {
       var solved = false;
       function done() { solved = true; document.getElementById('f').submit(); }
       function showHelp() { document.getElementById('help').hidden = false; }
+      window.addEventListener('securitypolicyviolation', function (event) { if (event.effectiveDirective === 'form-action') showHelp(); });
       setTimeout(function () { if (!solved) showHelp(); }, 4000);
       window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
     </script>`,

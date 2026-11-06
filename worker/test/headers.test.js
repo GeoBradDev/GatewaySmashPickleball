@@ -200,6 +200,10 @@ for (const [name, url, origin] of [
   ['upper case', 'https://INVITE.example.invalid/a', INVITE_ORIGIN],
   ['plain http, as a local echo server has', 'http://127.0.0.1:8942/a', 'http://127.0.0.1:8942'],
   ['credentials', 'https://user:pw@invite.example.invalid/a', INVITE_ORIGIN],
+  ['an xn-- host', 'https://xn--bcher-kva.example/a', 'https://xn--bcher-kva.example'],
+  ['a hyphenated host', 'https://in-vite.example.invalid/a', 'https://in-vite.example.invalid'],
+  ['a trailing space, the likeliest paste error', `${INVITE} `, INVITE_ORIGIN],
+  ['a trailing newline', `${INVITE}\n`, INVITE_ORIGIN],
 ]) {
   test(`form-action reads the origin out of an invite with ${name}`, async () => {
     const response = await get({ ...ENV, INVITE_URL: url });
@@ -224,6 +228,9 @@ const NOT_AN_ORIGIN = {
   'a star in the host': 'https://x*.example/',
   'a host with no label': 'https://.../',
   'a host that opens on a hyphen': 'https://-.example/',
+  'an empty label in the host': 'https://a..b.example/',
+  'a dot beside a hyphen': 'https://a.-b.example/',
+  'an underscore in the host': 'https://my_host.example/x',
   'an IPv6 host': 'https://[::1]:8000/',
   'the whatsapp: scheme': 'whatsapp://send?text=x',
   'a data: URL': 'data:text/html,hi',
@@ -273,6 +280,13 @@ test('POST with INVITE_URL malformed still refuses a bad token', async () => {
   assert.equal(response.status, 403);
   assert.equal(response.headers.get('Location'), null);
   assert.deepEqual(directives(response).get('form-action'), ["'none'"]);
+});
+
+test('POST with INVITE_URL malformed and a good token answers as it always has', async () => {
+  stubSiteverify({ success: true, hostname: 'www.gatewaysmash.com' });
+  const response = await worker.fetch(post(), { ...ENV, INVITE_URL: 'not a url' });
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('Location'), 'not a url');
 });
 
 test('every response gets its own nonce, and the page carries neither', async () => {
