@@ -156,6 +156,7 @@ and <https://developers.cloudflare.com/bots/get-started/bot-fight-mode/>.
 
 - `worker/src/index.js`
 - `worker/test/headers.test.js` (new, not frozen)
+- `worker/test/form-action-help.test.js` (new, frozen)
 - `worker/README.md`
 - `CLAUDE.md` (Deployment, plus one line under Integrations)
 - this plan
@@ -198,7 +199,7 @@ Shape of the change:
   parse, is not `http:` or `https:`, or has an origin that fails the allowlist (approver
   condition 2). The scheme is checked as well as the origin because a `blob:` URL
   reports its inner `https` origin, which is clean and would pass the pattern alone. The
-  pattern also requires each host to open and close on a letter or digit, which is
+  pattern also requires each label to open and close on a letter or digit, which is
   tighter than the example the approver gave, so `https://...` and `https://-.example`
   fall back. It must never throw: `GET /join` is served
   from inside the outer `try`, so a throw would turn a bad secret into a 502 on the

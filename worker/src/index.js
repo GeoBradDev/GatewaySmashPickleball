@@ -141,9 +141,9 @@ function challengePolicy(env) {
     // Browsers apply form-action to the redirect after the POST, so the 302 to the
     // invite is blocked unless its origin is here. Only the origin, or the invite
     // code would be in a public header. With no usable origin this stays at 'self'
-    // so the page still renders. The POST's 302 is then blocked in the browser, and
-    // the page's form-action listener shows the help text. The same goes for a
-    // redirect from the invite to an origin not listed here.
+    // so the page still renders. The POST's 302 to a cross-origin one is then blocked
+    // in the browser, and the page's form-action listener shows the help text. The
+    // same goes for a redirect from the invite to an origin not listed here.
     `form-action ${["'self'", inviteOrigin(env)].filter(Boolean).join(' ')}`,
     "base-uri 'none'",
     "frame-ancestors 'none'",
