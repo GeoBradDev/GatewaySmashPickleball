@@ -131,13 +131,14 @@ function challengePage(siteKey) {
       <div class="cf-turnstile" data-sitekey="${siteKey}" data-callback="done"
            data-error-callback="showHelp" data-expired-callback="showHelp" data-timeout-callback="showHelp"></div>
     </form>
-    <p id="help" role="status" hidden>The check didn't load. A content blocker or a school or work network can stop it. Turn the blocker off or try another network. ${CONTACT}</p>
+    <p id="help" role="status" hidden>Still waiting? A content blocker or a school or work network can stop this check. Turn the blocker off or try another network. ${CONTACT}</p>
     <noscript><p>This check needs JavaScript. Turn it on and reload this page. ${CONTACT}</p></noscript>
     <p>${HOME_LINK}</p>
     <script>
-      function done() { document.getElementById('f').submit(); }
+      var solved = false;
+      function done() { solved = true; document.getElementById('f').submit(); }
       function showHelp() { document.getElementById('help').hidden = false; }
-      setTimeout(function () { if (!window.turnstile) showHelp(); }, 4000);
+      setTimeout(function () { if (!solved) showHelp(); }, 4000);
       window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
     </script>`,
     '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
