@@ -481,6 +481,10 @@ nav {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--ink-muted);
+  /* Without this the opening time wraps at 375px to a lone "Central." on its
+     own line. Balancing moves the break instead of editing the string, which
+     a smoke check compares to the page copy, so no non-breaking space. */
+  text-wrap: balance;
 }
 
 /* Matches .season-status--open, so registration day reads the same colour in
@@ -669,6 +673,8 @@ nav {
   color: var(--ink);
   font-size: 0.95rem;
   font-weight: 500;
+  /* The same wrap as .hero-note, for the same lone "Central." */
+  text-wrap: balance;
 }
 
 .season-status {
