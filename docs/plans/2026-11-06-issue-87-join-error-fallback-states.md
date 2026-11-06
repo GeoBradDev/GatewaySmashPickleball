@@ -173,7 +173,7 @@ Chosen not to do: security headers (#91), rate limiting, siteverify retry, `idem
 | Criterion | Test or check |
 | --- | --- |
 | 1 | `defects.test.js` first five rows; live drive POST cases through workerd |
-| 2 | `defects.test.js` challenge row; live drive in a browser with the host blocked and with JS off |
+| 2 | `defects.test.js` challenge row; `help-timer.test.js`; live drive in a browser with the host blocked (cold and with `api.js` cached), and with JS off |
 | 3 | `defects.test.js` hostname rows; live drive with plain `wrangler dev` |
 | 4 | Negative test: break a Worker test (and the Worker), `npm test` exits non-zero; remove the test directory, `npm test` exits non-zero |
 | 5 | `gate.test.js` sentinel checks and the invite-shaped URL scan over `worker/src` and `worker/test` |

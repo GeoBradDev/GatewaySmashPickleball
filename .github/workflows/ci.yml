@@ -35,7 +35,7 @@ jobs:
       # that only passes against drifted local dependencies proves nothing.
       - run: npm ci
 
-      # npm test is lint plus the production build plus
+      # npm test is lint plus the Worker tests plus the production build plus
       # scripts/smoke-build.js. The build alone would not have caught issue #1,
       # which compiled green and shipped a page that loaded app.js twice.
       #

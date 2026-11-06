@@ -22,7 +22,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `eslint.config.js`, `.htmlvalidate.json` - Lint configuration. Run via `npm run lint`.
 - `.github/workflows/ci.yml` - CI check. Runs `npm ci` and `npm test` on pull requests to `main` and on pushes to `main`. It does not deploy.
 - `.github/workflows/links.yml` - Weekly outbound link check, kept out of CI on purpose.
-- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Has its own `package.json` and lockfile, which pin wrangler to an exact version, and is deployed separately through their npm scripts; see `worker/README.md`.
+- `worker/` - The `join-gate` Cloudflare Worker that serves `/join`. Not part of the Vite build and not published by Render, which serves `dist/`. Has its own `package.json` and lockfile, which pin wrangler to an exact version, and is deployed separately through their npm scripts; see `worker/README.md`. `src/index.js` is the deployed Worker, `src/dev.js` is the local-only entry `npm run dev` uses, and `test/` is run from the root by `npm test`.
 
 ## Build
 
@@ -63,7 +63,8 @@ ship the unhashed, unminified copy alongside the hashed one.
 
 ## Checks
 
-`npm test` is `npm run lint` then `npm run smoke`, and is what CI runs.
+`npm test` is `npm run lint`, then `npm run test:worker`, then `npm run smoke`, and is
+what CI runs.
 
 Assert against **built output**, not source. A green build is not evidence the site
 works: issue #1 compiled cleanly and shipped a page that loaded `app.js` twice. When
@@ -162,6 +163,47 @@ so run `npm audit` in that directory before a deploy. CI does not install that t
 either, so a green Dependabot PR on `worker/` proves only that nothing broke the site.
 `npm audit` is outside CI for the same reason `check-links` is: a new advisory would
 turn unrelated pull requests red.
+
+### The Worker's tests, and why merging proves less than it looks like
+
+`npm run test:worker` runs `node --test` over `worker/test/*.test.js` from the root.
+The tests import only `node:*` and local files, so they need no install in `worker/`
+and hold the line above about `worker/node_modules` being absent. They stub `fetch`,
+call the handler, and assert on the Response. They read source rather than `dist/`
+because the Worker is not in the build. The fixture invite is a sentinel, and one test scans `worker/src` and `worker/test` for an invite-shaped URL so
+a real one cannot land in a fixture.
+
+**The `ls` in front of `node --test` is the floor.** Node treats an unmatched pattern
+as a glob, runs zero tests and exits 0, so without it, deleting `worker/test/` left
+`npm test` green. That is the empty derived list described above, arriving in a shell
+script. It catches the directory emptying, not one file of several going.
+
+**Green here does not mean live.** Merging deploys the site and never the Worker, which
+reaches production only through `npm run deploy` in `worker/`.
+
+**The hostname list is a constant in `src/index.js` on purpose.** Cloudflare's test
+secret reports its hostname as `example.com`, so local development needs that accepted
+and production must never accept it. A `[vars]` flag would make that a setting anyone
+could change, so there is no setting: `src/dev.js` passes a longer list through the
+handler's fourth parameter, the runtime only ever passes three arguments, and
+`src/index.js` imports nothing, so `dev.js` is in no deployed bundle. Two wiring tests
+pin `main` in `wrangler.toml` and the `deploy` script, because those two lines are all
+that keep it that way.
+
+**The fallback timer asks whether a token arrived, not whether Turnstile loaded.**
+`window.turnstile` being set proves only that `api.js` came from somewhere. With the
+script in the browser cache and `challenges.cloudflare.com` blocked, the first version
+of #87 kept the help text hidden for 43 seconds, until Turnstile's own timeout, on
+exactly the school or work network the text is written for. A cold-cache block does
+not show this, so that is not the case to drive by hand. The cost is that help can sit
+beside a slow but working widget, which is why it opens with "Still waiting?" rather
+than saying the check failed.
+
+Still unchecked, deliberately: **`error-codes` is never read**, so nothing from
+Cloudflare can reach a visitor, and the price is that a wrong `TURNSTILE_SECRET` or a
+siteverify `internal-error` with a JSON body shows every visitor the 403 page with
+nothing in the logs. The only log line is the thrown error's name. Reading the codes
+to log them is reasonable; rendering them is not.
 
 Not adopted, on purpose: **stylelint** costs 95 packages to lint a hand-written
 stylesheet that has produced no defects, and **prettier** would reformat every file
@@ -929,7 +971,13 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   `join` file or directory, and no Render redirect or rewrite rule for it.
   Because the invite is no longer an outbound link, `npm run check-links` cannot
   see a revoked one; rotating it is `npm run secret:put -- INVITE_URL` from
-  `worker/`.
+  `worker/`. Every failure on `/join` ends on an HTML page with a retry link, a home
+  link and `info@gatewaysmash.com`, and fails closed: a 502 when siteverify is down
+  or a secret is unset, a 403 when a token is rejected or was minted on another
+  hostname, a 405 or 400 for a bad request. The Worker's tests hold those pages to
+  the address `index.html` publishes. Cloudflare's Email Obfuscation is on for this
+  zone but does not touch Worker-generated HTML. All HTML goes through `html()` in
+  `worker/src/index.js`, which is the place to add a response header.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.
