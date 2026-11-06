@@ -16,7 +16,8 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "test": "npm run lint && npm run smoke",
+    "test": "npm run lint && npm run test:worker && npm run smoke",
+    "test:worker": "node --test worker/test/*.test.js",
     "lint": "eslint .",
     "start": "vite --open",
     "build": "vite build",

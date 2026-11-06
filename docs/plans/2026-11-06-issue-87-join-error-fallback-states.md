@@ -57,7 +57,7 @@ Rejected: a `[vars]` or `.dev.vars` flag (a dashboard or config value could loos
 
 ### Handler shape (`worker/src/index.js`, one file)
 
-- `fetch`: whole body in `try`. GET and HEAD return the challenge. POST returns `await verify(...)`. Anything else returns the failure page at 405 with `Allow: GET, HEAD, POST`. `catch (error)`: `console.error('join-gate: request failed', error.name)` (the name only, never `error.message` and never a Response body) and return the 502 page.
+- `fetch`: whole body in `try`. GET and HEAD return the challenge. POST returns `await verify(...)`. Anything else returns the failure page at 405 with `Allow: GET, HEAD, POST`. `catch (error)`: `console.error('join-gate: request failed', error?.name)` (optional chaining, so a thrown non-object cannot throw again inside the catch) (the name only, never `error.message` and never a Response body) and return the 502 page.
 - `verify`:
   1. Content type must match `/^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i`, else 405. A missing header is `''` and also 405.
   2. `request.formData()` in its own `try`; on a throw (malformed multipart) return the 405 page at status 400.
@@ -68,7 +68,7 @@ Rejected: a `[vars]` or `.dev.vars` flag (a dashboard or config value could loos
   7. Pass only when `result.success === true && allowedHostnames.includes(result.hostname)`: return the 302 (`Location: env.INVITE_URL`, `Cache-Control: no-store`). Anything else is the 403 page. `error-codes` is never read or echoed.
 
 - `html(body, status = 200, headers = {})`: the single helper for every HTML response. It sets `Content-Type: text/html;charset=UTF-8` and `Cache-Control: no-store`. #91 adds headers here. The 302 is not HTML and stays separate.
-- `shell(title, body)`: the shared document (doctype, `lang`, charset, viewport, `noindex`, title, the existing `<style>` plus a small `max-width`, a head-slot argument for the Turnstile script tag). Every page gets the same `noindex`.
+- `shell(title, body)`: the shared document (doctype, `lang`, charset, viewport, `noindex`, title, the existing `<style>` plus a small `max-width` and `box-sizing`, a head-slot argument for the Turnstile script tag). The body is wrapped in `<main>`, because the body is a centring grid and loose children would each become a row stretched across `100vh`; `max-width` goes on `main`. Every page gets the same `noindex`.
 - `failure(status, heading, message, headers)`: returns `html(shell(...))` with the h1, the message, a `Try again` link to `/join`, the home link, and the contact line.
 - Pages contain only constants and `env.TURNSTILE_SITEKEY`. Nothing from the request or from Cloudflare is interpolated.
 
@@ -111,7 +111,7 @@ The address is one `EMAIL` constant in `index.js`.
 - `worker/test/defects.test.js`: new, frozen.
 - `worker/test/gate.test.js`: new, not frozen.
 - `package.json`: `"test:worker": "node --test worker/test/*.test.js"` (unquoted, so the shell expands it on every supported Node and an empty directory fails rather than passing), and `"test": "npm run lint && npm run test:worker && npm run smoke"`.
-- `eslint.config.js`: add `console` and `AbortSignal` to the worker globals, and a `worker/test/**/*.js` block with `console`, `globalThis`, `Request`, `Response`, `FormData`, `URL`.
+- `eslint.config.js`: add `console` and `AbortSignal` to the worker globals, and a `worker/test/**/*.js` block with `console`, `globalThis`, `Request`, `Response`, `FormData`, `File`, `URL` (`File` added for the File-token test).
 - Phase 8, by the coordinator: `CLAUDE.md`, `worker/README.md`, `README.md`, and the comment in `.github/workflows/ci.yml`.
 
 Not changed: `wrangler.toml`, `scripts/smoke-build.js`, anything under the site.
