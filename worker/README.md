@@ -69,7 +69,12 @@ Run these from this `worker/` directory.
 
 If the invite is revoked or regenerated in WhatsApp, run
 `npm run secret:put -- INVITE_URL` again with the new link. The new value
-takes effect right away. No site change or deploy is needed.
+takes effect right away. No site change or deploy is needed, as long as the link
+is a plain `https` URL that lands on its own origin. The challenge page's
+`form-action` is built from that origin on each request, and browsers apply it to
+the redirect, so a link that redirects again to another origin, such as a `wa.me`
+link or a shortener, is blocked and the visitor sees the help text instead of the
+group. Use the final `chat.whatsapp.com` link.
 
 ## Local development
 
@@ -115,6 +120,12 @@ do not run the page's Turnstile widget, so a change to the challenge page also
 needs a look in a real browser, with `challenges.cloudflare.com` blocked, both
 cold and with `api.js` already cached, and with JavaScript off.
 
+Any change to the Content-Security-Policy, to `inviteOrigin`, or to the page's
+script also needs a full pass in Chrome through to a cross-origin `INVITE_URL`.
+That is the only way to see `form-action` block the redirect. The tests catch a
+script or style edited without its hash and print the value to use. CLAUDE.md
+explains why, under "Security headers".
+
 ## When something fails
 
 No failure inside the Worker reaches a visitor as a Cloudflare error page. Each
@@ -128,8 +139,9 @@ one is an HTML page with a link back to `/join`, a link home and
 | 405 | The method is not GET, HEAD or POST, or the POST is not a form |
 | 400 | The form body cannot be parsed |
 
-If `/join` gets no token within 4 seconds, or Turnstile reports an error, the
-page shows why that can happen and the same address. With JavaScript off it shows
+If `/join` gets no token within 4 seconds, Turnstile reports an error, or the
+browser blocks the redirect to the invite, the page shows why that can happen
+and the same address. With JavaScript off it shows
 that at once.
 
 Logs carry the thrown error's name and nothing else. A wrong `TURNSTILE_SECRET`

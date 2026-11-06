@@ -225,10 +225,9 @@ Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 Implementer: recompute the hash from the final `dist/404.html`, and confirm it.
 
 - **Why Render and not a Cloudflare Transform Rule.** Render's headers apply to what
-  Render serves, so `/join` keeps the Worker's own policy. A response Transform Rule
-  runs after the Worker and matches by zone expression, so a rule that forgets to
-  exclude `/join*` would overwrite the challenge page's CSP, and Cloudflare also warns
-  that sitewide CSP rules can break its challenge pages. HSTS is the exception: it is
+  Render serves, so `/join` keeps the Worker's own policy. Cloudflare's docs do not
+  settle whether a response Transform Rule would overwrite a Worker's header, and they
+  warn that sitewide CSP rules can break its challenge pages. HSTS is the exception: it is
   the zone setting under SSL/TLS, and covering `/join` there is wanted.
 - **The one directive that cannot be finished from here: JavaScript Detections.** A
   fixed header has no per-response nonce, and finding 3 rules out a hash. So the

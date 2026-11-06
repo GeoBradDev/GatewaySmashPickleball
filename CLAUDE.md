@@ -956,6 +956,141 @@ Push to `main` deploys to <https://www.gatewaysmash.com> automatically. Render i
 origin host and Cloudflare fronts it. Nothing in this repo triggers the deploy, so do
 not add a deploy workflow. See [README.md](README.md) for the full description.
 
+### Security headers: which is set where
+
+None of this is visible from `dist/`, and only the Worker half is in this repo. #91
+split it in two: the Worker half shipped in code, and the rest needs the dashboards.
+
+| Header | Static site | `/join` |
+| --- | --- | --- |
+| `Strict-Transport-Security` | **Not yet applied.** Cloudflare, SSL/TLS > Edge Certificates | Same zone setting. The Worker must not send it |
+| `Content-Security-Policy` | **Not yet applied.** Render, Settings > Headers | `worker/src/index.js` |
+| `Referrer-Policy` | **Not yet applied.** Render | `COMMON_HEADERS`, `no-referrer` |
+| `Permissions-Policy` | **Not yet applied.** Render | Not sent. Turnstile's needs are undocumented |
+| `X-Content-Type-Options` | Already sent from behind Cloudflare on pages and the 404. Whether Render does this by default or a dashboard entry does it is not visible from here | `COMMON_HEADERS` |
+
+The Worker sending HSTS would set it on production at the next deploy, as a side
+effect of a code change, and a browser remembers it for the whole max-age, so it stays
+a zone decision. A test pins its absence.
+
+**The Worker's CSP is the riskiest header on the site.** It is the only one that can
+stop a visitor reaching the group, and it can do that with every check green. Chrome
+applies `form-action` to the redirect after a POST, not only to the POST, so
+`form-action 'self'` alone kills the 302 to the invite: measured in Chrome 157 on
+#91 as `net::ERR_ABORTED`, the target never requested, the visitor left on `/join`.
+The Worker has already answered a good 302 by then and logs nothing. **Any edit to that
+policy, to `inviteOrigin`, to the challenge page's script, or to where `INVITE_URL`
+points must re-drive the POST-then-302 in a real browser**, against a cross-origin
+target, because `node --test` has no browser to apply it. The test keys and a local
+echo server are enough. Firefox does not enforce this, by public report, so a pass there
+proves nothing.
+
+So the origin goes in `form-action`, and it is **derived from `INVITE_URL` at request
+time**, not written down: `gate.test.js` bans the host from `worker/src`, and a rotated
+invite on another origin needs no code change. Only the origin: the invite code stays
+out of every header. `new URL(...).origin` is not validation, because the parser passes
+`;`, `'`, `"` and `,` through from a host into `.origin`, so a shaped secret could write
+a new directive. `SAFE_ORIGIN` holds the result to a plain host, and anything else falls
+back to `form-action 'self'`. `inviteOrigin` must never throw, because `GET /join` is
+built inside the outer `try` and a throw would turn a bad secret into a 502 on the page
+itself.
+
+**One origin is what the design covers.** A target that redirects again, such as a
+`wa.me` link or a shortener, has its second hop blocked, and so does an `INVITE_URL` that
+falls back. The page's `securitypolicyviolation` listener is what stops that being
+silent: it shows the help text on `form-action` and only on `form-action`, because a
+blocked Cloudflare script on a healthy page must not. If the join flow stalls, check
+that first. The timer cannot do this job, since `done()` has already set `solved`.
+
+**The Worker uses a hash and a nonce, for two different scripts.** Our inline script and
+style never change per response, so they are allowed by hash, and the constants are in
+`index.js` because `crypto.subtle` is async and `html()` is a synchronous exit. A test
+recomputes both from the rendered page and prints the right value, so editing either
+block without its hash goes red. The nonce is for Cloudflare: JavaScript Detections
+injects an inline script into every HTML response, carrying the ray ID, so no hash can
+allow it, and Cloudflare's docs say it reads a nonce from the CSP response header and
+stamps its scripts with it. No element of ours carries the nonce. `'self'` and
+`connect-src 'self'` are there for the same script, which is why a failure page has a
+`script-src` at all when it has no script of its own. A failure page still names no
+Turnstile host, no script hash and no form target. `wrangler dev` does not inject
+anything, so **no local run can show this half**. A simulation with the captured snippet
+ran clean with the nonce on both the outer and the iframe's inner script, and a blocked
+script cost one console error with the join still working.
+
+Turnstile's own requirement is `https://challenges.cloudflare.com` in `script-src` and
+`frame-src`. `no-referrer` does not disturb it, which needed measuring because the test
+keys skip hostname checks: with the real site key, a mapped allowed host reached the
+same state with and without a Referer, and an unlisted host got `110200` both ways.
+`no-referrer` also makes the form POST send `Origin: null`. Nothing reads that today,
+and a future Origin check or a Cloudflare rule keyed on it would reject every visitor.
+
+#### The static-site values, not yet applied
+
+Pending the JavaScript Detections decision below, and set as one `/*` entry per header
+in Render. These were verified on every page of a locally served `dist/`, 404 included:
+no violation, with fonts, icons, the manifest, the mobile nav and the schedule status
+all working. Nothing on Render or Cloudflare has been changed.
+
+```
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'sha256-Ywg8xuaNd9SFC2I2/x418J72cFuVagQA4V5p/sX2U6w='; img-src 'self'; font-src 'self'; manifest-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+```
+
+- `default-src 'none'`: anything not named below is refused, which is what makes a new
+  third-party subresource fail loudly in the browser as well as in the smoke check.
+- `script-src 'self'`: the hashed module. Also Cloudflare's same-origin
+  `email-decode.min.js`, which Email Obfuscation injects on `/` and `/code-of-conduct/`
+  and without which those addresses read `[email protected]`. JSON-LD needs nothing:
+  a data block is not a script.
+- `style-src 'self'` plus one hash: the hashed stylesheet, and the inline `<style>` in
+  `404.html`, which has to stay inline so that page renders when the stylesheet is what
+  failed. Render serves that file for any missing path, so a per-path header cannot give
+  it a looser policy.
+- `img-src`, `font-src`, `manifest-src`: the icons, the self-hosted woff2, and
+  `site.webmanifest`. All same-origin, per the no-third-party rule under Build.
+- `connect-src 'self'`: the bundle's module-preload polyfill calls `fetch`, and
+  Cloudflare's path needs it.
+- `form-action 'none'`: no page has a form. The Join links are plain links to `/join`.
+- `base-uri 'none'`: no page has a `<base>`, and a stray one would repoint every relative
+  URL.
+- `frame-ancestors 'none'`: nothing embeds this site. The replacement for
+  `X-Frame-Options`, which is why that header is not on the list.
+
+**Render, not a Cloudflare Transform Rule**, because Render's headers apply only to what
+Render serves, so `/join` keeps its own policy. Cloudflare's docs read for #91 do not
+settle whether a response Transform Rule would overwrite a Worker's header, and they warn
+that a sitewide CSP rule can break Cloudflare's challenge pages. `render.yaml` can also
+carry headers, and this repo has none. Render's headers are a dashboard setting nothing
+in this repo can see, so confirm them with `curl -sSI` on a page and on a missing path.
+
+**The JavaScript Detections decision.** A fixed header has no per-response nonce, and
+the injected script cannot be hashed, so this policy logs one violation per page while
+the zone injects it, and #91's "no console CSP violations" cannot be met until one of
+these is chosen. Under Bot Fight Mode the docs say it cannot be turned off separately or
+scoped by path.
+
+1. **Turn off what injects it (recommended).** For Bot Fight Mode that is the whole
+   feature. A clean console and the strictest policy, on a site with no login and no
+   payment form. Turnstile still gates `/join`.
+2. **Keep it and accept the console error.** The script is blocked, so the feature stays
+   on while losing its signal.
+3. **Add `'unsafe-inline'` to `script-src`.** A clean console, giving up most of what
+   the CSP is for. Cloudflare discourages it.
+
+A constant nonce in a fixed header is not offered: a nonce that never changes is a
+password in the page source.
+
+**The 404 hash can go stale, and nothing in this repo can see it.** Editing that
+`<style>` changes the hash, the dashboard keeps the old one, and the error page goes
+unstyled with a console violation. That is a cosmetic failure on a page few reach, which
+is why it is a hash rather than `'unsafe-inline'` in `style-src`, and no smoke check
+compares it: that would assert prose. After editing that block and building, recompute:
+
+```sh
+node -e "const m=require('fs').readFileSync('dist/404.html','utf8').match(/<style>([\s\S]*?)<\/style>/);console.log('sha256-'+require('crypto').createHash('sha256').update(m[1]).digest('base64'))"
+```
+
 ## Integrations & Contact
 
 - **Community Chat:** WhatsApp. Every link to the group points at `/join`
@@ -977,7 +1112,9 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   hostname, a 405 or 400 for a bad request. The Worker's tests hold those pages to
   the address `index.html` publishes. Cloudflare's Email Obfuscation is on for this
   zone, and Cloudflare's docs exclude Worker-generated HTML from it. All HTML goes through `html()` in
-  `worker/src/index.js`, which is the place to add a response header.
+  `worker/src/index.js`, but the 302 does not, so a response header belongs in
+  `COMMON_HEADERS` there, which both exits use, and in `html()` only if it means
+  nothing on a redirect. See "Security headers" under Deployment.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
   URL is a separate, action-shaped link and is not an identity claim.
