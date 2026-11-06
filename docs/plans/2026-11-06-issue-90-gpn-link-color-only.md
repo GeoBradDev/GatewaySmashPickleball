@@ -243,7 +243,7 @@ check itself (F1 to F5, negative tests N15 to N19), so fixing them meant editing
 
 The delta review of the rewrite found three more holes in the check. The user decided to
 document them and ship, with no second rewrite. Quoted as relayed by the orchestrator: "yes
-to both, document the gaps and ship". `scripts/smoke-build.js` stays as it is at `1ea5994`.
+to both, document the gaps and ship". `scripts/smoke-build.js` stays as it is at `6bd6671`.
 Each was confirmed by a run with smoke at exit 0. None affects the shipped site.
 
 1. `anchorAttribute` reads the first ` class=` after whitespace, even inside another

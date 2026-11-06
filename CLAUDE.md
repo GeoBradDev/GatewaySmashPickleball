@@ -918,6 +918,87 @@ file**. The fallback font stacks in `404.html` are copied from the ones
 `css/style.css` declares behind DM Serif Display and DM Sans, and the comment
 above them is still all that asks for those to stay in step.
 
+### Links are underlined by default, and until #90 each context had to ask
+
+The contrast sums above cannot see this one. The link to the club page in "Off the
+court" was `--court-green` in a paragraph of `--ink-muted`, which is 1.01:1, so colour
+was its only cue and to a reader who cannot see the hue it was not a link at all
+(WCAG 1.4.1). The base `a` rule stripped the underline and every prose context had
+to put it back, and `.feature p` was the one that did not. No check could read
+that, because the markup was valid and the text was legible.
+
+The default is flipped rather than the one context patched: the base `a` rule now sets
+the underline, in `css/style.css` and in `404.html`'s inline block, so a new prose
+context is right with no CSS at all. **The base rule carries no
+`text-decoration-color`, deliberately.** The house tint on the prose contexts is
+`rgba(26, 122, 92, 0.3)`, and moved to the base it would leak onto `.footer-links a`,
+which is cream on `--ink` and sets no decoration colour, leaving that underline close
+to invisible. `currentColor` is right on any background, so the default stays safe in
+a context that does not exist yet. The tint stays with the contexts.
+
+**`links keep their underline unless a named rule opts out`** does not model the
+cascade, and that was a choice. With underline as the default, a selector parser with
+specificity and source order would be a lot of code in a dependency-free script,
+and could go red on an unrelated CSS edit. The check holds the default instead: each
+stylesheet's base `a` rule must set an underline, and missing is a failure, not a pass.
+Every rule that removes the underline has to name only selectors in
+`UNDERLINE_OPT_OUTS`, each with a stated reason, so a new opt-out goes red and has to
+be added by hand. That is the `MINIMUM_EXPECTED` reasoning: editing that const is what
+puts the decision in front of a reviewer. A stale entry goes red too. A link in a `<p>`
+or `<li>` may not carry a class the list names, so `.btn` cannot be spent on a sentence.
+
+**Removal means anything that is not the word `underline`**, not only `none`, because
+a bare colour or `line-through` in the shorthand resets the line as well. `var(...)` is
+stripped before that test, or `var(--no-underline)` reads as an underline. The print
+block is dropped first, because it is `a,a:visited{text-decoration:underline}` and read
+as-is it satisfies a screen check. Width queries stay in, so a mobile-only removal is
+seen. The floor for the prose half counts links inside `<main>` only: the partials put
+seven links in a `<p>` or `<li>` on every content page, so counted across the whole page that
+floor could not fire.
+
+**Deleting `.feature p a` leaves that link underlined, and the check green, and that is
+correct.** The rule adds weight and the tint. The base rule is what distinguishes the
+link. A new prose link in a `<td>` or a `<div>` is green for the same reason.
+
+Still unchecked, deliberately. A cascade model would have caught the first of these.
+Neither container holds prose today:
+
+- **A prose link inside an allowlisted container.** The prose half reads classes, and
+  `.page-actions a` and `.nav-links a` opt out by ancestor, so a sentence with a link
+  added to either stays plain and green. `.page-actions a` covers every link in that
+  container, not only the buttons it was written for.
+- **A rule that wins for a different reason.** Nothing here reads specificity, so a
+  broad allowlisted selector beating a narrower underline is not modelled.
+- **A `.btn` link outside a `<p>` or `<li>`.** A sentence in a `<td>` or a `<div>`
+  is not read by the prose half. Nested lists are not read to their end either: a
+  link after an inner list, before the outer `</li>`, is missed.
+- **`text-decoration-color: transparent`, a zero `text-decoration-thickness`, or an
+  inline `style=` on the anchor.** None of these is a removal to this check.
+- **Links written by JavaScript.** `js/app.js` creates only `th` and `td` today.
+- **An allowlist entry alive in one stylesheet covers the other.** Deleting `.btn`'s
+  `text-decoration: none` from `404.html` alone underlines that button, and the
+  `css/style.css` rule keeps the entry from going stale.
+
+Three more are holes in the check itself, found by review after it had already been
+rewritten once. The decision was to record them rather than rewrite it again. Each
+was confirmed by a run with smoke at exit 0, and none affects the site as shipped:
+
+- **`anchorAttribute` reads a ` class=` inside another attribute's value.**
+  `<a title='the class="x" page' class="btn" href="...">` in a `<p>` reads as class `x`,
+  so `btn` is never compared and a colour-only link passes.
+- **A print-only media query with a comma in it is read as a screen rule.** The comma
+  exclusion exists so `@media print, (max-width: 768px)` is not dropped whole, and it
+  keeps every query list, so by reading that repair was not purely tightening. `@media print and
+  (orientation: landscape), print and (orientation: portrait) { a { text-decoration:
+  underline; } }` then satisfies the base rule check when the base declaration has
+  been deleted. No link ends up colour-only, because the browser default underlines
+  and writing `none` on the base goes red through the allowlist. What is lost is the
+  requirement that the base rule state the underline.
+- **The single-class floor fires only when no such entry remains**, not when `btn`
+  alone drops out. Respelling `.btn` as `:where(.btn)` in both stylesheets and in the
+  list stays live and unread, so `class="btn"` on a prose link passes. It takes a hand
+  edit to `UNDERLINE_OPT_OUTS`, which is where a reviewer sees it.
+
 ## Copy style
 
 The league's pitch is that it is the human alternative to disorganized corporate
