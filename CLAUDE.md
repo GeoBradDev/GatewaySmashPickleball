@@ -610,10 +610,21 @@ These hold it up, and each looks removable:
   only added after the module strips the popover, and a header height or padding rule
   that applies only above 768px, where no toggle shows. Both fail safe. Neither is to be
   read as a real covered toggle.
-- **That rule alone sets `overflow-y: auto`.** The base reset removes the UA's
-  `overflow: auto`, so on a short viewport the links past the panel's fold cannot be
-  reached, and with no script that includes the FAQ. The JS drawer clips the same way.
-  That predates this and is its own issue, so the shared rule stays as it was.
+- **`overflow-y: auto` sits on the shared `.nav-links` rule in the 768px block, not on
+  this one**, so the popover and the JS drawer both scroll. The base reset removes the
+  UA's `overflow: auto`, so without it the links past the panel's fold cannot be
+  reached on a short viewport. A later rule can take it away, so `the mobile nav
+  scrolls on a short viewport` also fails if the shared rule, `.nav-links.open` or
+  `.nav-links:popover-open` sets `overflow` or `overflow-y` to anything but `auto`.
+  **A red from that check can be false.** It reads the emitted CSS, where the minifier
+  merges `overflow-x: hidden` beside `overflow-y: auto` into `overflow:hidden auto`,
+  and it does not parse the shorthand. `overflow: auto` on the shared rule goes red the
+  same way. Either edit fails the build with a message saying the rule does not set
+  `overflow-y:auto`, while the panel scrolls normally. `overflow-x: hidden` beside
+  `overflow-y: auto` on a state rule goes red too, saying that state stops scrolling.
+  It fails safe, so it was left as it is: before reverting such an edit, check the
+  source. The check also reads only those three exact selectors in the 768px block,
+  so it is no proof that the panel scrolls.
 - **The page stops taking pointer events while the popover is open**, through
   `body:has(.nav-links:popover-open)` rules on `main` and `footer`, one rule each so
   no selector list carries `:popover-open`. `::backdrop` cannot do this job. The UA
