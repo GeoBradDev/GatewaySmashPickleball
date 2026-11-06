@@ -11,6 +11,28 @@ this plan (cited under "Findings").
 Companion controls: no `.claude/work-issue.md`, `REVIEW.md`, finder or verifier agent,
 or edit-guard hook. Fallbacks apply. Gate is `npm test`, derived from CLAUDE.md.
 
+## Approver conditions (these override the rest of this plan)
+
+Added by the approver before implementation. Where they differ from anything below, they win.
+
+1. `INVITE_URL` unset or malformed must not turn GET or HEAD `/join` into a 502 or an
+   exception from building the header. The page still renders 200 with `form-action
+   'self'`. POST fails closed exactly as it does now. Both cases are tested.
+2. `new URL(...).origin` alone is **not** safe. The WHATWG parser permits `;`, `'`, `"`
+   and `,` in a host, measured in Node: `https://x;script-src-elem.example/` has the
+   origin `https://x;script-src-elem.example`, and `%3B` decodes to the same thing.
+   `inviteOrigin` validates the parsed origin against a strict allowlist and returns
+   the fallback `''` otherwise. Hostile values are tested, asserting the header equals
+   the fallback policy. A secret with something odd produces the fallback, never a
+   broken policy.
+3. HEAD gets the same headers as GET, invite origin in `form-action` included, and a
+   test proves it.
+4. No `wrangler deploy`, `wrangler secret`, `wrangler versions` or `wrangler rollback`,
+   no real invite, nothing touched on Cloudflare or Render.
+
+Docs (`CLAUDE.md`, `worker/README.md`) are done later by the coordinator, per order of
+work step 6.
+
 ## Scope
 
 This PR covers the code half only, and the PR body says `Refs #91`, not `Closes #91`.
@@ -171,7 +193,12 @@ Shape of the change:
   parameter, defaulting to the failure policy, so a forgotten argument fails closed:
   the challenge page is the only caller that passes the wider one.
 - `inviteOrigin(env)` returns the origin, or `''` when `INVITE_URL` is unset, does not
-  parse, or has the opaque origin `null`. It must never throw: `GET /join` is served
+  parse, is not `http:` or `https:`, or has an origin that fails the allowlist (approver
+  condition 2). The scheme is checked as well as the origin because a `blob:` URL
+  reports its inner `https` origin, which is clean and would pass the pattern alone. The
+  pattern also requires each host to open and close on a letter or digit, which is
+  tighter than the example the approver gave, so `https://...` and `https://-.example`
+  fall back. It must never throw: `GET /join` is served
   from inside the outer `try`, so a throw would turn a bad secret into a 502 on the
   challenge page itself. Today that page renders regardless of the secret.
 - The 302 gains `Referrer-Policy` and `X-Content-Type-Options` from one shared
