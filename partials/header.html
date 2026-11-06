@@ -15,16 +15,23 @@
       <span class="logo-text">Gateway Smash</span>
     </a>
 
-    <!-- aria-label is rewritten by js/app.js on open and close, because the
-         hamburger-to-X animation announces state to sighted users only. -->
-    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open navigation menu" aria-controls="nav-links"
-            aria-expanded="false">
+    <!-- Opens with no script at all: popovertarget and popover are browser
+         behaviour, for a visitor with JavaScript off or a module that failed.
+         js/app.js removes both and takes over as the drawer. aria-label and
+         aria-expanded are left to it for that reason: the hamburger-to-X
+         animation announces state to sighted users only, but a static
+         aria-expanded here would override what the popover exposes natively.
+         The text span comes after the bars because the X counts them with
+         :nth-child, and it is the only content the button has if the stylesheet
+         also failed. -->
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-controls="nav-links" popovertarget="nav-links">
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
       <span class="menu-bar"></span>
+      <span class="visually-hidden">Navigation menu</span>
     </button>
 
-    <ul class="nav-links" id="nav-links">
+    <ul class="nav-links" id="nav-links" popover>
       <li><a href="/">Home</a></li>
       <li><a href="/#about">About</a></li>
       <li><a href="/#leagues">Leagues</a></li>

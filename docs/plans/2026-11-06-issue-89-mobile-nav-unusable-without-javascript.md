@@ -113,11 +113,16 @@ and the sitemap do not change, no page or outbound link is added.
      against stubs seeded with the shipped attributes, or the removal check cannot fail.
    - `an open popover hands off to the drawer`: stub nav reports `popover` in it and
      `matches(':popover-open')` true; after the bundle runs, `.open` is set.
+   - Two added beyond this list, both green guards in the red commit:
+     `the hamburger X still lands on the bars` (see step 2) and
+     `a browser without popover still gets the drawer`, which proves the `in` guard in step 4
+     by making `matches()` throw.
    Commit red.
 2. **`partials/header.html`.** On the button: remove `aria-label` and `aria-expanded`, add
    `popovertarget="nav-links"`, add `<span class="visually-hidden">Navigation menu</span>`
-   as the first child. On the `ul`: add `popover`. Rewrite the comment to say what JS writes
-   and why the markup omits it.
+   as the **last** child, not the first as this plan originally said: the X animation counts
+   the bars with `:nth-child`, so a span ahead of them breaks it. On the `ul`: add `popover`.
+   Rewrite the comment to say what JS writes and why the markup omits it.
 3. **`css/style.css`.** Base `.nav-links`: add the resets listed above, with a comment that
    these override the UA `[popover]` rules for the page before the module runs. In the 768px
    block: add `.nav-links:popover-open` as a **separate** rule with the same three
