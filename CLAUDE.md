@@ -578,9 +578,10 @@ IIFE.
 **Neither fix the issue offered was used.** A `no-js` class removed by the module
 makes every JavaScript visitor pay: the nav sits expanded until a deferred module
 runs, which is a flash and a layout shift on every mobile load, and removing it early
-takes an inline script, which the CSP proposed in #91 would rule out. `<noscript>`
-costs nothing and misses the failed module, which the issue itself calls the common case. `<details>` was
-rejected too, because a closed one hides its contents on desktop and showing them
+takes an inline script, which the static policy recorded under "Security headers" forbids
+with `script-src 'self'`. That policy is documented and not yet applied, but it is what
+the site is built to. `<noscript>` costs nothing and misses the failed module, which the
+issue itself calls the common case. `<details>` was rejected too, because a closed one hides its contents on desktop and showing them
 needs `::details-content`, so an older browser loses the desktop nav. A timed CSS
 reveal is a guessed timeout. Popover is the only option that charges a JavaScript
 visitor nothing and needs no script for anyone else.

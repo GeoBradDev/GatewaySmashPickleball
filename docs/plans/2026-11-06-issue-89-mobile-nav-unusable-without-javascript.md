@@ -16,7 +16,7 @@ decision to approve.
 
 | Option | JS users pay nothing | No inline script | Module fails | Stale HTML (CSS and JS 404) | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `no-js` class removed by the module | No. Expanded nav until the deferred module runs, a flash and layout shift on every mobile load | Only with an inline script, which the CSP proposed in #91 would forbid | Yes | Yes | Rejected |
+| `no-js` class removed by the module | No. Expanded nav until the deferred module runs, a flash and layout shift on every mobile load | Only with an inline script, which the static CSP documented in CLAUDE.md (not yet applied) forbids | Yes | Yes | Rejected |
 | `<noscript>` only | Yes | Yes | No | No | Rejected, misses the case the issue calls most common |
 | `<details>`/`<summary>` | Partly | Yes | Yes | Yes | Rejected. A closed `<details>` hides its contents on desktop too. Showing them needs `::details-content`, a recent feature, so an older browser loses the desktop nav. Also replaces the real button |
 | CSS timed reveal, cancelled by a class from the module | No on slow links | Yes | Yes, after a delay | Yes | Rejected, a guessed timeout |
@@ -168,7 +168,8 @@ and the sitemap do not change, no page or outbound link is added.
 5. **Crossing the breakpoint with the no-JS popover open.** The JS path has a handler for
    this and the popover path cannot. Drive it and record what happens, Escape must still close.
 6. **Interaction with #90 or #91.** This adds no `text-decoration: none`, inline script or
-   inline style, so neither's new rule fires. If #90 lands first, this rebases cleanly.
+   inline style, so neither's new rule fires. Both landed first and this rebased cleanly. The
+   nav links keep their underline opt-out through the existing `.nav-links a` entry.
 
 ## Changes after approval
 
