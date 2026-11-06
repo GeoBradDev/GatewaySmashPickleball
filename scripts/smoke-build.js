@@ -2026,6 +2026,70 @@ check('an open popover scrolls on a short viewport', function () {
   });
 });
 
+// The direct children of a run of markup, any tag, in order. The check above
+// counts spans, and :nth-child counts every element, so a stray <svg> or <b> ahead
+// of the bars moved the X with that check green. Depth is walked rather than
+// matched: a void element or a self-closed one opens nothing, and a tag nested
+// inside a child is not a child.
+function directChildren(markup) {
+  const VOID = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+    'source', 'track', 'wbr',
+  ]);
+  const children = [];
+  let depth = 0;
+  for (const tag of markup.matchAll(/<(\/?)([a-zA-Z][a-zA-Z0-9-]*)\b(?:"[^"]*"|'[^']*'|[^>"'])*>/g)) {
+    if (tag[1] === '/') {
+      depth -= 1;
+      continue;
+    }
+    if (depth === 0) {
+      children.push({ name: tag[2].toLowerCase(), attrs: tagAttributes(tag[0]) });
+    }
+    if (!VOID.has(tag[2].toLowerCase()) && !tag[0].endsWith('/>')) {
+      depth += 1;
+    }
+  }
+  return children;
+}
+
+check('the bars sit where the X counts them among all the toggle children', function () {
+  const css = fs.readFileSync(path.join(distDir, styleRef), 'utf8');
+  const positions = [
+    ...css.matchAll(/\.menu-toggle\.active \.menu-bar:(?:first-child|nth-child\((\d+)\))/g),
+  ].map((match) => Number(match[1] ?? 1));
+  if (positions.length === 0) {
+    throw new Error('no .menu-toggle.active .menu-bar:nth-child rule in the emitted css');
+  }
+  eachPageHeader(function (file, toggle, nav, problems) {
+    const children = directChildren(toggle.inner);
+    positions.forEach(function (position) {
+      const child = children[position - 1];
+      const classes = (child?.attrs.get('class') ?? '').split(/\s+/);
+      if (!classes.includes('menu-bar')) {
+        problems.push(
+          file + ': child ' + position + ' of #menu-toggle is ' +
+            (child ? '<' + child.name + '>' : 'missing') + ', not a .menu-bar'
+        );
+      }
+    });
+  });
+});
+
+// hide makes a dead button with no script running, and show one that cannot close
+// its own menu. Nothing else here reads this attribute, because every other value
+// the wiring needs is still in place when it is set wrong.
+check('the toggle both opens and closes its popover', function () {
+  eachPageHeader(function (file, toggle, nav, problems) {
+    if (toggle.attrs.has('popovertargetaction') && toggle.attrs.get('popovertargetaction').toLowerCase() !== 'toggle') {
+      problems.push(
+        file + ': #menu-toggle popovertargetaction is ' +
+          JSON.stringify(toggle.attrs.get('popovertargetaction')) + ', not toggle'
+      );
+    }
+  });
+});
+
 // The schedule statuses are the whole point of #10: the table presented a
 // finished season, a live one and one open for registration identically.
 // They are computed from each row's dates, so they are worth pinning down
