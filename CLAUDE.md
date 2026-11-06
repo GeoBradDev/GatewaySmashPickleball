@@ -971,12 +971,12 @@ not add a deploy workflow. See [README.md](README.md) for the full description.
   `join` file or directory, and no Render redirect or rewrite rule for it.
   Because the invite is no longer an outbound link, `npm run check-links` cannot
   see a revoked one; rotating it is `npm run secret:put -- INVITE_URL` from
-  `worker/`. Every failure on `/join` ends on an HTML page with a retry link, a home
+  `worker/`. Every error status from `/join` is an HTML page with a retry link, a home
   link and `info@gatewaysmash.com`, and fails closed: a 502 when siteverify is down
   or a secret is unset, a 403 when a token is rejected or was minted on another
   hostname, a 405 or 400 for a bad request. The Worker's tests hold those pages to
   the address `index.html` publishes. Cloudflare's Email Obfuscation is on for this
-  zone but does not touch Worker-generated HTML. All HTML goes through `html()` in
+  zone, and Cloudflare's docs exclude Worker-generated HTML from it. All HTML goes through `html()` in
   `worker/src/index.js`, which is the place to add a response header.
 - **Global Pickleball Network:** registration and the ladder. The club page is the
   site's one `sameAs` target and is linked from `index.html:127`; the `/register/`
