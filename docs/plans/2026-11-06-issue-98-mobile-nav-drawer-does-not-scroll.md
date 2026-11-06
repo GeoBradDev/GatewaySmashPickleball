@@ -78,3 +78,10 @@ check asserts the old state.
   focus to the toggle, `inert` syncs.
 - The JS drawer at 375x812 compared with an origin/main build.
 - The no-script panel still scrolls at 568x320.
+
+## Review decision
+
+Both finders reported that the check misreads the shorthand the minifier emits, so
+`overflow-x: hidden` or `overflow: auto` on the shared rule goes red with a misleading
+message. It fails safe. The orchestrator declined a rewrite of the frozen check, so the
+gap is documented in `CLAUDE.md` and the PR instead.
