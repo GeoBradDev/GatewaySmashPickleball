@@ -960,7 +960,7 @@ floor could not fire.
 correct.** The rule adds weight and the tint. The base rule is what distinguishes the
 link. A new prose link in a `<td>` or a `<div>` is green for the same reason.
 
-Still unchecked, deliberately. A cascade model would have caught the first of these.
+Still unchecked, deliberately. A cascade model would have caught the first two of these.
 Neither container holds prose today:
 
 - **A prose link inside an allowlisted container.** The prose half reads classes, and
