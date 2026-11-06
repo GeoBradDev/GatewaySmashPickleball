@@ -159,6 +159,8 @@ and <https://developers.cloudflare.com/bots/get-started/bot-fight-mode/>.
 - `worker/README.md`
 - `CLAUDE.md` (Deployment, plus one line under Integrations)
 - this plan
+- `eslint.config.js`: `URL` and `crypto` join the Worker's globals, which the lint half
+  of the gate requires now that `src/index.js` uses them. Not foreseen by this plan.
 
 Not changed: `worker/test/defects.test.js`, `worker/test/help-timer.test.js` (frozen),
 `worker/test/gate.test.js`, `scripts/smoke-build.js`, anything under `dist/`'s sources.

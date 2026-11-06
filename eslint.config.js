@@ -69,6 +69,8 @@ export default [
         fetch: 'readonly',
         Response: 'readonly',
         URLSearchParams: 'readonly',
+        URL: 'readonly',
+        crypto: 'readonly',
         console: 'readonly',
         AbortSignal: 'readonly',
       },
