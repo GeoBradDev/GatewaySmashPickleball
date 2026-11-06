@@ -997,10 +997,26 @@ footer p {
     transform: translateX(0);
     visibility: visible;
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
+    /* The panel is taller than a short viewport, and with no script there is no
+       other way to the links past its fold. Here and not on the shared rule, so
+       the JS drawer stays exactly as it was. */
+    overflow-y: auto;
   }
 
   .nav-links::backdrop {
     background: rgba(28, 28, 28, 0.3);
+  }
+
+  /* The UA forces pointer-events:none !important on a popover's ::backdrop, so
+     unlike the JS overlay it swallows nothing, and the tap that closes the drawer
+     would also land on the page. Light dismiss still fires. Two rules rather than
+     a list for the reason above. The header stays live, as it does in the JS path. */
+  body:has(.nav-links:popover-open) main {
+    pointer-events: none;
+  }
+
+  body:has(.nav-links:popover-open) footer {
+    pointer-events: none;
   }
 
   .nav-links li {

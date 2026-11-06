@@ -139,7 +139,10 @@ import '../css/style.css';
 
   syncInert();
 
-  if (wasOpen) {
+  // Only below the breakpoint. A popover carried past it before this ran would
+  // otherwise land as drawer state on the desktop nav, and the change listener
+  // above was not there to clear it.
+  if (wasOpen && mobile.matches) {
     openMenu();
   }
 
