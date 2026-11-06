@@ -116,7 +116,8 @@ its callback immediately (see the TDZ note at the top of `scripts/smoke-build.js
 dependencies. A comment on it gives #90 and WCAG 1.4.1.
 
 **Sources.** Every `*.css` under `dist/` from `walk(distDir)`, plus the inline `<style>` of
-every built `*.html`. Comments stripped. `@media print` blocks removed by brace counting,
+every built `*.html`. Comments stripped. Print-only `@media` blocks removed by brace
+counting (a query list with a comma in it is kept, since F3),
 because the print block is `a,a:visited{text-decoration:underline}`: read as-is, a print
 rule satisfies a screen check. Width queries stay in, so a mobile-only removal is seen.
 
@@ -125,7 +126,7 @@ a kept `@media` too. For a rule, the line it sets is the LAST declaration matchi
 `(?:-webkit-)?text-decoration` or `text-decoration-line` at a declaration boundary, never
 `text-decoration-color`. The minifier merges colour into the shorthand and adds the prefix
 (`-webkit-text-decoration:underline #1a7a5c4d`), so a value underlines when it contains
-the word `underline`. Any other value, `none` or a bare colour or `line-through`, removes it.
+the word `underline` once any `var(...)` is stripped from it. Any other value, `none` or a bare colour or `line-through`, removes it.
 
 **1. Base rule.** Each `*.css` and `404.html`'s inline block must contain a rule with the
 exact selector `a` that sets an underline. Missing is a failure naming the source, not a pass.
@@ -147,7 +148,8 @@ removed, for each `<p>` or `<li>` block read by a non-greedy regex, no `<a>` ins
 a class that a single-class allowlist entry names (`btn`, `logo`, `skip-link`). The class is
 read by capturing the opening delimiter and matching to its next occurrence, per the
 `metaContent()` rule in CLAUDE.md, never a `[^"']*` class. That stops a `.btn`-style opt-out
-being used on an in-prose link. It needs a floor of its own: at least one `<a>` in a `<p>`
+being used on an in-prose link. It needs floors of its own: the single-class entries must not be
+empty, and at least one `<a>` in a `<p>`
 or `<li>` on every content page, or an emptied regex passes.
 
 **Failure message** names the source and selector or the page and href.
@@ -232,9 +234,34 @@ check itself (F1 to F5, negative tests N15 to N19), so fixing them meant editing
   "yes, rewrite the frozen checks for #89 and #90".
 - Scope: this one check and the five fixes F1 to F5, nothing wider.
 - Reason: each defect let a colour-only link or a removed underline pass, shown green on
-  the old check and red on the new one. The rewrite only tightens: no assertion was
-  removed, and the red the check was frozen on is unchanged, as the proof below shows.
+  the old check and red on the new one. No assertion was removed, and the red the check
+  was frozen on is unchanged, as the proof below shows. F3 is not purely tightening: see
+  gap 2 under "Accepted gaps after the rewrite".
 - The rewritten check is frozen again from this commit.
+
+## Accepted gaps after the rewrite
+
+The delta review of the rewrite found three more holes in the check. The user decided to
+document them and ship, with no second rewrite. Quoted as relayed by the orchestrator: "yes
+to both, document the gaps and ship". `scripts/smoke-build.js` stays as it is at `1ea5994`.
+Each was confirmed by a run with smoke at exit 0. None affects the shipped site.
+
+1. `anchorAttribute` reads the first ` class=` after whitespace, even inside another
+   attribute's value. `<a title='the class="x" page' class="btn" href="...">` in a `<p>`
+   reads as class `x`, so `btn` is never compared and a colour-only link passes. This is F5
+   one function further on.
+2. F3 was not purely tightening. The comma exclusion keeps every query list, including a
+   print-only one, so `@media print and (orientation: landscape), print and (orientation:
+   portrait) { a { text-decoration: underline; } }` is now read as a screen rule and
+   satisfies the base rule check when the base declaration has been deleted. By reading,
+   the pre-F3 regex dropped that block and went red; that was not run. No link ends up
+   colour-only: with no declaration the browser default underlines, and writing `none` on
+   the base goes red through the allowlist. What is lost is the check's requirement that
+   the base rule state the underline.
+3. The single-class floor fires only when no such entry remains, not when `btn` alone drops
+   out. Respelling `.btn` as `:where(.btn)` in both stylesheets and in `UNDERLINE_OPT_OUTS`
+   stays live and unread, so `class="btn"` on a prose link passes. It needs a hand edit to
+   the list, which is where a reviewer sees it.
 
 ## Proof
 
@@ -242,7 +269,7 @@ check itself (F1 to F5, negative tests N15 to N19), so fixing them meant editing
 | --- | --- |
 | 1 | Computed style on the GPN link, screenshot under vision emulation, smoke check |
 | 2 | axe output for five pages at two widths |
-| 3 | The check, red on the unchanged CSS, plus N1 to N14 |
+| 3 | The check, red on the unchanged CSS, plus N1 to N19 |
 | 4 | Before/after computed-style diff, one change only |
 
 Rewritten check at the merge base `5f6095b505193c47f3d408cb121366c2b13dab08` (`git merge-base origin/main HEAD`), in a
