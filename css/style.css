@@ -483,8 +483,8 @@ nav {
   color: var(--ink-muted);
 }
 
-/* Matches .season-status--open, so "open now" reads the same colour in the
-   hero as it does in the schedule table. */
+/* Matches .season-status--open, so registration day reads the same colour in
+   the hero as it does in the schedule table. */
 .hero-note--open {
   color: var(--amber-dark);
 }

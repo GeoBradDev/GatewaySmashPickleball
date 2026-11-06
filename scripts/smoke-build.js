@@ -2427,7 +2427,7 @@ check('the schedule marks the season that is actually running', function () {
   // price scan above cannot reach on its own, because a fee spelled "70 USD",
   // or built from a constant the minifier declines to inline, carries no $ for
   // it to match. Equality is spelling-independent and catches both.
-  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('callout is not exactly the sentences the schedule derives: ' + JSON.stringify(result.callout));
   }
 });
@@ -2441,7 +2441,7 @@ check('the schedule flips to registration open on the right day', function () {
   if (on.labels[2] !== 'Registration open') {
     throw new Error('Fall 2026 was ' + on.labels[2] + ' on the day registration opens');
   }
-  if (on.callout !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
+  if (on.callout !== 'Summer 2026 is in progress. Fall 2026 registration is today, from 8:00 AM Central.') {
     throw new Error('callout did not switch to open, or says more than it should: ' + JSON.stringify(on.callout));
   }
 });
@@ -2480,7 +2480,7 @@ check('the hero moves to the next season once a window has closed', function () 
       'hero still offers ' + JSON.stringify(after.join) + ' the day after Fall 2026 filled'
     );
   }
-  if (!/Winter 2027 registration opens December 11, 2026/.test(after.note || '')) {
+  if (!/Winter 2027 registration opens December 11, 2026 at 8:00 AM Central\./.test(after.note || '')) {
     throw new Error('hero note does not give the next window: ' + JSON.stringify(after.note));
   }
 });
@@ -2508,7 +2508,7 @@ check('the hero CTA names the season a visitor would be joining', function () {
   // #51: this read only the second sentence, so on a day a season was being
   // played the hero named one three months out and said nothing about the one
   // on court. Both sentences, in the order the callout writes them.
-  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('hero note does not say what is running and when the next opens: ' + JSON.stringify(result.note));
   }
   // The class carries the colour, and a wrong one is invisible to every other
@@ -2528,11 +2528,11 @@ check('the hero CTA names the season a visitor would be joining', function () {
 // as the hand-written copy this issue was filed about.
 check('the hero CTA says registration is open on the day it opens', function () {
   const before = statusesOn('2026-08-12');
-  if (before.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+  if (before.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('hero note the day before registration opens: ' + JSON.stringify(before.note));
   }
   const on = statusesOn('2026-08-13');
-  if (on.note !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
+  if (on.note !== 'Summer 2026 is in progress. Fall 2026 registration is today, from 8:00 AM Central.') {
     throw new Error('hero note on the opening day: ' + JSON.stringify(on.note));
   }
   // The modifier is what makes the open state visually distinct from the
@@ -2554,7 +2554,7 @@ check('an evening visitor west of UTC is not told registration opened a day earl
     // Wed Aug 12 2026, 19:30 CDT. Fall registration opens tomorrow.
     return statusesOn('2026-08-13T00:30:00Z');
   });
-  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026.') {
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('hero note on the evening before registration opens: ' + JSON.stringify(result.note));
   }
   if (result.labels[2] !== 'Upcoming') {
@@ -2586,10 +2586,10 @@ check('the next season is the soonest one, not whichever row comes first', funct
   if (result.join !== 'Join Fall 2026') {
     throw new Error('hero named ' + JSON.stringify(result.join) + ' with the rows listed newest first');
   }
-  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
+  if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration is today, from 8:00 AM Central.') {
     throw new Error('hero note with the rows listed newest first: ' + JSON.stringify(result.note));
   }
-  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration is open now.') {
+  if (result.callout !== 'Summer 2026 is in progress. Fall 2026 registration is today, from 8:00 AM Central.') {
     throw new Error('callout with the rows listed newest first: ' + JSON.stringify(result.callout));
   }
 });
@@ -2656,7 +2656,7 @@ check('an unparseable date never reaches the hero as copy', function () {
   // The scan above only proves nothing garbled reached the page. This proves
   // the right thing did: the unreadable row dropped out and the hero named the
   // next season a visitor could really join.
-  if (result.note !== 'Summer 2026 is in progress. Winter 2027 registration opens December 11, 2026.') {
+  if (result.note !== 'Summer 2026 is in progress. Winter 2027 registration opens December 11, 2026 at 8:00 AM Central.') {
     throw new Error('hero note with an unreadable registration date: ' + JSON.stringify(result.note));
   }
 });
@@ -3679,7 +3679,7 @@ check('the hero claims no season is running during the gap between seasons', fun
   // treated as lasting until the season started; the state is real, the date
   // that reaches it is not.
   const open = statusesOn('2026-12-11');
-  if (open.note !== 'Registration is open now.') {
+  if (open.note !== 'Registration is today, from 8:00 AM Central.') {
     throw new Error('hero note between seasons with registration open: ' + JSON.stringify(open.note));
   }
   // The note stays as it shipped rather than gaining "Fall 2026 registration":
@@ -3691,7 +3691,7 @@ check('the hero claims no season is running during the gap between seasons', fun
   // Nov 15 2026. Fall closed Nov 8 and Winter registration does not open until
   // Dec 11: the one window in this table with nothing running and nothing open.
   const pending = statusesOn('2026-11-15');
-  if (pending.note !== 'Registration opens December 11, 2026.') {
+  if (pending.note !== 'Registration opens December 11, 2026 at 8:00 AM Central.') {
     throw new Error('hero note in the gap before registration opens: ' + JSON.stringify(pending.note));
   }
 });
@@ -3980,6 +3980,127 @@ check('the court time a member gets matches the hours the league runs', function
         hours
     );
   }
+});
+
+// The opening time is one fact stated in five places: the hero, the callout,
+// League Info, the FAQ answer and that answer's JSON-LD. Two of those are
+// written by the bundle, so the value is read back out of what the bundle
+// renders rather than written here a sixth time, and moving the time is one
+// edit in js/app.js plus the three copies this check then points at.
+//
+// Every sentence the bundle can produce goes through: pending and registration
+// day, with and without a running season. Each is a separate call site's worth
+// of string, so a time dropped from one of them is red here by name. The
+// pattern wants a capitalised zone word, which is what makes "8:00 AM CST" a
+// failure: the league's zone has to hold on both sides of daylight saving, and
+// an abbreviation does not.
+//
+// The pages then have to carry that exact string, and nothing else that reads
+// as a clock time. The stated string is removed first, so a stray "8 AM",
+// "7:00 pm" or "8:00 AM CST" beside a correct copy cannot hide behind it.
+check('the registration opening time agrees everywhere it is stated', function () {
+  const problems = [];
+  const stated = new Set();
+
+  [
+    ['2026-07-31', 'pending, season running'],
+    ['2026-08-13', 'registration day, season running'],
+    ['2026-11-15', 'pending, nothing running'],
+    ['2026-12-11', 'registration day, nothing running'],
+  ].forEach(function ([day, state]) {
+    const result = statusesOn(day);
+    [
+      ['hero note', result.note],
+      ['callout', result.callout],
+    ].forEach(function ([where, text]) {
+      const found = (text || '').match(/\b\d{1,2}:\d{2} [AP]M [A-Z][a-z]+/g) || [];
+      if (found.length !== 1) {
+        problems.push(
+          where + ' on ' + day + ' (' + state + ') needs exactly one time with a zone, read ' +
+            JSON.stringify(text)
+        );
+      } else {
+        stated.add(found[0]);
+      }
+    });
+  });
+
+  if (stated.size !== 1) {
+    problems.push('the bundle states ' + stated.size + ' opening times: ' + JSON.stringify([...stated]));
+  }
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+  const time = [...stated][0];
+
+  const faqBlock = faqHtml.match(JSON_LD_BLOCK);
+  if (!faqBlock) {
+    throw new Error('no JSON-LD block on the FAQ page to exclude from the visible text');
+  }
+
+  // Found by what the question asks rather than by its whole heading, and
+  // required to be exactly one, so renaming it fails by name instead of leaving
+  // this comparing nothing.
+  function isOpeningQuestion(question) {
+    return /registration/i.test(question) && /\bopen/i.test(question);
+  }
+  const plainText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const sections = [
+    ...visiblePage(faqHtml, faqBlock[0]).matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2\b|$)/g),
+  ].filter((section) => isOpeningQuestion(plainText(section[1])));
+  const entries = JSON.parse(faqBlock[1]).mainEntity.filter((entry) => isOpeningQuestion(entry.name));
+
+  if (sections.length !== 1) {
+    problems.push('expected one FAQ heading asking when registration opens, found ' + sections.length);
+  }
+  if (entries.length !== 1) {
+    problems.push('expected one FAQ JSON-LD question asking when registration opens, found ' + entries.length);
+  }
+
+  const locations = [
+    ['League Info', leagueInfo('Registration')],
+    ['the visible FAQ answer', sections.length === 1 ? plainText(sections[0][2]) : null],
+    ['the FAQ JSON-LD answer', entries.length === 1 ? entries[0].acceptedAnswer.text : null],
+  ];
+  locations.forEach(function ([where, text]) {
+    if (text === null) {
+      return;
+    }
+    if (!text.includes(time)) {
+      problems.push(where + ' does not state ' + time + ': ' + JSON.stringify(text));
+    }
+    const strays = text
+      .split(time)
+      .join(' ')
+      .match(/\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\b/gi);
+    if (strays) {
+      problems.push(where + ' also states ' + strays.join(', ') + ' beside ' + time);
+    }
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
+// statusOf works in calendar days, so the open branch runs from local midnight
+// on the registration date, and the site now publishes the hour the window
+// actually opens. "Registration is open now" at 7:00 AM would be contradicted by
+// its own page. The sentence has to hold at every hour of that day, so nothing
+// shown on the day may claim the window is already open.
+check('the registration day sentence never claims the window is already open', function () {
+  ['2026-08-13', '2026-12-11'].forEach(function (day) {
+    const result = statusesOn(day);
+    [
+      ['hero note', result.note],
+      ['callout', result.callout],
+    ].forEach(function ([where, text]) {
+      if (/\bopen now\b|\bis open\b/i.test(text || '')) {
+        throw new Error(where + ' on registration day claims it is open already: ' + JSON.stringify(text));
+      }
+    });
+  });
 });
 
 // The whole point of moving the FAQ on-site was to stop sending people to
