@@ -14,6 +14,7 @@ This file provides architectural context for AI assistants working on this codeb
 - `fonts/` - Self-hosted DM Sans and DM Serif Display woff2, plus the OFL 1.1 licence text each family requires when redistributed. Not in `public/`, deliberately: the `@font-face` rules in `css/style.css` reference them with relative `url()` paths so Vite content-hashes them.
 - `partials/` - Shared `header.html` and `footer.html`, pulled into pages with `{{> header}}` via vite-plugin-handlebars. `404.html` deliberately does not use them, which is why it carries no code of conduct link.
 - `public/` - Copied to `dist/` verbatim by Vite. Holds `img/`, `favicon.ico`, `site.webmanifest`, and `robots.txt`. Anything here ships at the same path it has in `public/`.
+- `public/summer2026/`, `public/fall2026/` - Unlisted end of season reports, served at `/summer2026/` and `/fall2026/`. Generated files, not hand-edited; see "Season reports" under Pages. `public/season-reports/fonts/` holds their self-hosted fonts and OFL texts.
 - `LICENSE.txt` - Project license.
 - `WORKLOG.md` - Per-issue history from #3 through #61, closed as of #76. Not a running record, and nothing asks anyone to add to it. See "The worklog is closed" below for where the history after #61 lives.
 - `vite.config.js` - Build configuration. Declares `index.html`, `faq/index.html`, `subs/index.html`, `code-of-conduct/index.html` and `404.html` as entry points. A new page needs an entry here, a line in `public/sitemap.xml`, an entry in the `PAGES` array in `scripts/check-links.js`, and a link from somewhere: the nav in `partials/header.html` for a page people navigate to, the footer for one they do not. It does **not** need adding to the html-validate command or to the per-page smoke checks; both walk `dist/`.
@@ -555,6 +556,30 @@ because the first cannot see the difference:
   "confidential". More than one organizer reads that inbox, so promising
   confidentiality would be a promise the league cannot keep. Change who reads the
   inbox and that check is what has to be revisited.
+
+### Season reports are unlisted on purpose
+
+`/summer2026/` and `/fall2026/` are standalone reports with each player's first name
+and record, and they are shared by URL. They carry `noindex`, are in neither the
+sitemap nor `robots.txt` (a crawler that is disallowed never reads the `noindex`), and
+no page links to them. They live in `public/`, so Vite copies them byte for byte, and
+they have no shared header, bundle or stylesheet, which is why `UNLISTED_REPORTS` in
+`scripts/smoke-build.js` keeps them out of `CONTENT_PAGES`, the way `404.html` is kept
+out.
+
+That exemption removes every check that would have noticed one going public, so `season
+reports stay unlisted, self-hosted and first names only` asserts it directly. A new
+report that is not added to `UNLISTED_REPORTS` lands in `CONTENT_PAGES` and goes red,
+which is the point: someone has to decide. It reads names out of `<script id="data">`,
+so a name written into the static copy is not seen.
+
+Players appear by first name, with a last initial only where a first name is shared.
+A report never names or counts players left out of its rankings.
+
+Fall comes from `build_report.py`, kept outside this repo with the league's stat
+sheets, using `--web-out public/fall2026/index.html`. That flag swaps Google Fonts for
+`/season-reports/fonts/` and adds the `noindex`. The Summer page was converted once from
+last season's file, so correct it in place.
 
 ### The mobile nav opens with no script, and the module takes it over
 
@@ -1265,6 +1290,11 @@ host got `110200` both ways. Headless Chrome stops there, so a real-key solve is
 and is a production check.
 `no-referrer` also makes the form POST send `Origin: null`. Nothing reads that today,
 and a future Origin check or a Cloudflare rule keyed on it would reject every visitor.
+
+**The season reports need their own policy before the one below goes live.** Each has
+an inline `<script>`, inline `<style>` and `style=` attributes, so `script-src 'self'`
+as a `/*` entry would leave `/summer2026/` and `/fall2026/` with no charts. Nothing in
+the smoke script sees this.
 
 #### The static-site values, not yet applied
 

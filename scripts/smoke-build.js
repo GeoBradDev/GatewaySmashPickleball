@@ -38,6 +38,13 @@ const HASHED = /-[A-Za-z0-9_-]{8,}\.(js|css)$/;
 const CANONICAL = 'https://www.gatewaysmash.com/';
 const ORIGIN = CANONICAL.replace(/\/$/, '');
 
+// Season reports: standalone pages in public/, reached only by a shared URL. They
+// are not content pages, for the same kind of reason 404.html is not: no shared
+// header, bundle or stylesheet, by design. Named by hand on purpose, so a new
+// report lands in CONTENT_PAGES and goes red until someone decides it is unlisted.
+// Declared above CONTENT_PAGES because that const reads it at load.
+const UNLISTED_REPORTS = ['summer2026/index.html', 'fall2026/index.html'];
+
 // Every built page a visitor navigates to. Derived from the built output rather
 // than hardcoded, so a page added to vite.config.js is covered the moment it
 // builds and cannot quietly ship without a canonical, a sitemap entry, or a
@@ -53,7 +60,7 @@ const ORIGIN = CANONICAL.replace(/\/$/, '');
 // 404.html is deliberately absent: it is not an index.html, it is standalone by
 // design, and the check that it stays standalone is its own.
 const CONTENT_PAGES = walk(distDir)
-  .filter((rel) => rel.endsWith('index.html'))
+  .filter((rel) => rel.endsWith('index.html') && !UNLISTED_REPORTS.includes(rel))
   .map((rel) => ({
     file: rel,
     url: CANONICAL + rel.replace(/index\.html$/, ''),
@@ -88,6 +95,69 @@ check('every page the sitemap lists was actually built', function () {
       'listed in sitemap.xml but not built: ' + missing.join(', ') +
         '; dist/ has ' + JSON.stringify(CONTENT_PAGES.map((page) => page.file))
     );
+  }
+});
+
+// The exemption above takes these pages out of every check that would have
+// noticed them going public, so what "unlisted" means is asserted here instead.
+check('season reports stay unlisted, self-hosted and first names only', function () {
+  const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
+  const robots = fs.readFileSync(path.join(distDir, 'robots.txt'), 'utf8');
+  const others = walk(distDir).filter((rel) => rel.endsWith('.html') && !UNLISTED_REPORTS.includes(rel));
+  const problems = [];
+
+  UNLISTED_REPORTS.forEach(function (file) {
+    const target = path.join(distDir, file);
+    if (!fs.existsSync(target)) {
+      problems.push(file + ' was not built');
+      return;
+    }
+    const html = fs.readFileSync(target, 'utf8');
+    const slug = file.split('/')[0];
+
+    if (!/noindex/i.test(metaContent(html, 'name=["\']robots["\']') ?? '')) {
+      problems.push(file + ' has no noindex robots meta');
+    }
+    if (sitemap.includes('/' + slug + '/')) {
+      problems.push(file + ' is listed in sitemap.xml');
+    }
+    // A crawler that is disallowed never fetches the page, so never reads noindex.
+    if (robots.includes(slug)) {
+      problems.push(file + ' is named in robots.txt, which would hide its noindex from crawlers');
+    }
+    others
+      .filter((rel) => new RegExp('href=["\'][^"\']*/' + slug + '\\b').test(fs.readFileSync(path.join(distDir, rel), 'utf8')))
+      .forEach((rel) => problems.push(rel + ' links to ' + slug));
+
+    if (/<(?:link|script)\b[^>]*\b(?:href|src)=["']https?:|url\(\s*["']?https?:|@import/.test(html)) {
+      problems.push(file + ' loads a third-party subresource');
+    }
+    const fonts = [...html.matchAll(/url\(\s*["']?(\/[^)"']+)/g)].map((m) => m[1]);
+    if (fonts.length === 0) {
+      problems.push(file + ' declares no self-hosted fonts');
+    }
+    missingFromDist(fonts).forEach((url) => problems.push(file + ' names a missing font: ' + url));
+
+    const block = html.match(/<script id="data" type="application\/json">([\s\S]*?)<\/script>/);
+    if (!block) {
+      problems.push(file + ' has no data block to read names from');
+      return;
+    }
+    const data = JSON.parse(block[1]);
+    if (!Array.isArray(data.players) || data.players.length === 0) {
+      problems.push(file + ' has no players in its data block');
+      return;
+    }
+    if ('excluded' in data) {
+      problems.push(file + ' embeds a list of excluded players');
+    }
+    data.players
+      .filter((player) => !/^\S+( [A-Z]\.)?$/.test(player.name))
+      .forEach((player) => problems.push(file + ' shows more than a first name: ' + player.name));
+  });
+
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
   }
 });
 
@@ -4272,6 +4342,8 @@ const UNDERLINE_OPT_OUTS = {
   '.nav-links a': 'navigation: a list of nothing but links has no text to blend into',
   '.skip-link': 'a keyboard-only control with its own solid background',
   '.page-actions a': 'holds .btn links, and has to outrank the .page-section a underline',
+  '.wkline s': 'season reports only: an <s> used as a weekly stat cell, never a link',
+  '.wkline .c s': 'the same stat cell, as the Summer report spells the selector',
 };
 
 // Brace counting rather than a regex, because the block nests rules. The print

@@ -29,6 +29,8 @@ const PAGES = [
   'faq/index.html',
   'subs/index.html',
   'code-of-conduct/index.html',
+  'summer2026/index.html',
+  'fall2026/index.html',
   '404.html',
 ];
 const TIMEOUT_MS = 20000;
