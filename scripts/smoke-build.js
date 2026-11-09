@@ -100,7 +100,7 @@ check('every page the sitemap lists was actually built', function () {
 
 // The exemption above takes these pages out of every check that would have
 // noticed them going public, so what "unlisted" means is asserted here instead.
-check('season reports stay unlisted, self-hosted and first names only', function () {
+check('season reports stay unlisted, CSP-safe, self-hosted and first names only', function () {
   const sitemap = fs.readFileSync(path.join(distDir, 'sitemap.xml'), 'utf8');
   const robots = fs.readFileSync(path.join(distDir, 'robots.txt'), 'utf8');
   const others = walk(distDir).filter((rel) => rel.endsWith('.html') && !UNLISTED_REPORTS.includes(rel));
@@ -129,10 +129,41 @@ check('season reports stay unlisted, self-hosted and first names only', function
       .filter((rel) => new RegExp('href=["\'][^"\']*/' + slug + '\\b').test(fs.readFileSync(path.join(distDir, rel), 'utf8')))
       .forEach((rel) => problems.push(rel + ' links to ' + slug));
 
-    if (/<(?:link|script)\b[^>]*\b(?:href|src)=["']https?:|url\(\s*["']?https?:|@import/.test(html)) {
+    // The site's Content-Security-Policy is a dashboard setting no file here shows,
+    // and these pages shipped with all their styling and charts blocked by it while
+    // every check was green. Inline anything is what it forbids.
+    if (/<style\b/.test(html)) {
+      problems.push(file + ' has an inline <style>, which the CSP blocks');
+    }
+    if (/<script\b(?![^>]*\bsrc=)(?![^>]*type="application\/json")/.test(html)) {
+      problems.push(file + ' has an inline <script>, which the CSP blocks');
+    }
+    if (/\sstyle=/.test(html)) {
+      problems.push(file + ' has a style attribute, which the CSP blocks');
+    }
+    // Root-absolute, because the page with no trailing slash resolves relative URLs from /.
+    const asset = (pattern, label) => {
+      const url = html.match(pattern)?.[1];
+      if (!url || !url.startsWith('/' + slug + '/')) {
+        problems.push(file + ' ' + label + ' is not a root-absolute URL in its own directory: ' + url);
+        return '';
+      }
+      if (missingFromDist([url]).length > 0) {
+        problems.push(file + ' names a missing ' + label + ': ' + url);
+        return '';
+      }
+      return fs.readFileSync(path.join(distDir, url.split('?')[0].slice(1)), 'utf8');
+    };
+    const css = asset(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]+)"/, 'stylesheet');
+    const js = asset(/<script\b[^>]*\bsrc="([^"]+)"/, 'script');
+    if (/\sstyle=\\?["']/.test(js)) {
+      problems.push(file + ' script writes style attributes, which the CSP blocks; use data-s');
+    }
+
+    if (/<(?:link|script)\b[^>]*\b(?:href|src)=["']https?:/.test(html) || /url\(\s*["']?https?:|@import/.test(css)) {
       problems.push(file + ' loads a third-party subresource');
     }
-    const fonts = [...html.matchAll(/url\(\s*["']?(\/[^)"']+)/g)].map((m) => m[1]);
+    const fonts = [...css.matchAll(/url\(\s*["']?(\/[^)"']+)/g)].map((m) => m[1]);
     if (fonts.length === 0) {
       problems.push(file + ' declares no self-hosted fonts');
     }
@@ -4342,8 +4373,6 @@ const UNDERLINE_OPT_OUTS = {
   '.nav-links a': 'navigation: a list of nothing but links has no text to blend into',
   '.skip-link': 'a keyboard-only control with its own solid background',
   '.page-actions a': 'holds .btn links, and has to outrank the .page-section a underline',
-  '.wkline s': 'season reports only: an <s> used as a weekly stat cell, never a link',
-  '.wkline .c s': 'the same stat cell, as the Summer report spells the selector',
 };
 
 // Brace counting rather than a regex, because the block nests rules. The print
@@ -4373,7 +4402,8 @@ function withoutPrintBlocks(css) {
 function underlineSources() {
   const files = walk(distDir);
   const stylesheets = files
-    .filter((rel) => rel.endsWith('.css'))
+    // A season report's stylesheet is its own design system, not the site's.
+    .filter((rel) => rel.endsWith('.css') && !UNLISTED_REPORTS.some((page) => rel.startsWith(page.split('/')[0] + '/')))
     .map((rel) => ({ name: rel, css: fs.readFileSync(path.join(distDir, rel), 'utf8') }));
   const inline = files
     .filter((rel) => rel.endsWith('.html'))
