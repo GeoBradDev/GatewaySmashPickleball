@@ -226,7 +226,7 @@ and the sans keeps the facts easy to scan.
   measure at 760px. The hero description is the pitch sentence alone, centred at 560px and
   balanced, with the decision facts under it as a centred list (0.95rem/600 ink,
   each item led by a 6px court-green dot so a wrapped row never starts with a
-  separator); the About lead is
+  separator, and set as two columns of two below 768px); the About lead is
   left-aligned at 30em, about 70 characters. Measures are set in `em`, not `ch`:
   a `ch` is the width of "0", and DM Sans averages about 0.42em a character, so
   64ch ran about 100. Body copy wraps with `text-wrap: pretty` and headings with
@@ -337,15 +337,18 @@ Soft and approachable: pills that lift a pixel when hovered.
 The heart of the noticeboard. A 12px-radius frame with a `border` outline, cream
 uppercase header cells, hairline row dividers and 0.9rem cells. The current
 season's row is tinted court wash. Past rows go to muted ink. The season a
-visitor can join next sits on cream with its name and status in ink, and before
-its window opens its status reads "Registration Dec 10" rather than Upcoming. The
-status column is written by the bundle: green for in progress, amber for
-registration open, muted for the rest. At 900px and below each row becomes a compact entry: the season
-name with its status at top right, the dates under it, then registration and bye
-as small labelled lines. A completed season drops those two lines and sits on the
-panel rather than on cream, so the seasons still ahead read first. The next
-season is outlined in court green instead of tinted, since every entry is already
-cream.
+visitor can join next is outlined in court green over cream, with its name and
+status in ink, and before its window opens its status reads "Registration Dec
+10" rather than Upcoming. Row tints and the outline sit on the row, never on
+its cells. The status column is written by the bundle: green for in progress,
+amber for registration open, muted for the rest.
+
+At 900px and below each row becomes a compact entry: the season name in DM
+Serif ink (never court green, which would read as a link) with its status at
+top right, the dates under it, then registration and bye as small labelled
+lines. A completed season drops those two lines and sits on the panel rather
+than on cream, so the seasons still ahead read first. The next season's entry
+recolours its own border court green, the same cue as the desktop outline.
 
 ### Closing band
 The page's one return to full volume after the hero. It continues the schedule's

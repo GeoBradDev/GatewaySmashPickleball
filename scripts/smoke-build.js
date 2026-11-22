@@ -4128,6 +4128,36 @@ check('every content page has its own canonical, one h1, and a sitemap entry', f
 const faqHtml = fs.readFileSync(path.join(distDir, 'faq', 'index.html'), 'utf8');
 const subsHtml = fs.readFileSync(path.join(distDir, 'subs', 'index.html'), 'utf8');
 
+// A link into the FAQ by fragment fails silently: rename the heading's id, or
+// drop it, and the link still lands on the FAQ, just at the top, with the
+// answer it promised somewhere below. Every /faq/#id on every content page has
+// to name an id the built FAQ carries. The homepage floor is the two links to
+// the joining answer, in the between-seasons hero line and in League Info,
+// so deleting them is a failure rather than a smaller set to loop over.
+check('every link into the FAQ by fragment lands on a real id', function () {
+  const problems = [];
+  let homepageLinks = 0;
+  CONTENT_PAGES.forEach(function (page) {
+    const html = pageHtml(page).replace(/<!--[\s\S]*?-->/g, '');
+    [...html.matchAll(/\bhref=["']\/faq\/#([^"']+)["']/g)].forEach(function (match) {
+      if (page.file === 'index.html') {
+        homepageLinks += 1;
+      }
+      if (!new RegExp('\\bid=["\']' + match[1] + '["\']').test(faqHtml)) {
+        problems.push('dist/' + page.file + ' links to /faq/#' + match[1] + ', which the FAQ has no id for');
+      }
+    });
+  });
+  if (homepageLinks < 2) {
+    problems.push(
+      'dist/index.html has ' + homepageLinks + ' link(s) to an FAQ answer; the hero line and League Info should both point at how to join'
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(problems.join('; '));
+  }
+});
+
 // FAQ rich results need every answer to exist on the page. Structured data
 // that promises text the visitor cannot find is worse than none.
 check('the FAQ structured data matches the visible page', function () {

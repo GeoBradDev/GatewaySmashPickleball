@@ -551,9 +551,13 @@ nav {
    two different offers. That rule's border-top is left behind: it divides the
    line from the league-info list above it, and there is no list here. */
 .hero-sub-cta {
-  margin: 1.25rem 0 0;
+  /* Capped and balanced since the between-seasons line grew to two sentences:
+     at full width it ran about 95 characters and broke after "The FAQ". */
+  max-width: 34em;
+  margin: 1.25rem auto 0;
   font-size: 0.9rem;
   color: var(--ink-soft);
+  text-wrap: balance;
 }
 
 /* The colour is restated rather than inherited from the base `a` rule so the
@@ -781,19 +785,22 @@ nav {
   font-size: 0.8rem;
 }
 
-.season-status--current {
+/* Scoped to .league-table td, which sets every cell to --ink-soft and used to
+   outrank these on specificity: registration day rendered in grey rather than
+   amber, and In progress lost its green, with nothing failing. */
+.league-table td.season-status--current {
   color: var(--court-green);
 }
 
-.season-status--open {
+.league-table td.season-status--open {
   color: var(--amber-dark);
 }
 
 /* Full joins these two rather than --open: a closed window is not something a
    visitor can act on, so it should not carry the colour that means "act now". */
-.season-status--past,
-.season-status--upcoming,
-.season-status--full {
+.league-table td.season-status--past,
+.league-table td.season-status--upcoming,
+.league-table td.season-status--full {
   color: var(--ink-muted);
   font-weight: 500;
 }
@@ -803,15 +810,25 @@ nav {
   color: var(--ink-muted);
 }
 
-.league-table tbody tr.season-row--current td {
+/* The tint goes on the row, not its cells. Painted per cell, fractional column
+   widths left hairline seams between them at some viewport widths. Listed
+   after the tbody hover rule so the hover does not replace it. */
+.league-table tbody tr.season-row--current {
   background: var(--court-green-light);
 }
 
-/* The season a visitor can join next. Not the green of the running season and
-   not amber, which means today: a cream tint off the white panel, with its
-   name and status in ink so it reads first among the rows still ahead. */
-.league-table tbody tr.season-row--next td {
+/* The season a visitor can join next. Not the green wash of the running
+   season and not amber, which means today: a court-green outline, the same cue
+   the stacked entries use under 900px, over a cream tint, with its name and
+   status in ink. The cream alone was near invisible on the white panel.
+
+   The outline is drawn on the row, not its cells. A cell border fights the
+   row above for the shared edge under border-collapse, and per-cell inset
+   shadows left seams where the cell edges fall on fractional pixels. */
+.league-table tbody tr.season-row--next {
   background: var(--cream);
+  outline: 1px solid var(--court-green);
+  outline-offset: -1px;
 }
 
 .league-table tbody tr.season-row--next td:first-child,
@@ -994,7 +1011,9 @@ nav {
     font-family: var(--font-display);
     font-size: 1.15rem;
     line-height: 1.3;
-    color: var(--court-green);
+    /* Ink, not court green: green is the one interactive colour, and four
+       green titles read as four links on a phone. */
+    color: var(--ink);
   }
 
   .league-table td.season-status {
@@ -1044,20 +1063,17 @@ nav {
     background: var(--court-green-light);
   }
 
-  /* Every entry is already cream here, so the next one is picked out by its
-     outline instead, and its cells drop the desktop tint. */
+  /* Every entry is already a bordered card here, so the next one recolours
+     its own border, and the desktop outline would sit inside it as a second
+     line. */
   .league-table tbody tr.season-row--next {
     border-color: var(--court-green);
-  }
-
-  .league-table tbody tr.season-row--next td {
-    background: transparent;
+    outline: none;
   }
 
   /* The name is DM Serif here, which ships one weight, so the desktop 600
      would be a faux bold. */
   .league-table tbody tr.season-row--next td:first-child {
-    color: var(--court-green);
     font-weight: 400;
   }
 
@@ -1395,7 +1411,12 @@ footer p {
     font-size: 1.02rem;
   }
 
+  /* Two columns of two at every width under the breakpoint. Left to wrap on
+     its own, the list went three and one between about 430px and 640px. */
   .hero-facts {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    justify-content: center;
     margin-bottom: 2rem;
     font-size: 0.9rem;
     gap: 0.4rem 1.25rem;

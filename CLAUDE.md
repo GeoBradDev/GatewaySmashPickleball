@@ -752,8 +752,13 @@ never show together. The subs offer is for a season on court. `#hero-remind` is
 for the gap: nothing on court and the next window not yet open, which is the one
 state where the button names a season nobody can join and nothing else in the
 hero is actionable. It links to `/join`, because the group carries the
-announcements, and it states no more than that: it does not promise a reminder
-the organizers have not committed to send. Neither shows on registration day,
+announcements, and it does not promise a reminder the organizers have not
+committed to send. It also tells a newcomer to set up a Global Pickleball
+Network account and link DUPR before the day, linking to the FAQ's
+`#how-to-join` answer, which League Info's Registration row links to as well.
+That is advice, not a rule: the FAQ says everyone needs a linked DUPR account,
+not that it must be linked before registering. A smoke check requires every
+`/faq/#id` link to name an id the built FAQ carries. Neither shows on registration day,
 where the button is the action. A smoke check pins the dates for both.
 
 **The button says "Join" on registration day and on no other.** Before the
@@ -1000,7 +1005,12 @@ That is the same defect class this section exists for, one level up.
 ## Colour contrast
 
 `--amber-dark` means "you can act on this today": the hero note and the
-Registration open row. It is text at 14px, so it needs 4.5:1 against both
+Registration open row. The row's colour rules are scoped as `.league-table
+td.season-status--*` because `.league-table td` sets every cell's colour and
+outranked the bare status classes: until the polish pass after #100 the open row
+rendered `--ink-soft`, In progress lost its green, and the contrast sums below
+stayed green, because they read the token and not the rule that applies it.
+Nothing checks that the rule wins; a browser does. It is text at 14px, so it needs 4.5:1 against both
 `--cream` and `--white`, and `npm run smoke` computes the ratios from the built
 stylesheet and fails below that. It shipped at 3.5:1, which made the single most
 actionable sentence on the page the hardest to read, and no other check could see
