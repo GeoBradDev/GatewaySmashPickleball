@@ -95,8 +95,6 @@
 
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(28, 28, 28, 0.06);
-  --shadow-md: 0 4px 12px rgba(28, 28, 28, 0.08);
-  --shadow-lg: 0 8px 30px rgba(28, 28, 28, 0.1);
   --shadow-card: 0 2px 8px rgba(28, 28, 28, 0.06), 0 0 0 1px rgba(28, 28, 28, 0.03);
 
   /* Spacing */
@@ -162,7 +160,17 @@ ul {
   list-style: none;
 }
 
+/* Progressive: a browser without text-wrap keeps its default wrap. Pretty
+   stops a lone last word on body copy; balance evens out headings, which
+   replaces the hand-placed <br> the About heading used to carry and which
+   broke mid-line on a phone. */
+p,
+li {
+  text-wrap: pretty;
+}
+
 h1, h2, h3 {
+  text-wrap: balance;
   font-family: var(--font-display);
   color: var(--ink);
   font-weight: 400;
@@ -453,10 +461,46 @@ nav {
 
 .hero-description {
   font-size: 1.15rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   max-width: 560px;
-  margin: 0 auto 2.5rem;
+  margin: 0 auto 1.25rem;
   line-height: 1.7;
+  /* One sentence now, so balanced rather than left to strand "ladder
+     leagues." on a second line. */
+  text-wrap: balance;
+}
+
+/* Each fact carries its own dot rather than a separator between items, so a
+   wrapped row never starts with a stray divider on a phone. */
+.hero-facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  margin: 0 auto 2.5rem;
+  /* Wide enough for all four on one row at desktop; at 560px the last one
+     wrapped alone. Phones get two rows of two. */
+  max-width: 40rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hero-facts li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.hero-facts li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--court-green);
+  flex: none;
 }
 
 .hero-actions {
@@ -536,63 +580,115 @@ nav {
   background: var(--white);
 }
 
+/* The measure is in em, not ch. A ch is the width of "0", and DM Sans
+   averages about 0.42em a character, so 64ch came out at 773px and about 100
+   characters a line. 30em is about 70, measured in a browser at 1440px.
+   Left-aligned, because seven centred lines of prose make every line start
+   somewhere new. The block itself stays centred under the heading. */
 .about-lead {
   font-size: 1.1rem;
   color: var(--ink-muted);
-  max-width: 760px;
+  max-width: 30em;
   margin: 0 auto 3.5rem;
-  text-align: center;
+  text-align: left;
   line-height: 1.75;
 }
 
-.features {
+/* The ladder leads and the two notes support it, so the columns are unequal
+   on purpose. One panel, not three equal cards: only the ladder is a sequence. */
+.about-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 3.5rem;
+  align-items: start;
 }
 
-.feature {
+.ladder {
   background: var(--cream);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 2.25rem;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  padding: 2.25rem 2.5rem;
 }
 
-.feature:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-}
-
-.feature-icon {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--court-green-light);
-  color: var(--court-green);
-  border-radius: var(--radius-md);
-  margin-bottom: 1.25rem;
-}
-
-.feature h3 {
+.ladder h3,
+.about-note h3 {
   font-size: 1.3rem;
   margin-bottom: 0.75rem;
 }
 
-.feature p {
+.ladder h3 {
+  margin-bottom: 1.25rem;
+}
+
+.ladder-steps {
+  list-style: none;
+  counter-reset: ladder;
+}
+
+.ladder-steps li {
+  counter-increment: ladder;
+  display: grid;
+  /* The text column is capped rather than the li, so the rule between steps
+     still runs the full width once the about grid collapses at 900px, where
+     1fr let a step run about 97 characters a line. */
+  grid-template-columns: 2.5rem minmax(0, 30em);
+  column-gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  line-height: 1.6;
+}
+
+.ladder-steps li:last-child {
+  padding-bottom: 0;
+}
+
+/* The numeral spans both lines of the step, so the label and its sentence
+   read as one unit beside it. */
+.ladder-steps li::before {
+  content: counter(ladder);
+  grid-row: span 2;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--court-green);
+  font-variant-numeric: lining-nums;
+}
+
+.ladder-steps strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.about-notes {
+  display: grid;
+  gap: 2.25rem;
+  padding-top: 0.5rem;
+}
+
+.about-note {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.about-note p {
+  /* em for the reason given on .about-lead: 65ch let these run about 90
+     characters a line once the about grid collapses at 900px. */
+  max-width: 28em;
   font-size: 0.95rem;
   color: var(--ink-muted);
   line-height: 1.65;
 }
 
-.feature p a {
+.about-note p a {
   font-weight: 600;
   text-decoration-color: rgba(26, 122, 92, 0.3);
 }
 
-.feature p a:hover {
+.about-note p a:hover {
   text-decoration-color: var(--court-green);
 }
 
@@ -711,24 +807,55 @@ nav {
   background: var(--court-green-light);
 }
 
-/* League Info */
-.league-info {
+/* The season a visitor can join next. Not the green of the running season and
+   not amber, which means today: a cream tint off the white panel, with its
+   name and status in ink so it reads first among the rows still ahead. */
+.league-table tbody tr.season-row--next td {
+  background: var(--cream);
+}
+
+.league-table tbody tr.season-row--next td:first-child,
+.league-table tbody tr.season-row--next .season-status--upcoming {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* League Info: two groups, each a single column of label and value rows, so a
+   wrapped value never knocks its neighbour's rule out of line. */
+.league-info-groups {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem 2rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 3rem;
   margin-top: 1rem;
 }
 
+.league-info-group h4 {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--ink);
+}
+
 .league-info li {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  column-gap: 1rem;
   font-size: 0.95rem;
   color: var(--ink-soft);
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border-light);
 }
 
 .league-info li strong {
   color: var(--ink);
   font-weight: 600;
+}
+
+/* The sub line below draws its own rule, so a closing rule here would double it. */
+.league-info li:last-child {
+  border-bottom: 0;
 }
 
 /* ============================================================
@@ -805,6 +932,153 @@ nav {
   text-decoration: none;
 }
 
+/* The schedule restacks before the nav does: between 769px and 900px the five
+   columns squeeze the dates onto two lines in every row, while a compact entry
+   per season reads cleanly at that width. */
+@media (max-width: 900px) {
+  /* League Table → Card Layout */
+  .table-wrapper {
+    border: none;
+    overflow: visible;
+  }
+
+  .league-table {
+    border: none;
+  }
+
+  .league-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .league-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  /* Each row is a compact entry rather than a card of five labelled lines:
+     name and status on top, the dates under them, and registration and bye as
+     one small line. A full card per season made five rows about 1,700px tall.
+     The status cell is the one js/app.js appends, so it is placed by its class
+     rather than by position, and a row the bundle never reached simply has no
+     top-right cell. */
+  .league-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1rem;
+    row-gap: 0.2rem;
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1rem;
+  }
+
+  .league-table td {
+    grid-column: 1 / -1;
+    display: block;
+    padding: 0;
+    border: 0;
+    font-size: 0.9rem;
+  }
+
+  .league-table td:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    line-height: 1.3;
+    color: var(--court-green);
+  }
+
+  .league-table td.season-status {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .league-table td:nth-child(2) {
+    color: var(--ink-soft);
+    margin-bottom: 0.15rem;
+  }
+
+  .league-table td:nth-child(3),
+  .league-table td:nth-child(4) {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+
+  /* The name, the dates and the status are self-evident in this layout; only
+     the two small lines need their label, and inline rather than as a column. */
+  .league-table td::before {
+    content: none;
+  }
+
+  .league-table td:nth-child(3)::before,
+  .league-table td:nth-child(4)::before {
+    content: attr(data-label) ': ';
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+
+  .league-table td:empty::after {
+    content: '—';
+    /* --ink-faint on cream is about 2.6:1 and fails WCAG AA. This dash is the
+       only thing standing in for a missing value, so it has to be readable.
+       --ink-muted is about 5:1 on the same background. */
+    color: var(--ink-muted);
+  }
+
+  .league-table tbody tr:hover {
+    background: var(--cream);
+  }
+
+  .league-table tbody tr.season-row--current,
+  .league-table tbody tr.season-row--current td {
+    background: var(--court-green-light);
+  }
+
+  /* Every entry is already cream here, so the next one is picked out by its
+     outline instead, and its cells drop the desktop tint. */
+  .league-table tbody tr.season-row--next {
+    border-color: var(--court-green);
+  }
+
+  .league-table tbody tr.season-row--next td {
+    background: transparent;
+  }
+
+  /* The name is DM Serif here, which ships one weight, so the desktop 600
+     would be a faux bold. */
+  .league-table tbody tr.season-row--next td:first-child {
+    color: var(--court-green);
+    font-weight: 400;
+  }
+
+  /* A finished season keeps its name, dates and status, and drops the
+     registration date and bye, which nobody can act on any more. It sits on
+     the panel rather than on cream so the seasons still ahead read first. */
+  .league-table tbody tr.season-row--past {
+    background: transparent;
+    border-color: var(--border-light);
+  }
+
+  .league-table tbody tr.season-row--past td:first-child {
+    color: var(--ink-muted);
+  }
+
+  .league-table tbody tr.season-row--past td:nth-child(3),
+  .league-table tbody tr.season-row--past td:nth-child(4) {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .page-section {
     padding-top: 110px;
@@ -837,41 +1111,67 @@ nav {
 /* ============================================================
    Contact
    ============================================================ */
+/* The closing next step. It continues the schedule's cream rather than
+   taking a new colour, and gets its weight from the display face at near-hero
+   size: the one moment after the hero where the page speaks at full volume. */
+.next-step {
+  padding: 0 0 var(--section-pad);
+  background: var(--cream);
+}
+
+/* No rule above it: the leagues section's own bottom padding already
+   separates the schedule card from this, and a rule wider than the card read
+   as a stray line. */
+.next-step-inner {
+  text-align: center;
+}
+
+.next-step h2 {
+  font-size: 3.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}
+
+.next-step-note {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 auto 2rem;
+  text-wrap: balance;
+}
+
+/* Registration day, as on .hero-note--open and the table's open status. */
+.next-step-note--open {
+  color: var(--amber-dark);
+}
+
+.next-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
 .contact {
   padding: var(--section-pad) 0;
   background: var(--white);
 }
 
+/* A directory listing rather than three cards: each entry is a heading and a
+   value under one rule, which is all the information there is. */
 .contact-info {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem 3rem;
+  max-width: 880px;
+  margin: 0 auto;
 }
 
 .contact-item {
-  text-align: center;
-  padding: 2.25rem 1.5rem;
-  background: var(--cream);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.contact-item:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-}
-
-.contact-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--court-green-light);
-  color: var(--court-green);
-  border-radius: 50%;
-  margin: 0 auto 1rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--ink);
 }
 
 .contact-item h3 {
@@ -881,21 +1181,17 @@ nav {
 
 .contact-item p {
   font-size: 0.95rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .contact-item a {
-  color: var(--court-green);
   font-weight: 500;
-  text-decoration: underline;
-  text-decoration-color: rgba(26, 122, 92, 0.25);
-  text-underline-offset: 3px;
+  text-decoration-color: rgba(26, 122, 92, 0.3);
   transition: text-decoration-color 0.2s ease, color 0.2s ease;
 }
 
 .contact-item a:hover {
   text-decoration-color: var(--court-green);
-  color: var(--court-green-dark);
 }
 
 /* ============================================================
@@ -939,18 +1235,19 @@ footer p {
     font-size: 2.25rem;
   }
 
-  .features {
+  .about-grid {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 2.5rem;
   }
 
   .contact-info {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1.75rem;
   }
 
-  .league-info {
+  .league-info-groups {
     grid-template-columns: 1fr;
+    gap: 2rem;
   }
 }
 
@@ -1096,7 +1393,12 @@ footer p {
 
   .hero-description {
     font-size: 1.02rem;
+  }
+
+  .hero-facts {
     margin-bottom: 2rem;
+    font-size: 0.9rem;
+    gap: 0.4rem 1.25rem;
   }
 
   .hero-actions {
@@ -1106,6 +1408,21 @@ footer p {
   }
 
   .hero-actions .btn {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .next-step h2 {
+    font-size: 2.25rem;
+  }
+
+  .next-step-actions {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .next-step-actions .btn {
     width: 100%;
     max-width: 300px;
   }
@@ -1128,101 +1445,6 @@ footer p {
   /* About */
   .about-lead {
     font-size: 1rem;
-    text-align: left;
-  }
-
-  /* League Table → Card Layout */
-  .table-wrapper {
-    border: none;
-    overflow: visible;
-  }
-
-  .league-table {
-    border: none;
-  }
-
-  .league-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .league-table tbody {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .league-table tr {
-    display: block;
-    background: var(--cream);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1.25rem;
-  }
-
-  .league-table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: 0.9rem;
-  }
-
-  .league-table td:last-child {
-    border-bottom: none;
-  }
-
-  .league-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: var(--ink);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    flex-shrink: 0;
-    margin-right: 1rem;
-  }
-
-  .league-table td:empty::before {
-    content: attr(data-label);
-  }
-
-  .league-table td:empty::after {
-    content: '—';
-    /* --ink-faint on cream is about 2.6:1 and fails WCAG AA. This dash is the
-       only thing standing in for a missing value, so it has to be readable.
-       --ink-muted is about 5:1 on the same background. */
-    color: var(--ink-muted);
-  }
-
-  /* First td (Season) gets highlighted as card header */
-  .league-table td:first-child {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    color: var(--court-green);
-    border-bottom: 2px solid var(--court-green-light);
-    padding-bottom: 10px;
-    margin-bottom: 4px;
-  }
-
-  .league-table td:first-child::before {
-    display: none;
-  }
-
-  .league-table tbody tr:hover {
-    background: var(--cream);
-  }
-
-  .league-table tbody tr.season-row--current,
-  .league-table tbody tr.season-row--current td {
-    background: var(--court-green-light);
   }
 
   /* League Details */
@@ -1268,6 +1490,10 @@ footer p {
     font-size: 2rem;
   }
 
+  .next-step h2 {
+    font-size: 1.85rem;
+  }
+
   .hero-description {
     font-size: 0.95rem;
   }
@@ -1281,25 +1507,23 @@ footer p {
     padding: 5px 12px;
   }
 
-  .feature {
-    padding: 1.75rem;
+  .ladder {
+    padding: 1.5rem 1.25rem;
   }
 
-  .feature h3 {
+  .ladder h3,
+  .about-note h3 {
     font-size: 1.15rem;
   }
 
-  .contact-item {
-    padding: 1.5rem 1rem;
+  .league-info li {
+    column-gap: 0.75rem;
   }
 
   .league-details {
     padding: 1.25rem;
   }
 
-  .league-table td {
-    font-size: 0.85rem;
-  }
 
   .league-info li {
     font-size: 0.9rem;

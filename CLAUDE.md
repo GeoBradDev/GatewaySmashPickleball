@@ -722,7 +722,11 @@ which is the state issue #10 found the site in. `js/app.js` reads `data-start`,
 `data-end` and `data-registration` off each schedule row and from them writes the
 Status column, the callout above the table, the hero CTA label and note, and
 which of the hero's two secondary lines is shown: the "Play as a sub" offer or the
-between-seasons WhatsApp line.
+between-seasons WhatsApp line. It also marks the one row a visitor can join next with
+`season-row--next`, and before that window opens gives it the status
+"Registration Dec 10" in place of Upcoming. The row is the same one the hero
+names, because both read `nextRegistration`, and it is only known once every row
+has been read, so it is written after the row loop rather than in it.
 
 This is **progressive enhancement**, and it has to stay that way. `index.html`
 ships the CTA as "Join the League", the note as an empty `hidden` paragraph, and
@@ -741,6 +745,14 @@ hero is actionable. It links to `/join`, because the group carries the
 announcements, and it states no more than that: it does not promise a reminder
 the organizers have not committed to send. Neither shows on registration day,
 where the button is the action. A smoke check pins the dates for both.
+
+**The button says "Join" on registration day and on no other.** Before the
+window opens it reads "Register for Winter 2027 from Dec 10": it still links to
+the GPN register page and keeps its primary style, by the owner's decision, so
+the label is what stops it inviting a click on a shut window. The date is built
+by `shortDate` from the same vetted timestamp as the note, with non-breaking
+spaces so "from Dec 10" never splits when the button wraps on a phone. A smoke
+check pins the label on both sides of the opening day.
 
 Their copy names no season, so there is nothing to derive, and a `textContent`
 write would take the link inside each one with it. The same trap is why the

@@ -2466,6 +2466,14 @@ function statusesOn(when, opts) {
   // Static copy revealed by clearing hidden, exactly like the subs offer.
   const remind = createElementStub();
   remind.hidden = true;
+  // The closing band, seeded with the copy index.html ships, for the same
+  // reason the hero button is: reading it back proves the bundle left it alone.
+  const nextHeading = createElementStub();
+  nextHeading.textContent = 'Join the next season';
+  const nextNote = createElementStub();
+  nextNote.hidden = true;
+  const nextJoin = createElementStub();
+  nextJoin.textContent = 'Join the League';
 
   const page = {
     'season-callout': callout,
@@ -2473,6 +2481,9 @@ function statusesOn(when, opts) {
     'hero-note': note,
     'hero-sub': sub,
     'hero-remind': remind,
+    'next-heading': nextHeading,
+    'next-note': nextNote,
+    'next-join': nextJoin,
   };
   omit.forEach(function (id) {
     delete page[id];
@@ -2490,12 +2501,24 @@ function statusesOn(when, opts) {
       return cell ? cell.textContent : null;
     }),
     callout: callout.hidden ? null : callout.textContent,
+    nextRows: schedule.rows
+      .map(function (row, index) {
+        return row.classList.contains('season-row--next') ? index : -1;
+      })
+      .filter(function (index) {
+        return index !== -1;
+      }),
     join: join.textContent.trim(),
     joinDescribedBy: join.getAttribute('aria-describedby'),
     note: note.hidden ? null : note.textContent,
     noteClass: note.className,
     subShown: !sub.hidden,
     remindShown: !remind.hidden,
+    nextHeading: nextHeading.textContent,
+    nextNote: nextNote.hidden ? null : nextNote.textContent,
+    nextNoteClass: nextNote.className,
+    nextJoin: nextJoin.textContent.trim(),
+    nextJoinDescribedBy: nextJoin.getAttribute('aria-describedby'),
   };
 }
 
@@ -2520,7 +2543,7 @@ check('the status column it builds is a real table header', function () {
 
 check('the schedule marks the season that is actually running', function () {
   const result = statusesOn('2026-07-31');
-  const expected = ['Completed', 'In progress', 'Upcoming', 'Upcoming'];
+  const expected = ['Completed', 'In progress', 'Registration Aug\u00a013', 'Upcoming'];
   if (JSON.stringify(result.labels) !== JSON.stringify(expected)) {
     throw new Error('got ' + JSON.stringify(result.labels) + ', expected ' + JSON.stringify(expected));
   }
@@ -2540,7 +2563,7 @@ check('the schedule marks the season that is actually running', function () {
 
 check('the schedule flips to registration open on the right day', function () {
   const before = statusesOn('2026-08-12');
-  if (before.labels[2] !== 'Upcoming') {
+  if (before.labels[2] !== 'Registration Aug\u00a013') {
     throw new Error('Fall 2026 was ' + before.labels[2] + ' the day before registration opens');
   }
   const on = statusesOn('2026-08-13');
@@ -2581,7 +2604,7 @@ check('the hero moves to the next season once a window has closed', function () 
     throw new Error('hero should offer Fall 2026 on its open day, got ' + JSON.stringify(during.join));
   }
   const after = statusesOn('2026-08-14');
-  if (after.join !== 'Join Winter 2027') {
+  if (after.join !== 'Register for Winter 2027 from\u00a0Dec\u00a011') {
     throw new Error(
       'hero still offers ' + JSON.stringify(after.join) + ' the day after Fall 2026 filled'
     );
@@ -2608,7 +2631,7 @@ check('a season is complete the day after it ends, not before', function () {
 // visitor was being asked to click.
 check('the hero CTA names the season a visitor would be joining', function () {
   const result = statusesOn('2026-07-31');
-  if (result.join !== 'Join Fall 2026') {
+  if (result.join !== 'Register for Fall 2026 from\u00a0Aug\u00a013') {
     throw new Error('hero CTA reads ' + JSON.stringify(result.join) + ', which names no season');
   }
   // #51: this read only the second sentence, so on a day a season was being
@@ -2663,7 +2686,7 @@ check('an evening visitor west of UTC is not told registration opened a day earl
   if (result.note !== 'Summer 2026 is in progress. Fall 2026 registration opens August 13, 2026 at 8:00 AM Central.') {
     throw new Error('hero note on the evening before registration opens: ' + JSON.stringify(result.note));
   }
-  if (result.labels[2] !== 'Upcoming') {
+  if (result.labels[2] !== 'Registration Aug\u00a013') {
     throw new Error('Fall 2026 read as ' + result.labels[2] + ' the evening before registration opens');
   }
   // The other end of the same bug: the final Sunday night of a season is
@@ -2727,10 +2750,10 @@ check('a row the bundle cannot read is skipped rather than guessed at', function
   // Every other row still has to behave exactly as it does with the fixture
   // intact, or the guard has swallowed the whole table rather than one row.
   const others = [result.labels[0], result.labels[1], result.labels[3]];
-  if (JSON.stringify(others) !== JSON.stringify(['Completed', 'In progress', 'Upcoming'])) {
+  if (JSON.stringify(others) !== JSON.stringify(['Completed', 'In progress', 'Registration Dec\u00a011'])) {
     throw new Error('one bad row changed the rest of the table: ' + JSON.stringify(result.labels));
   }
-  if (result.join !== 'Join Winter 2027') {
+  if (result.join !== 'Register for Winter 2027 from\u00a0Dec\u00a011') {
     throw new Error(
       'the hero offers ' + JSON.stringify(result.join) +
         ', a season picked from a row whose start date is unreadable'
@@ -2806,7 +2829,7 @@ check('a date that rolls over instead of failing is still not a date', function 
     // unreadable row drops out. Asserted as well as the NaN scan, because a
     // row that silently rolls to a plausible-looking date renders no NaN at
     // all: "2026-02-30" would quietly advertise March 2.
-    if (result.join !== 'Join Winter 2027') {
+    if (result.join !== 'Register for Winter 2027 from\u00a0Dec\u00a011') {
       throw new Error(
         description + ' (' + value + ') left the hero offering ' + JSON.stringify(result.join)
       );
@@ -2907,8 +2930,8 @@ function scheduleRows() {
       }
       return found[2];
     }
-    // The label is escaped here rather than by the caller, so that "Bye
-    // (reason)" can be passed as it is written in the markup. A helper that
+    // The label is escaped here rather than by the caller, so that a label with
+    // regex characters in it can be passed as it is written in the markup. A helper that
     // silently requires pre-escaped input is a trap for whoever adds the next
     // column.
     function cell(label) {
@@ -2932,9 +2955,9 @@ function scheduleRows() {
       start: attr('data-start'),
       end: attr('data-end'),
       registration: attr('data-registration'),
-      datesCell: cell('Season Dates'),
-      registrationCell: cell('Registration Opens'),
-      byeCell: cell('Bye (reason)'),
+      datesCell: cell('Season dates'),
+      registrationCell: cell('Registration opens'),
+      byeCell: cell('Bye'),
     };
   });
 }
@@ -3334,9 +3357,9 @@ check('each schedule row shows the dates its attributes claim', function () {
         );
       }
     }
-    shows(row.datesCell, row.start, 'Season Dates');
-    shows(row.datesCell, row.end, 'Season Dates');
-    shows(row.registrationCell, row.registration, 'Registration Opens');
+    shows(row.datesCell, row.start, 'Season dates');
+    shows(row.datesCell, row.end, 'Season dates');
+    shows(row.registrationCell, row.registration, 'Registration opens');
   });
   if (problems.length > 0) {
     throw new Error(problems.join('; '));
@@ -3801,6 +3824,95 @@ check('the hero claims no season is running during the gap between seasons', fun
   }
 });
 
+// "Join" is true on registration day and on no other. Before it, the button
+// still opens the GPN register page, so its label names the day that page
+// opens instead of inviting a click on a shut window. Pinned in both pending
+// states, with a season on court and in the gap, and on the day itself.
+// The \u00a0s are real: they keep "from Dec 11" on one line when the button wraps.
+check('the hero button says Join only on registration day', function () {
+  const expectations = [
+    ['2026-07-31', 'Register for Fall 2026 from\u00a0Aug\u00a013'],
+    ['2026-08-13', 'Join Fall 2026'],
+    ['2026-11-15', 'Register for Winter 2027 from\u00a0Dec\u00a011'],
+    ['2026-12-11', 'Join Winter 2027'],
+  ];
+  expectations.forEach(function ([day, expected]) {
+    const result = statusesOn(day);
+    if (result.join !== expected) {
+      throw new Error(
+        'on ' + day + ' the hero button read ' + JSON.stringify(result.join) +
+          ', expected ' + JSON.stringify(expected)
+      );
+    }
+  });
+});
+
+// Up to four rows read Upcoming at once, so the row a visitor can join next is
+// marked, and before its window opens its status gives the day. Exactly one
+// row, and the right one, in each state: with a season on court, in the gap,
+// on registration day (where the status stays "Registration open"), and with
+// nothing left to join.
+check('the schedule marks the one season a visitor can join next', function () {
+  const expectations = [
+    ['2026-07-31', [2], 'Registration Aug\u00a013'],
+    ['2026-08-13', [2], 'Registration open'],
+    ['2026-11-15', [3], 'Registration Dec\u00a011'],
+    ['2027-06-01', [], null],
+  ];
+  expectations.forEach(function ([day, rows, label]) {
+    const result = statusesOn(day);
+    if (JSON.stringify(result.nextRows) !== JSON.stringify(rows)) {
+      throw new Error(
+        'on ' + day + ' the rows marked next were ' + JSON.stringify(result.nextRows) +
+          ', expected ' + JSON.stringify(rows)
+      );
+    }
+    if (label && result.labels[rows[0]] !== label) {
+      throw new Error(
+        'on ' + day + ' the next row read ' + JSON.stringify(result.labels[rows[0]]) +
+          ', expected ' + JSON.stringify(label)
+      );
+    }
+  });
+});
+
+// The closing band repeats the hero's next step under the schedule. Its button
+// must say exactly what the hero's says, in every state, because two labels for
+// one link is how a page starts contradicting itself. Its heading and sentence
+// are pinned too, and with nothing left to join it keeps the shipped copy.
+check('the closing band names the same next step as the hero', function () {
+  const expectations = [
+    ['2026-07-31', 'Fall 2026 starts September 13.',
+      'Registration opens August 13, 2026 at 8:00 AM Central.', 'next-step-note'],
+    ['2026-08-13', 'Fall 2026 starts September 13.',
+      'Registration is today, from 8:00 AM Central.', 'next-step-note next-step-note--open'],
+    ['2026-11-15', 'Winter 2027 starts January 10.',
+      'Registration opens December 11, 2026 at 8:00 AM Central.', 'next-step-note'],
+    ['2027-06-01', 'Join the next season', null, ''],
+  ];
+  expectations.forEach(function ([day, heading, note, noteClass]) {
+    const result = statusesOn(day);
+    if (result.nextJoin !== result.join) {
+      throw new Error(
+        'on ' + day + ' the band button read ' + JSON.stringify(result.nextJoin) +
+          ' and the hero button ' + JSON.stringify(result.join)
+      );
+    }
+    if (result.nextHeading !== heading) {
+      throw new Error('on ' + day + ' the band heading read ' + JSON.stringify(result.nextHeading));
+    }
+    if (result.nextNote !== note) {
+      throw new Error('on ' + day + ' the band note read ' + JSON.stringify(result.nextNote));
+    }
+    if (note && result.nextNoteClass !== noteClass) {
+      throw new Error('on ' + day + ' the band note carries ' + JSON.stringify(result.nextNoteClass));
+    }
+    if (note && result.nextJoinDescribedBy !== 'next-note') {
+      throw new Error('on ' + day + ' the band button is not described by its note');
+    }
+  });
+});
+
 // The dead end #51 was filed about: a season is being played, the next one
 // cannot be registered for yet, and for 46 to 57 days at a stretch the hero
 // offered nothing a visitor could act on. Subs are the one thing they can do
@@ -3958,6 +4070,24 @@ check('the built hero ships the ids the bundle enhances', function () {
   }
   if (!/href=["']\/join["']/.test(remindPara[0])) {
     throw new Error('p#hero-remind does not link to /join');
+  }
+  // The closing band ships season-neutral, its note hidden, and its button
+  // pointing where the hero's does, so the two buttons are one link.
+  const nextHeadingTag = indexHtml.match(/<h2\b[^>]*\bid=["']next-heading["'][^>]*>([^<]*)<\/h2>/);
+  if (!nextHeadingTag || nextHeadingTag[1].trim() !== 'Join the next season') {
+    throw new Error('h2#next-heading is missing or ships naming a season: ' + JSON.stringify(nextHeadingTag && nextHeadingTag[1]));
+  }
+  const nextNotePara = indexHtml.match(/<p\b[^>]*\bid=["']next-note["'][^>]*>/);
+  if (!nextNotePara || !/\bhidden\b/.test(nextNotePara[0])) {
+    throw new Error('p#next-note is missing or ships without hidden');
+  }
+  const hrefOf = function (id) {
+    const tag = indexHtml.match(new RegExp('<a\\b[^>]*\\bid=["\']' + id + '["\'][^>]*>'));
+    const href = tag && tag[0].match(/\bhref=["']([^"']+)["']/);
+    return href ? href[1] : null;
+  };
+  if (!hrefOf('next-join') || hrefOf('next-join') !== hrefOf('hero-join')) {
+    throw new Error('a#next-join links to ' + hrefOf('next-join') + ', not where the hero button does');
   }
 });
 

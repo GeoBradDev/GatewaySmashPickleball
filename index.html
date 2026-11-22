@@ -64,9 +64,16 @@
     <div class="container hero-content">
       <p class="hero-eyebrow">Sunday Nights at Arch Pickleball</p>
       <h1>People Over Profits.<br>Pickleball For Everyone.</h1>
-      <p class="hero-description">One of St. Louis' largest and most affordable indoor pickleball ladder leagues.
-        Gateway Smash is volunteer-run: $70 for an eight-week season, played indoors, open to any skill level.
-        Subs play free.</p>
+      <p class="hero-description">One of St. Louis' largest and most affordable indoor pickleball ladder leagues.</p>
+      <!-- The facts a visitor decides on, as a list rather than a sentence, so
+           they scan in one glance. No day, time or venue: the eyebrow carries
+           the night, and League Info is the one place the time is stated. -->
+      <ul class="hero-facts">
+        <li>$70 for eight weeks</li>
+        <li>Volunteer-run</li>
+        <li>Any skill level</li>
+        <li>Subs play free</li>
+      </ul>
       <div class="hero-actions">
         <!-- The label ships season-neutral on purpose. js/app.js rewrites it to
              name the season from the schedule dates; baking a season name in
@@ -81,11 +88,11 @@
         </a>
         <!-- Inside the button group and directly after the link it describes,
              so that when the group stacks on mobile the note sits under the
-             Join button rather than under Learn More. CSS order puts it last
+             Join button rather than under Learn more. CSS order puts it last
              again on desktop, where the buttons sit side by side. -->
         <p class="hero-note" id="hero-note" hidden></p>
         <a href="#about" class="btn btn--ghost">
-          Learn More
+          Learn more
         </a>
       </div>
       <!-- Outside .hero-actions, unlike the note: the note has to land under
@@ -120,38 +127,41 @@
     <div class="container">
       <div class="section-header">
         <span class="section-tag">Who we are</span>
-        <h2>Indoor pickleball ladder leagues<br>in St. Louis</h2>
+        <h2>Indoor pickleball ladder leagues in St. Louis</h2>
       </div>
       <p class="about-lead">Gateway Smash is built by players, for players. It started as an answer to the corporate
         leagues in St. Louis: high fees, inconsistent play, and disorganized management. It is volunteer-run, and every
         dollar goes to court rental, not to salaries. Matches are indoors at Arch Pickleball, so a forecast never
         cancels a night. Running on free tools is what keeps the fee down, and all skill levels play.</p>
-      <div class="features">
-        <div class="feature">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2C7.37 2 2 7.37 2 14s5.37 12 12 12 12-5.37 12-12S20.63 2 14 2zm0 4a3 3 0 110 6 3 3 0 010-6zm0 17c-3.17 0-5.97-1.63-7.6-4.1.04-2.52 5.07-3.9 7.6-3.9s7.56 1.38 7.6 3.9A9.96 9.96 0 0114 23z" fill="currentColor"/></svg>
-          </div>
-          <h3>Inclusive and player first</h3>
-          <p>Players range from 2.0 to 4.0+. If you are still working out where to stand there is a pod for you,
-            and if you are chasing a 4.0 there is a pod for that too.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M26 6l-12 12-4-4-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 6h6v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+      <!-- The ladder is the one block here that is a sequence, so it leads as a
+           numbered list rather than sitting as one of three equal cards. It
+           stops at the weekly rating update on purpose: the social-court hour
+           has no fixed place in the night (see the Court time comment in League
+           Info), so numbering it would state an order that is wrong for some
+           pods. -->
+      <div class="about-grid">
+        <div class="ladder">
           <h3>How the ladder works</h3>
-          <p>You play three doubles matches a night in a pod of four, partnering with each of the other three
-            once. Elo ratings update weekly, so pods stay close to your level, and beating someone rated above you
-            moves you the most.</p>
+          <ol class="ladder-steps">
+            <li><strong>A pod of four.</strong> Each league night you play in a pod with three other
+              players.</li>
+            <li><strong>Three doubles matches.</strong> You partner with each of the other three once.</li>
+            <li><strong>Ratings update weekly.</strong> Elo keeps pods close to your level, and beating
+              someone rated above you moves you the most.</li>
+          </ol>
         </div>
-        <div class="feature">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M23 22c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2v12zM18 4l-4 4-4-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M9 15h10M9 19h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="about-notes">
+          <div class="about-note">
+            <h3>Inclusive and player first</h3>
+            <p>Players range from 2.0 to 4.0+. If you are still working out where to stand there is a pod for you,
+              and if you are chasing a 4.0 there is a pod for that too.</p>
           </div>
-          <h3>Off the court</h3>
-          <p>The WhatsApp group carries announcements and the after-match conversation. Scores go to the
-            <a href="https://www.globalpickleball.network/network/home/5110-gateway-smash"
-               target="_blank" rel="noopener noreferrer">Gateway Smash club page on Global Pickleball Network</a>.</p>
+          <div class="about-note">
+            <h3>Off the court</h3>
+            <p>The WhatsApp group carries announcements and the after-match conversation. Scores go to the
+              <a href="https://www.globalpickleball.network/network/home/5110-gateway-smash"
+                 target="_blank" rel="noopener noreferrer">Gateway Smash club page on Global Pickleball Network</a>.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -179,67 +189,100 @@
             <thead>
               <tr>
                 <th scope="col">Season</th>
-                <th scope="col">Season Dates</th>
-                <th scope="col">Registration Opens</th>
-                <th scope="col">Bye (reason)</th>
+                <th scope="col">Season dates</th>
+                <th scope="col">Registration opens</th>
+                <th scope="col">Bye</th>
               </tr>
             </thead>
             <tbody>
               <tr data-start="2026-09-20" data-end="2026-11-08" data-registration="2026-08-20">
                 <td data-label="Season">Fall 2026</td>
-                <td data-label="Season Dates">Sep 20 – Nov 8, 2026</td>
-                <td data-label="Registration Opens">August 20, 2026</td>
-                <td data-label="Bye (reason)">None</td>
+                <td data-label="Season dates">Sep 20 – Nov 8, 2026</td>
+                <td data-label="Registration opens">August 20, 2026</td>
+                <td data-label="Bye">None</td>
               </tr>
               <tr data-start="2027-01-10" data-end="2027-03-07" data-registration="2026-12-10">
                 <td data-label="Season">Winter 2027</td>
-                <td data-label="Season Dates">Jan 10 – Mar 7, 2027</td>
-                <td data-label="Registration Opens">December 10, 2026</td>
-                <td data-label="Bye (reason)">February 14 (Super Bowl)</td>
+                <td data-label="Season dates">Jan 10 – Mar 7, 2027</td>
+                <td data-label="Registration opens">December 10, 2026</td>
+                <td data-label="Bye">February 14 (Super Bowl)</td>
               </tr>
               <tr data-start="2027-04-04" data-end="2027-05-30" data-registration="2027-03-04">
                 <td data-label="Season">Spring 2027</td>
-                <td data-label="Season Dates">Apr 4 – May 30, 2027</td>
-                <td data-label="Registration Opens">March 4, 2027</td>
-                <td data-label="Bye (reason)">May 9 (Mother's Day)</td>
+                <td data-label="Season dates">Apr 4 – May 30, 2027</td>
+                <td data-label="Registration opens">March 4, 2027</td>
+                <td data-label="Bye">May 9 (Mother's Day)</td>
               </tr>
               <tr data-start="2027-07-25" data-end="2027-09-19" data-registration="2027-06-25">
                 <td data-label="Season">Summer 2027</td>
-                <td data-label="Season Dates">Jul 25 – Sep 19, 2027</td>
-                <td data-label="Registration Opens">June 25, 2027</td>
-                <td data-label="Bye (reason)">September 5 (Labor Day weekend)</td>
+                <td data-label="Season dates">Jul 25 – Sep 19, 2027</td>
+                <td data-label="Registration opens">June 25, 2027</td>
+                <td data-label="Bye">September 5 (Labor Day weekend)</td>
               </tr>
               <tr data-start="2027-10-03" data-end="2027-11-28" data-registration="2027-09-03">
                 <td data-label="Season">Fall 2027</td>
-                <td data-label="Season Dates">Oct 3 – Nov 28, 2027</td>
-                <td data-label="Registration Opens">September 3, 2027</td>
-                <td data-label="Bye (reason)">November 21 (Thanksgiving week)</td>
+                <td data-label="Season dates">Oct 3 – Nov 28, 2027</td>
+                <td data-label="Registration opens">September 3, 2027</td>
+                <td data-label="Bye">November 21 (Thanksgiving week)</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <h3>League info</h3>
-        <ul class="league-info">
-          <li><strong>Day:</strong> Sunday nights</li>
-          <li><strong>Time:</strong> 6:00–8:00 PM</li>
-          <!-- "Split between" rather than "then": pods finish at different
-               times, so naming an order would be wrong for some of them. A
-               smoke check derives the hours from the Time line above and fails
-               if this line stops agreeing with it. -->
-          <li><strong>Court time:</strong> Two hours, split between three league matches and an hour on
-            two social courts</li>
-          <li><strong>Location:</strong> Arch Pickleball, Bridgeton</li>
-          <li><strong>Courts:</strong> #1–#8 and #10, 7 league courts and 2 social (#2 and #8)</li>
-          <li><strong>Cost:</strong> $70 for the eight-week season</li>
-          <li><strong>Roster:</strong> 56 players, first come first served</li>
-          <li><strong>Registration:</strong> Opens at 8:00 AM Central on the date in the schedule, for 24 hours or
-            until the roster fills</li>
-          <li><strong>Skill levels:</strong> 2.0 to 4.0+</li>
-        </ul>
+        <!-- Grouped by the question each line answers. The first group is what
+             a newcomer checks before deciding; the second is what they need on
+             the night. Each line keeps the <li><strong>Label:</strong> value</li>
+             shape, which several smoke checks read. -->
+        <div class="league-info-groups">
+          <div class="league-info-group">
+            <h4>Joining</h4>
+            <ul class="league-info">
+              <li><strong>Cost:</strong> $70 for the eight-week season</li>
+              <li><strong>Skill levels:</strong> 2.0 to 4.0+</li>
+              <li><strong>Roster:</strong> 56 players, first come first served</li>
+              <li><strong>Registration:</strong> Opens at 8:00 AM Central on the date in the schedule, for 24 hours or
+              until the roster fills</li>
+            </ul>
+          </div>
+          <div class="league-info-group">
+            <h4>League night</h4>
+            <ul class="league-info">
+              <li><strong>Day:</strong> Sunday nights</li>
+              <li><strong>Time:</strong> 6:00–8:00 PM</li>
+              <!-- "Split between" rather than "then": pods finish at different
+                   times, so naming an order would be wrong for some of them. A
+                   smoke check derives the hours from the Time line above and fails
+                   if this line stops agreeing with it. -->
+              <li><strong>Court time:</strong> Two hours, split between three league matches and an hour on
+              two social courts</li>
+              <li><strong>Location:</strong> Arch Pickleball, Bridgeton</li>
+              <li><strong>Courts:</strong> #1–#8 and #10, 7 league courts and 2 social (#2 and #8)</li>
+            </ul>
+          </div>
+        </div>
 
         <p class="league-sub-cta">Cannot commit to a full season?
           <a href="/subs/">Play as a sub</a>. Subs play free.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- The page's closing next step, under the schedule it follows from. Ships
+       season-neutral like the hero: js/app.js names the season, its start and
+       its registration window from the same rows, and gives the button the
+       hero's label. No eyebrow: the heading carries it. -->
+  <section class="next-step" aria-labelledby="next-heading">
+    <div class="container next-step-inner">
+      <h2 id="next-heading">Join the next season</h2>
+      <p class="next-step-note" id="next-note" hidden></p>
+      <div class="next-step-actions">
+        <a href="https://www.globalpickleball.network/network/register/5110-gateway-smash"
+           class="btn btn--primary"
+           id="next-join"
+           target="_blank"
+           rel="noopener noreferrer">Join the League</a>
+        <a href="/faq/" class="btn btn--ghost">Read the FAQ</a>
       </div>
     </div>
   </section>
@@ -252,24 +295,15 @@
       </div>
       <div class="contact-info">
         <div class="contact-item">
-          <div class="contact-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="currentColor"/></svg>
-          </div>
           <h3>Location</h3>
           <p>Arch Pickleball<br>11333 Blake Drive<br>Bridgeton, MO 63044</p>
         </div>
         <div class="contact-item">
-          <div class="contact-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/></svg>
-          </div>
           <h3>Email</h3>
           <p><a href="mailto:info@gatewaysmash.com">info@gatewaysmash.com</a></p>
         </div>
         <div class="contact-item">
-          <div class="contact-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <h3>Join our WhatsApp Chat</h3>
+          <h3>WhatsApp</h3>
           <p><a href="/join" rel="nofollow">Join the WhatsApp group</a></p>
         </div>
       </div>

@@ -24,14 +24,14 @@
       "headline": { "displayName": "Headline", "purpose": "Centred section h2s." },
       "title": { "displayName": "Title", "purpose": "Card and panel h3s." },
       "body": { "displayName": "Body", "purpose": "Default running text in soft ink." },
+      "body-small": { "displayName": "Body small", "purpose": "Card, note, list and callout copy; 0.9rem is its compact step." },
+      "numeral": { "displayName": "Numeral", "purpose": "Ladder step numbers; only for a real sequence." },
       "lead": { "displayName": "Lead", "purpose": "Hero description and section leads in muted ink." },
       "label": { "displayName": "Label", "purpose": "Uppercase section tags and table headers." }
     },
     "shadows": [
       { "name": "shadow-sm", "value": "0 1px 3px rgba(28, 28, 28, 0.06)", "purpose": "Header after scroll." },
       { "name": "shadow-card", "value": "0 2px 8px rgba(28, 28, 28, 0.06), 0 0 0 1px rgba(28, 28, 28, 0.03)", "purpose": "League panel at rest." },
-      { "name": "shadow-md", "value": "0 4px 12px rgba(28, 28, 28, 0.08)", "purpose": "Contact card hover." },
-      { "name": "shadow-lg", "value": "0 8px 30px rgba(28, 28, 28, 0.1)", "purpose": "Feature card hover." },
       { "name": "green-glow", "value": "0 4px 14px rgba(26, 122, 92, 0.3)", "purpose": "Primary button only; 0.35 alpha on hover." }
     ],
     "motion": [
@@ -79,12 +79,12 @@
       "css": ".ds-eyebrow { display: inline-block; margin: 0; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #96550a; background: #fef3e2; padding: 8px 20px; border-radius: 50px; }"
     },
     {
-      "name": "Feature Card",
-      "kind": "card",
-      "refersTo": "feature-card",
-      "description": "A cream card with an icon tile, serif title and short copy.",
-      "html": "<div class=\"ds-feature\"><div class=\"ds-feature-icon\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 28 28\" fill=\"none\"><path d=\"M26 6l-12 12-4-4-8 8\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M20 6h6v6\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><h3 class=\"ds-feature-title\">How the ladder works</h3><p class=\"ds-feature-copy\">Three doubles matches a night in a pod of four. Elo ratings update weekly.</p></div>",
-      "css": ".ds-feature { background: #faf7f2; border: 1px solid #ece8e1; border-radius: 20px; padding: 2.25rem; max-width: 340px; transition: transform 0.25s ease, box-shadow 0.25s ease; } .ds-feature:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(28, 28, 28, 0.1); } .ds-feature-icon { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: #e8f5ef; color: #1a7a5c; border-radius: 12px; margin-bottom: 1.25rem; } .ds-feature-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 1.3rem; line-height: 1.15; color: #1c1c1c; margin: 0 0 0.75rem; } .ds-feature-copy { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.95rem; line-height: 1.65; color: #6b6b6b; margin: 0; }"
+      "name": "Ladder Steps",
+      "kind": "custom",
+      "refersTo": "ladder-panel",
+      "description": "The numbered weekly sequence in the About section.",
+      "html": "<div class=\"ds-ladder\"><h3 class=\"ds-ladder-title\">How the ladder works</h3><ol class=\"ds-steps\"><li><strong>A pod of four.</strong> Each league night you play in a pod with three other players.</li><li><strong>Three doubles matches.</strong> You partner with each of the other three once.</li><li><strong>Ratings update weekly.</strong> Elo keeps pods close to your level, and beating someone rated above you moves you the most.</li></ol></div>",
+      "css": ".ds-ladder { background: #faf7f2; border: 1px solid #ece8e1; border-radius: 20px; padding: 2.25rem 2.5rem; max-width: 560px; } .ds-ladder-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 1.3rem; color: #1c1c1c; margin: 0 0 1.25rem; } .ds-steps { list-style: none; margin: 0; padding: 0; counter-reset: ladder; } .ds-steps li { counter-increment: ladder; display: grid; grid-template-columns: 2.5rem 1fr; column-gap: 1rem; padding: 1rem 0; border-top: 1px solid #e2ddd5; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.95rem; line-height: 1.6; color: #6b6b6b; } .ds-steps li:last-child { padding-bottom: 0; } .ds-steps li::before { content: counter(ladder); grid-row: span 2; font-family: 'DM Serif Display', Georgia, serif; font-size: 2rem; line-height: 1; color: #1a7a5c; } .ds-steps strong { display: block; color: #1c1c1c; font-weight: 600; margin-bottom: 0.15rem; }"
     },
     {
       "name": "Schedule Table",
@@ -113,7 +113,7 @@
   ],
   "narrative": {
     "northStar": "The Clubhouse Noticeboard",
-    "overview": "The site reads like the board by the front desk of a club that is run well: warm paper, one confident green, a serif headline pinned at the top, and below it the facts a player came for, set out plainly and kept current. The credibility comes from being organized, not from looking expensive. A visitor comparing this league with the corporate ones should come away thinking \"these people have their act together\" and never \"this is a sales funnel\".\n\nDensity is relaxed on the homepage and closer to reading density on the inner pages. Sections alternate cream and white like sheets on a board, each opening with a small pill tag and a centred serif heading. Ornament is kept to near nothing: three faint radial washes behind the hero, small line icons in tinted tiles, and a gentle lift on hover. Information such as the schedule table, the League Info list and the callouts is where the care shows.\n\nWhat it must never become: a corporate league's SaaS page (glossy gradients, stock photos of smiling players, dark promo banners), an aggressive sports brand (black-and-neon, italic condensed type, energy-drink intensity), or a generic startup template (purple gradients, icon-card grids for everything, glass).",
+    "overview": "The site reads like the board by the front desk of a club that is run well: warm paper, one confident green, a serif headline pinned at the top, and below it the facts a player came for, set out plainly and kept current. The credibility comes from being organized, not from looking expensive. A visitor comparing this league with the corporate ones should come away thinking \"these people have their act together\" and never \"this is a sales funnel\".\n\nDensity is relaxed on the homepage and closer to reading density on the inner pages. Sections alternate cream and white like sheets on a board, each opening with a small pill tag and a centred serif heading. Ornament is kept to near nothing: three faint radial washes behind the hero, numerals and ruled lines where content is a sequence or a listing, and a small lift on the buttons. Information such as the schedule table, the League Info list and the callouts is where the care shows.\n\nWhat it must never become: a corporate league's SaaS page (glossy gradients, stock photos of smiling players, dark promo banners), an aggressive sports brand (black-and-neon, italic condensed type, energy-drink intensity), or a generic startup template (purple gradients, icon-card grids for everything, glass).",
     "keyCharacteristics": [
       "Warm cream paper, never stark white as the page ground.",
       "One accent, court green, carries every action and link.",
@@ -127,8 +127,8 @@
       { "name": "The Amber Means Today Rule", "body": "Amber text marks what a visitor can act on today. Adding it for emphasis or decoration spends the one signal that tells a player registration is open.", "section": "colors" },
       { "name": "The 404 Copy Rule", "body": "404.html carries its own copy of the palette, which must match :root in css/style.css token for token. The build fails if they drift.", "section": "colors" },
       { "name": "The One Weight Serif Rule", "body": "DM Serif Display ships at weight 400 only. Never bold it: the browser will fake a bold that no font file backs.", "section": "typography" },
-      { "name": "The Sentence Case Rule", "body": "Every heading is in sentence case except the homepage h1, which is a wordmark.", "section": "typography" },
-      { "name": "The Pinned Paper Rule", "body": "Surfaces rest flat. Shadows are for the one panel that holds the schedule and for responses to hover, never for decoration.", "section": "elevation" }
+      { "name": "The Sentence Case Rule", "body": "Every heading, button and table label is in sentence case (\"Learn more\", \"Registration opens\"). The one exception is the homepage h1, \"People Over Profits. Pickleball For Everyone.\", which is a wordmark and stays in title case by the owner's decision.", "section": "typography" },
+      { "name": "The Pinned Paper Rule", "body": "Surfaces rest flat. Shadows are for the one panel that holds the schedule and for the primary button, never for decoration or for a hover on something that is not clickable.", "section": "elevation" }
     ],
     "dos": [
       "Do ground every page in cream (cream) and alternate white bands for section rhythm.",

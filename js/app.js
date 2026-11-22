@@ -253,6 +253,15 @@ import '../css/style.css';
     return MONTHS[date.getUTCMonth()] + ' ' + date.getUTCDate() + ', ' + date.getUTCFullYear();
   }
 
+  // "Dec 10", the way the schedule table writes its dates. Same rule as
+  // longDate: a vetted timestamp only, never the raw attribute. The space is
+  // non-breaking because this goes into the hero button, which wraps at phone
+  // widths, and a date split across two lines reads as two facts.
+  function shortDate(time) {
+    var date = new Date(time);
+    return MONTHS[date.getUTCMonth()].slice(0, 3) + '\u00a0' + date.getUTCDate();
+  }
+
   // One sentence, two consumers. The callout under the schedule table and the
   // hero note both have to name the running season in the same words, and #51
   // was filed because they had drifted: the callout said what was being played
@@ -282,6 +291,22 @@ import '../css/style.css';
     return next.isOpen
       ? subject + ' is today, from ' + REGISTRATION_TIME + '.'
       : subject + ' opens ' + longDate(next.opens) + ' at ' + REGISTRATION_TIME + '.';
+  }
+
+  // The label for both Join buttons, the hero's and the closing band's, so the
+  // two cannot drift. "Join" is true on registration day only; on every other
+  // day the link still opens the GPN register page, so the label says when.
+  function joinLabel(next) {
+    return next.isOpen
+      ? 'Join ' + next.name
+      : 'Register for ' + next.name + ' from\u00a0' + shortDate(next.opens);
+  }
+
+  // "January 10": the closing band's heading names the start, and the year is
+  // already in the season's name.
+  function monthDay(time) {
+    var date = new Date(time);
+    return MONTHS[date.getUTCMonth()] + ' ' + date.getUTCDate();
   }
 
   function statusOf(row) {
@@ -371,10 +396,23 @@ import '../css/style.css';
           // all three of this row's dates parsed.
           opens: parseDate(row.getAttribute('data-registration')),
           isOpen: status.modifier === 'open',
+          row: row,
+          cell: cell,
         };
       }
     }
   });
+
+  // Four rows can read Upcoming at once, so the one a visitor can join next is
+  // marked, and before its window opens its status names the day it does.
+  // Written after the loop, because the soonest row is only known once every
+  // row has been read. On registration day the row keeps "Registration open".
+  if (nextRegistration) {
+    nextRegistration.row.classList.add('season-row--next');
+    if (!nextRegistration.isOpen) {
+      nextRegistration.cell.textContent = 'Registration ' + shortDate(nextRegistration.opens);
+    }
+  }
 
   if (callout) {
     var parts = [];
@@ -427,12 +465,38 @@ import '../css/style.css';
     // season, there is nothing to name and reading .name off null would throw.
     // "Join the League" is already true in every season, so leaving the label
     // alone is correct, and the note above still reports what is being played.
+    // "Join" is only true on registration day. On every other day the button
+    // still leads to the GPN register page, so the label says when that page
+    // opens rather than inviting a click on a window that is shut. The style
+    // stays primary by the owner's decision; the label carries the honesty.
     if (join && nextRegistration) {
-      join.textContent = 'Join ' + nextRegistration.name;
+      join.textContent = joinLabel(nextRegistration);
       // The button now names a season but not its availability. Tying the two
       // together means a screen reader reads the date with the button instead
       // of only on the way past it.
       join.setAttribute('aria-describedby', 'hero-note');
+    }
+  }
+
+  // The closing band repeats the hero's next step after the schedule, so a
+  // visitor who has read down to here does not have to scroll back up to act.
+  // Same label, same registration sentence, from the same helpers. It ships
+  // season-neutral, and with nothing left to join it stays that way, as the
+  // hero does.
+  var nextHeading = document.getElementById('next-heading');
+  var nextNote = document.getElementById('next-note');
+  var nextJoin = document.getElementById('next-join');
+  if (nextRegistration && nextHeading && nextNote) {
+    nextHeading.textContent =
+      nextRegistration.name + ' starts ' + monthDay(nextRegistration.start) + '.';
+    // The heading names the season, so the sentence does not name it again.
+    nextNote.textContent = registrationSentence(nextRegistration, false);
+    nextNote.className = 'next-step-note' +
+      (nextRegistration.isOpen ? ' next-step-note--open' : '');
+    nextNote.hidden = false;
+    if (nextJoin) {
+      nextJoin.textContent = joinLabel(nextRegistration);
+      nextJoin.setAttribute('aria-describedby', 'next-note');
     }
   }
 
