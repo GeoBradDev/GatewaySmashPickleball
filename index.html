@@ -104,6 +104,15 @@
            and a question the previous line just answered reads as filler. -->
       <p class="hero-sub-cta" id="hero-sub" hidden>Not on a roster?
         <a href="/subs/">Play as a sub</a>.</p>
+      <!-- The between-seasons counterpart of #hero-sub, revealed the same way
+           and for the same reason: static copy, so js/app.js only clears
+           hidden. It shows when nothing is on court and the next window has
+           not opened, which is the one state where the hero otherwise names a
+           season nobody can join yet and offers nothing else to do. There is
+           nothing to sub in then, so it points at the group the "Off the
+           court" card already says carries announcements. -->
+      <p class="hero-sub-cta" id="hero-remind" hidden>Waiting for registration?
+        Announcements go out in the <a href="/join" rel="nofollow">WhatsApp group</a>.</p>
     </div>
   </section>
 

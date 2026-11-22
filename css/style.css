@@ -478,8 +478,11 @@ nav {
   order: 3;
   margin: 0.25rem 0 0;
   font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--ink-muted);
+  font-weight: 600;
+  /* --ink-soft rather than --ink-muted: before registration opens, this line
+     is what qualifies a button naming a season nobody can join yet, so it
+     cannot be the quietest text in the hero. */
+  color: var(--ink-soft);
   /* Without this the opening time wraps at 375px to a lone "Central." on its
      own line. Balancing moves the break instead of editing the string, which
      a smoke check compares to the page copy, so no non-breaking space. */

@@ -5,5 +5,20 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-22T14:59:13.383Z",
+        "reason": "Agent: source scan has no stylesheet (css/style.css enters via the js/app.js import at build), so every role reads as 16px; the rendered page (h1 3.75rem, h2 2.75rem, body 16px) did not trigger this rule in the URL scans at 1440 and 390"
+      }
+    ]
   }
 }

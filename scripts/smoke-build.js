@@ -2463,12 +2463,16 @@ function statusesOn(when, opts) {
   // behavior, which is also why it survives a page that has lost the note.
   const sub = createElementStub();
   sub.hidden = true;
+  // Static copy revealed by clearing hidden, exactly like the subs offer.
+  const remind = createElementStub();
+  remind.hidden = true;
 
   const page = {
     'season-callout': callout,
     'hero-join': join,
     'hero-note': note,
     'hero-sub': sub,
+    'hero-remind': remind,
   };
   omit.forEach(function (id) {
     delete page[id];
@@ -2491,6 +2495,7 @@ function statusesOn(when, opts) {
     note: note.hidden ? null : note.textContent,
     noteClass: note.className,
     subShown: !sub.hidden,
+    remindShown: !remind.hidden,
   };
 }
 
@@ -3832,6 +3837,49 @@ check('the subs link appears exactly when a season is running and cannot be join
   });
 });
 
+// The gap the subs offer deliberately leaves: nothing on court, so there is
+// nothing to sub in, and the next window has not opened, so the button names a
+// season the visitor cannot join yet. The WhatsApp group is where registration
+// is announced, which makes it the one thing left to do. It must not show
+// beside an open window, where the button is the action, or mid-season, where
+// the subs offer is, or the hero stacks two secondary offers.
+check('the WhatsApp line appears exactly when nothing is running and registration has not opened', function () {
+  const expectations = [
+    // Summer 2026 being played, Fall registration a fortnight out: subs, not this.
+    ['2026-07-31', false],
+    // Fall registration open today, mid-season.
+    ['2026-08-13', false],
+    // Between Summer and Fall, Fall's one-day window already closed (Full), so
+    // the next window is Winter's, months out: the gap.
+    ['2026-09-01', true],
+    // Between seasons and before Winter registration opens: the gap.
+    ['2026-11-15', true],
+    // Winter registration day, nothing running: the button is the action.
+    ['2026-12-11', false],
+    // Winter 2027 being played, no later row.
+    ['2027-02-01', false],
+    // Every season finished: no window to wait for.
+    ['2027-06-01', false],
+  ];
+  expectations.forEach(function ([day, expected]) {
+    const result = statusesOn(day);
+    if (result.remindShown !== expected) {
+      throw new Error(
+        'on ' + day + ' the WhatsApp line was ' + (result.remindShown ? 'shown' : 'hidden') +
+          ', expected ' + (expected ? 'shown' : 'hidden')
+      );
+    }
+    if (result.remindShown && result.subShown) {
+      throw new Error('on ' + day + ' the hero showed both the subs offer and the WhatsApp line');
+    }
+  });
+  // Like the subs offer it makes no season claim, so a page that lost the note
+  // keeps it.
+  if (!statusesOn('2026-11-15', { omit: ['hero-note'] }).remindShown) {
+    throw new Error('the WhatsApp line was suppressed by the note being missing');
+  }
+});
+
 // Renaming the button is what creates the obligation to say whether the season
 // can be joined; the note is what discharges it. If the note is missing, the
 // page would otherwise name a season and stay silent about a registration
@@ -3897,6 +3945,19 @@ check('the built hero ships the ids the bundle enhances', function () {
   // The offer is only worth making if it goes somewhere.
   if (!/href=["']\/subs\/["']/.test(subPara[0])) {
     throw new Error('p#hero-sub does not link to /subs/');
+  }
+  // The between-seasons line, held the same way: shipped hidden, because a
+  // page without JS cannot know whether registration is open, and linked
+  // through /join, never to the invite.
+  const remindPara = indexHtml.match(/<p\b[^>]*\bid=["']hero-remind["'][^>]*>[^]*?<\/p>/);
+  if (!remindPara) {
+    throw new Error('dist/index.html has no p#hero-remind, so the between-seasons line never appears');
+  }
+  if (!/\bhidden\b/.test(remindPara[0].match(/^<p\b[^>]*>/)[0])) {
+    throw new Error('p#hero-remind ships without hidden, so it shows while registration is open and without JS');
+  }
+  if (!/href=["']\/join["']/.test(remindPara[0])) {
+    throw new Error('p#hero-remind does not link to /join');
   }
 });
 

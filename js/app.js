@@ -448,6 +448,16 @@ import '../css/style.css';
   if (subCta && current && !(nextRegistration && nextRegistration.isOpen)) {
     subCta.hidden = false;
   }
+
+  // The gap between seasons: nothing on court, so no sub offer, and the next
+  // window has not opened, so the button names a season that cannot be joined
+  // yet. The group is where the announcement lands, which makes it the one
+  // thing a visitor can do today. Independent of the note branch, like the
+  // offer above, because it makes no season claim either.
+  var remind = document.getElementById('hero-remind');
+  if (remind && !current && nextRegistration && !nextRegistration.isOpen) {
+    remind.hidden = false;
+  }
 })();
 
 (function () {

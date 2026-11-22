@@ -721,19 +721,29 @@ hand-written "Summer 2026 is in progress" is wrong the moment the season ends,
 which is the state issue #10 found the site in. `js/app.js` reads `data-start`,
 `data-end` and `data-registration` off each schedule row and from them writes the
 Status column, the callout above the table, the hero CTA label and note, and
-whether the hero's "Play as a sub" offer is shown.
+which of the hero's two secondary lines is shown: the "Play as a sub" offer or the
+between-seasons WhatsApp line.
 
 This is **progressive enhancement**, and it has to stay that way. `index.html`
 ships the CTA as "Join the League", the note as an empty `hidden` paragraph, and
-the subs offer as a `hidden` one carrying its own static copy, so a visitor
-without JavaScript gets a correct, season-neutral page rather than an empty gap.
+the subs offer and the WhatsApp line as `hidden` ones carrying their own static
+copy, so a visitor without JavaScript gets a correct, season-neutral page rather than an empty gap.
 Baking a season name into the markup would reintroduce the original defect. A
 smoke check reads `dist/index.html` and fails if the season-neutral label or
-either `hidden` attribute goes missing.
+any of those `hidden` attributes goes missing.
 
-The subs offer is the one piece of the hero JS **reveals rather than writes**.
-Its copy names no season, so there is nothing to derive, and a `textContent`
-write would take the `/subs/` link inside it with it. The same trap is why the
+The subs offer and the WhatsApp line are the pieces of the hero the JS **reveals
+rather than writes**. They split the "cannot register today" states between them and
+never show together. The subs offer is for a season on court. `#hero-remind` is
+for the gap: nothing on court and the next window not yet open, which is the one
+state where the button names a season nobody can join and nothing else in the
+hero is actionable. It links to `/join`, because the group carries the
+announcements, and it states no more than that: it does not promise a reminder
+the organizers have not committed to send. Neither shows on registration day,
+where the button is the action. A smoke check pins the dates for both.
+
+Their copy names no season, so there is nothing to derive, and a `textContent`
+write would take the link inside each one with it. The same trap is why the
 `target="_blank"` links still have no visually-hidden new-tab warning: adding
 one inside `#hero-join` would be wiped by the label rewrite, so it has to hang
 off a second `aria-describedby` id instead.
