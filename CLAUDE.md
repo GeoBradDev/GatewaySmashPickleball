@@ -728,6 +728,16 @@ between-seasons WhatsApp line. It also marks the one row a visitor can join next
 names, because both read `nextRegistration`, and it is only known once every row
 has been read, so it is written after the row loop rather than in it.
 
+The **closing band** under the schedule (`#next-heading`, `#next-note`,
+`#next-join`) repeats the hero's next step for a visitor who has read down to
+it. It ships season-neutral like the hero, and the bundle writes it from the
+same `nextRegistration`: the heading names the season and its start, the note
+is `registrationSentence` without the season name, and the button takes
+`joinLabel`, the one function both buttons use, so the two can never say
+different things. With nothing left to join it keeps its shipped copy. A smoke
+check pins it against the hero in four states, and another pins its static
+markup and that its button links where the hero's does.
+
 This is **progressive enhancement**, and it has to stay that way. `index.html`
 ships the CTA as "Join the League", the note as an empty `hidden` paragraph, and
 the subs offer and the WhatsApp line as `hidden` ones carrying their own static

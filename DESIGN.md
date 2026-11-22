@@ -347,6 +347,13 @@ panel rather than on cream, so the seasons still ahead read first. The next
 season is outlined in court green instead of tinted, since every entry is already
 cream.
 
+### Closing band
+The page's one return to full volume after the hero. It continues the schedule's
+cream with no rule or card, and puts the display face at 3.25rem (2.25rem at
+768px, 1.85rem at 480px) over a 600-weight `ink-soft` registration sentence and
+the same primary and ghost buttons as the hero. No eyebrow. Its copy is derived
+from the schedule, and its note turns amber only on registration day.
+
 ### Callouts
 - **Season callout:** court wash, a 3px green left rule, 8px radius, 0.95rem/500
   ink text. It sits above the table and states the season in play.
