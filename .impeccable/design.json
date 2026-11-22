@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T00:00:00Z",
+  "title": "Design System: Gateway Smash Pickleball",
+  "extensions": {
+    "colorMeta": {
+      "court-green": { "role": "primary", "displayName": "Court Green", "canonical": "#1a7a5c", "tonalRamp": ["#06261b", "#0b3d2d", "#0f5e44", "#1a7a5c", "#3f9878", "#7dbea5", "#bfe0d2", "#e8f5ef"] },
+      "court-green-dark": { "role": "primary", "displayName": "Deep Court Green", "canonical": "#0f5e44", "tonalRamp": ["#06261b", "#0b3d2d", "#0f5e44", "#1a7a5c", "#3f9878", "#7dbea5", "#bfe0d2", "#e8f5ef"] },
+      "court-green-light": { "role": "primary", "displayName": "Court Wash", "canonical": "#e8f5ef", "tonalRamp": ["#06261b", "#0b3d2d", "#0f5e44", "#1a7a5c", "#3f9878", "#7dbea5", "#bfe0d2", "#e8f5ef"] },
+      "amber": { "role": "secondary", "displayName": "Signal Amber", "canonical": "#e8860c", "tonalRamp": ["#2e1902", "#4d2c05", "#96550a", "#c26f06", "#e8860c", "#f2ae5a", "#f9d6a6", "#fef3e2"] },
+      "amber-dark": { "role": "secondary", "displayName": "Registration Amber", "canonical": "#96550a", "tonalRamp": ["#2e1902", "#4d2c05", "#96550a", "#c26f06", "#e8860c", "#f2ae5a", "#f9d6a6", "#fef3e2"] },
+      "amber-light": { "role": "secondary", "displayName": "Amber Glow", "canonical": "#fef3e2", "tonalRamp": ["#2e1902", "#4d2c05", "#96550a", "#c26f06", "#e8860c", "#f2ae5a", "#f9d6a6", "#fef3e2"] },
+      "cream": { "role": "neutral", "displayName": "Clubhouse Cream", "canonical": "#faf7f2", "tonalRamp": ["#2a2620", "#4a443b", "#7a7266", "#a8a092", "#cfc8bb", "#e2ddd5", "#f0ebe3", "#faf7f2"] },
+      "white": { "role": "neutral", "displayName": "Sheet White", "canonical": "#ffffff" },
+      "ink": { "role": "neutral", "displayName": "Scoreboard Ink", "canonical": "#1c1c1c", "tonalRamp": ["#1c1c1c", "#2b2b2b", "#3d3d3d", "#545454", "#6b6b6b", "#9a9a9a", "#c4c4c4", "#ececec"] },
+      "ink-soft": { "role": "neutral", "displayName": "Soft Ink", "canonical": "#3d3d3d" },
+      "ink-muted": { "role": "neutral", "displayName": "Muted Ink", "canonical": "#6b6b6b" },
+      "ink-faint": { "role": "neutral", "displayName": "Faint Ink", "canonical": "#9a9a9a" },
+      "border": { "role": "neutral", "displayName": "Line", "canonical": "#e2ddd5" },
+      "border-light": { "role": "neutral", "displayName": "Hairline", "canonical": "#ece8e1" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Homepage h1 wordmark only." },
+      "headline": { "displayName": "Headline", "purpose": "Centred section h2s." },
+      "title": { "displayName": "Title", "purpose": "Card and panel h3s." },
+      "body": { "displayName": "Body", "purpose": "Default running text in soft ink." },
+      "lead": { "displayName": "Lead", "purpose": "Hero description and section leads in muted ink." },
+      "label": { "displayName": "Label", "purpose": "Uppercase section tags and table headers." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 3px rgba(28, 28, 28, 0.06)", "purpose": "Header after scroll." },
+      { "name": "shadow-card", "value": "0 2px 8px rgba(28, 28, 28, 0.06), 0 0 0 1px rgba(28, 28, 28, 0.03)", "purpose": "League panel at rest." },
+      { "name": "shadow-md", "value": "0 4px 12px rgba(28, 28, 28, 0.08)", "purpose": "Contact card hover." },
+      { "name": "shadow-lg", "value": "0 8px 30px rgba(28, 28, 28, 0.1)", "purpose": "Feature card hover." },
+      { "name": "green-glow", "value": "0 4px 14px rgba(26, 122, 92, 0.3)", "purpose": "Primary button only; 0.35 alpha on hover." }
+    ],
+    "motion": [
+      { "name": "ease-color", "value": "0.2s ease", "purpose": "Link and nav colour changes." },
+      { "name": "ease-lift", "value": "0.25s ease", "purpose": "Button and card hover lift." },
+      { "name": "ease-header", "value": "0.3s ease", "purpose": "Header shadow and menu bar animation." }
+    ],
+    "breakpoints": [
+      { "name": "grid-collapse", "value": "900px" },
+      { "name": "mobile-nav", "value": "768px" },
+      { "name": "compact", "value": "480px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action, such as Join the League.",
+      "html": "<a class=\"ds-btn ds-btn-primary\" href=\"#\">Join the League</a>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; font-family: 'DM Sans', system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 14px 32px; min-height: 48px; border-radius: 50px; border: 2px solid transparent; text-decoration: none; letter-spacing: 0.01em; transition: all 0.25s ease; } .ds-btn-primary { background: #1a7a5c; color: #fff; border-color: #1a7a5c; box-shadow: 0 4px 14px rgba(26, 122, 92, 0.3); } .ds-btn-primary:hover { background: #0f5e44; border-color: #0f5e44; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26, 122, 92, 0.35); } .ds-btn:focus-visible { outline: 2px solid #1a7a5c; outline-offset: 3px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The secondary action beside a primary, such as Learn More.",
+      "html": "<a class=\"ds-btn ds-btn-ghost\" href=\"#\">Learn More</a>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; font-family: 'DM Sans', system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 14px 32px; min-height: 48px; border-radius: 50px; border: 2px solid transparent; text-decoration: none; letter-spacing: 0.01em; transition: all 0.25s ease; } .ds-btn-ghost { background: transparent; color: #1c1c1c; border-color: #e2ddd5; } .ds-btn-ghost:hover { border-color: #3d3d3d; background: #fff; } .ds-btn:focus-visible { outline: 2px solid #1a7a5c; outline-offset: 3px; }"
+    },
+    {
+      "name": "Section Tag",
+      "kind": "chip",
+      "refersTo": "section-tag",
+      "description": "The pill label above every section heading.",
+      "html": "<span class=\"ds-tag\">Who we are</span>",
+      "css": ".ds-tag { display: inline-block; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #1a7a5c; background: #e8f5ef; padding: 6px 16px; border-radius: 50px; }"
+    },
+    {
+      "name": "Hero Eyebrow",
+      "kind": "chip",
+      "refersTo": "hero-eyebrow",
+      "description": "The amber pill naming when and where the league plays.",
+      "html": "<p class=\"ds-eyebrow\">Sunday Nights at Arch Pickleball</p>",
+      "css": ".ds-eyebrow { display: inline-block; margin: 0; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #96550a; background: #fef3e2; padding: 8px 20px; border-radius: 50px; }"
+    },
+    {
+      "name": "Feature Card",
+      "kind": "card",
+      "refersTo": "feature-card",
+      "description": "A cream card with an icon tile, serif title and short copy.",
+      "html": "<div class=\"ds-feature\"><div class=\"ds-feature-icon\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 28 28\" fill=\"none\"><path d=\"M26 6l-12 12-4-4-8 8\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M20 6h6v6\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><h3 class=\"ds-feature-title\">How the ladder works</h3><p class=\"ds-feature-copy\">Three doubles matches a night in a pod of four. Elo ratings update weekly.</p></div>",
+      "css": ".ds-feature { background: #faf7f2; border: 1px solid #ece8e1; border-radius: 20px; padding: 2.25rem; max-width: 340px; transition: transform 0.25s ease, box-shadow 0.25s ease; } .ds-feature:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(28, 28, 28, 0.1); } .ds-feature-icon { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: #e8f5ef; color: #1a7a5c; border-radius: 12px; margin-bottom: 1.25rem; } .ds-feature-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 1.3rem; line-height: 1.15; color: #1c1c1c; margin: 0 0 0.75rem; } .ds-feature-copy { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.95rem; line-height: 1.65; color: #6b6b6b; margin: 0; }"
+    },
+    {
+      "name": "Schedule Table",
+      "kind": "custom",
+      "refersTo": "league-panel",
+      "description": "The signature schedule table, with a tinted current-season row and derived status.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th>Season</th><th>Season dates</th><th>Status</th></tr></thead><tbody><tr class=\"ds-past\"><td>Fall 2026</td><td>Sep 20 - Nov 8, 2026</td><td><span class=\"ds-status\">Completed</span></td></tr><tr class=\"ds-current\"><td>Winter 2027</td><td>Jan 10 - Mar 7, 2027</td><td><span class=\"ds-status ds-status-current\">In progress</span></td></tr><tr><td>Spring 2027</td><td>Apr 4 - May 30, 2027</td><td><span class=\"ds-status ds-status-open\">Registration open</span></td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { border: 1px solid #e2ddd5; border-radius: 12px; overflow: hidden; background: #fff; } .ds-table { width: 100%; border-collapse: collapse; font-family: 'DM Sans', system-ui, sans-serif; } .ds-table th, .ds-table td { text-align: left; padding: 0.85rem 1.1rem; border-bottom: 1px solid #ece8e1; font-size: 0.9rem; } .ds-table th { background: #faf7f2; color: #1c1c1c; font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; } .ds-table td { color: #3d3d3d; } .ds-table tbody tr:last-child td { border-bottom: none; } .ds-table tbody tr:hover { background: #e8f5ef; } .ds-current td { background: #e8f5ef; } .ds-past td { color: #6b6b6b; } .ds-status { font-weight: 500; font-size: 0.8rem; color: #6b6b6b; white-space: nowrap; } .ds-status-current { color: #1a7a5c; font-weight: 600; } .ds-status-open { color: #96550a; font-weight: 600; }"
+    },
+    {
+      "name": "Season Callout",
+      "kind": "custom",
+      "refersTo": "season-callout",
+      "description": "The green left-ruled note above the schedule stating the season in play.",
+      "html": "<p class=\"ds-callout\">Winter 2027 is in progress. Registration for Spring 2027 opens March 4, 2027 at 8:00 AM Central.</p>",
+      "css": ".ds-callout { margin: 0; padding: 12px 18px; background: #e8f5ef; border-left: 3px solid #1a7a5c; border-radius: 8px; color: #1c1c1c; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.95rem; font-weight: 500; text-wrap: balance; }"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "header",
+      "description": "Translucent cream header with the green mark, serif wordmark and muted links.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-logo\" href=\"#\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\"><circle cx=\"16\" cy=\"16\" r=\"14\" stroke=\"currentColor\" stroke-width=\"2.5\"/><circle cx=\"16\" cy=\"10\" r=\"2\" fill=\"currentColor\"/><circle cx=\"10\" cy=\"19\" r=\"2\" fill=\"currentColor\"/><circle cx=\"22\" cy=\"19\" r=\"2\" fill=\"currentColor\"/><line x1=\"16\" y1=\"12\" x2=\"10\" y2=\"17\" stroke=\"currentColor\" stroke-width=\"1.5\"/><line x1=\"16\" y1=\"12\" x2=\"22\" y2=\"17\" stroke=\"currentColor\" stroke-width=\"1.5\"/><line x1=\"10\" y1=\"19\" x2=\"22\" y2=\"19\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg><span class=\"ds-logo-text\">Gateway Smash</span></a><ul class=\"ds-links\"><li><a href=\"#\">About</a></li><li><a href=\"#\">Leagues</a></li><li><a href=\"#\">FAQ</a></li><li><a href=\"#\">Contact</a></li></ul></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 24px; background: rgba(250, 247, 242, 0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #ece8e1; } .ds-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #1a7a5c; } .ds-logo-text { font-family: 'DM Serif Display', Georgia, serif; font-size: 1.35rem; color: #1c1c1c; letter-spacing: -0.01em; } .ds-links { display: flex; gap: 2rem; list-style: none; margin: 0; padding: 0; } .ds-links a { position: relative; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.9rem; font-weight: 500; color: #6b6b6b; text-decoration: none; padding: 6px 0; transition: color 0.2s ease; } .ds-links a::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: #1a7a5c; border-radius: 1px; transition: width 0.25s ease; } .ds-links a:hover { color: #1c1c1c; } .ds-links a:hover::after { width: 100%; } .ds-links a:focus-visible { outline: 2px solid #1a7a5c; outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clubhouse Noticeboard",
+    "overview": "The site reads like the board by the front desk of a club that is run well: warm paper, one confident green, a serif headline pinned at the top, and below it the facts a player came for, set out plainly and kept current. The credibility comes from being organized, not from looking expensive. A visitor comparing this league with the corporate ones should come away thinking \"these people have their act together\" and never \"this is a sales funnel\".\n\nDensity is relaxed on the homepage and closer to reading density on the inner pages. Sections alternate cream and white like sheets on a board, each opening with a small pill tag and a centred serif heading. Ornament is kept to near nothing: three faint radial washes behind the hero, small line icons in tinted tiles, and a gentle lift on hover. Information such as the schedule table, the League Info list and the callouts is where the care shows.\n\nWhat it must never become: a corporate league's SaaS page (glossy gradients, stock photos of smiling players, dark promo banners), an aggressive sports brand (black-and-neon, italic condensed type, energy-drink intensity), or a generic startup template (purple gradients, icon-card grids for everything, glass).",
+    "keyCharacteristics": [
+      "Warm cream paper, never stark white as the page ground.",
+      "One accent, court green, carries every action and link.",
+      "Amber is the reserved \"act today\" signal, not decoration.",
+      "DM Serif Display headings over DM Sans text, both self-hosted.",
+      "Soft, rounded, approachable forms: pill buttons and tags, 20px cards.",
+      "Facts first: tables, labelled lists and callouts do the persuading."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Court green is the only interactive colour. A link, button or focus ring in any other hue is a bug.", "section": "colors" },
+      { "name": "The Amber Means Today Rule", "body": "Amber text marks what a visitor can act on today. Adding it for emphasis or decoration spends the one signal that tells a player registration is open.", "section": "colors" },
+      { "name": "The 404 Copy Rule", "body": "404.html carries its own copy of the palette, which must match :root in css/style.css token for token. The build fails if they drift.", "section": "colors" },
+      { "name": "The One Weight Serif Rule", "body": "DM Serif Display ships at weight 400 only. Never bold it: the browser will fake a bold that no font file backs.", "section": "typography" },
+      { "name": "The Sentence Case Rule", "body": "Every heading is in sentence case except the homepage h1, which is a wordmark.", "section": "typography" },
+      { "name": "The Pinned Paper Rule", "body": "Surfaces rest flat. Shadows are for the one panel that holds the schedule and for responses to hover, never for decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do ground every page in cream (cream) and alternate white bands for section rhythm.",
+      "Do open each section with a pill tag and a centred DM Serif heading.",
+      "Do keep court green as the only colour for links, buttons and focus.",
+      "Do reserve amber text (amber-dark) for what a visitor can act on today.",
+      "Do keep text at 4.5:1 or better. The build computes the contrast of the key pairs, so a new pairing needs a check too.",
+      "Do keep every link underlined unless it is a button or nav item, and add any new exception to the named list.",
+      "Do keep all assets self-hosted and the styles in the hashed stylesheet. The CSP forbids inline styles and third-party hosts.",
+      "Do honour prefers-reduced-motion: transitions and animations become instant, and smooth scrolling turns off."
+    ],
+    "donts": [
+      "Don't use glossy gradients, stock photography, or dark promo banners. That is the corporate-league look this site exists to contrast with.",
+      "Don't use black-and-neon palettes, italic condensed type or high-energy sports styling.",
+      "Don't use purple gradients, glassmorphism, or icon-card grids as a default layout move.",
+      "Don't add photos, testimonials or quotes the league does not have.",
+      "Don't bold DM Serif Display or add a second display face.",
+      "Don't use amber (#e8860c) for text, or ink-faint on cream.",
+      "Don't add sharp corners or hard drop shadows. Forms stay soft and rounded."
+    ]
+  }
+}
